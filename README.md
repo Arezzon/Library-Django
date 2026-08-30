@@ -266,4 +266,4 @@ which is why the health check passes; don't set `ALLOWED_HOSTS=*.onrender.com`.
 
 ## License
 
-This project is provided as a learning / marathon exercise. Add a license as needed.
+This project is provided as a learning / marathon exercise.
