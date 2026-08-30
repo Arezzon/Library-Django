@@ -1,5 +1,7 @@
 # Django Library - Online Marathon Project
 
+![Logo](/images/library-sys.png)
+
 A full-featured **Library Management System** built with **Python + Django 4.1**, a
 **Django REST Framework** API, and **PostgreSQL** - packaged and ready to run in
 **Docker** with a single command.
