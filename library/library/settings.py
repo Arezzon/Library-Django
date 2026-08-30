@@ -31,7 +31,12 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+# Always allow Render's *.onrender.com hosts; merge with any ALLOWED_HOSTS
+# provided via environment (comma-separated). Strip whitespace so a trailing
+# space in a Render env value can't cause Django to reject the host (HTTP 400).
+_allowed = os.getenv('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
+ALLOWED_HOSTS += ['.onrender.com', 'localhost', '127.0.0.1']
 
 # Application definition
 

@@ -13,7 +13,11 @@ services:
     branch: main
     dockerfilePath: ./Dockerfile
     plan: free
-    # Gunicorn is the container CMD; Render passes the PORT it assigns.
+    # HTTP health check. The schema endpoint (/api/schema/) needs no auth and
+    # returns 200 once gunicorn is listening. ALLOWED_HOSTS now includes
+    # ".onrender.com" so Render's request is not rejected (HTTP 400). If the
+    # free tier is slow to boot, raise the health-check timeout in the Render
+    # dashboard (it is not settable in the Blueprint YAML).
     healthCheckPath: /api/schema/
     envVars:
       - key: DEBUG
@@ -21,7 +25,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS
-        value: "*.onrender.com,localhost,127.0.0.1"
+        value: ".onrender.com,localhost,127.0.0.1"
       - key: DB_ENGINE
         value: django.db.backends.postgresql_psycopg2
       - key: DJANGO_SEED
