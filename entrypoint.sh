@@ -35,4 +35,15 @@ if [ "${DJANGO_SEED}" = "true" ]; then
 fi
 
 echo "Starting server..."
+
+# Honor Render's $PORT (and any platform that injects it). If the command is
+# gunicorn and no explicit --bind port was given, bind to $PORT (default 8000).
+PORT="${PORT:-8000}"
+if [ "$#" -gt 0 ] && [ "$(basename "$1")" = "gunicorn" ]; then
+  # Only add --bind if not already present in the args.
+  if ! printf '%s\n' "$@" | grep -q -- '--bind'; then
+    set -- "$@" --bind "0.0.0.0:${PORT}"
+  fi
+fi
+
 exec "$@"
