@@ -6,7 +6,7 @@ drf-spectacular==0.30.0
 inflection==0.5.1
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
-psycopg2==2.9.9
+psycopg2-binary==2.9.9
 python-dotenv==1.2.3
 pytz==2022.2.1
 PyYAML==6.0.3

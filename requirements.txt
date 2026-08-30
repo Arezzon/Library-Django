@@ -1,9 +1,23 @@
-asgiref==3.5.2
+# Canonical dependency list for the Django Library app.
+# Used by Dockerfile (pip install -r requirements.txt).
 Django==4.1
-psycopg2==2.9.9
-pytz==2022.2.1
+djangorestframework==3.15.1
+drf-spectacular==0.30.0
+psycopg2-binary==2.9.9
+python-dotenv==1.2.3
+# Transitive deps pinned for reproducible builds
+asgiref==3.5.2
+attrs==26.1.0
+inflection==0.5.1
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+PyYAML==6.0.3
+referencing==0.37.0
+rpds-py==2026.6.3
 sqlparse==0.4.2
+typing_extensions==4.16.0
+uritemplate==4.2.0
+pytz==2022.2.1
 tzdata==2022.2
-djangorestframework>=3.14.0
-drf-spectacular>=0.27.0
-python-dotenv>=1.0.0
+# WSGI server for production-like serving inside the container
+gunicorn==22.0.0
