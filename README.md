@@ -30,7 +30,7 @@ This is a small but complete library app:
 |   +----------------------+        +----------------------+          |
 |   |   web  (Django)      |  TCP   |   db  (PostgreSQL)    |          |
 |   |   port 8000          | <----> |   postgres:15-alpine  |          |
-|   |   runserver / gunicorn       |   volume: pgdata      |          |
+|   |   gunicorn (3 workers)       |   volume: pgdata      |          |
 |   +----------------------+        +----------------------+          |
 +---------------------------------------------------------------------+
 ```
@@ -77,6 +77,8 @@ That's it. On first launch the entrypoint:
 1. waits for PostgreSQL to become ready,
 2. runs `migrate`,
 3. **seeds** sample data (users, authors, books, orders) when `DJANGO_SEED=true`.
+   The seed is a **fast no-op if any user already exists** (e.g. on redeploys),
+   so warm boots stay quick.
 
 ### Stop / reset
 
@@ -91,29 +93,43 @@ docker compose down -v         # also wipe the database volume (fresh start)
 |------------------|---------------------|--------------------------------------|
 | `DEBUG`          | `False`             | Django debug mode                    |
 | `SECRET_KEY`     | `change-me-in-prod` | Session/cookie signing key           |
-| `ALLOWED_HOSTS`  | `localhost,127.0.0.1,0.0.0.0` | Hosts Django will serve        |
+| `ALLOWED_HOSTS`  | `localhost,127.0.0.1` | Hosts Django serves; `.onrender.com` is always allowed too |
 | `DB_NAME`        | `library_db`        | Database name                        |
 | `DB_USER`        | `postgres`          | Database user                        |
 | `DB_PASSWORD`    | `postgres`          | Database password                    |
 | `DB_HOST`        | `db` (compose)      | Database host                        |
 | `DB_PORT`        | `5432`              | Database port                        |
-| `DJANGO_SEED`    | `true`              | Seed sample data on startup          |
+| `DJANGO_SEED`    | `true`              | Seed sample data on startup (skips if users exist) |
 
 -----------------------------------------------------------------------------
 
 ## How the container is built
 
 - **`Dockerfile`** - based on `python:3.12-slim`. Installs dependencies, copies the
-  repo, and uses `entrypoint.sh` as the container entrypoint.
+  repo, runs `collectstatic` at build time, and uses `entrypoint.sh` as the entrypoint.
 - **`entrypoint.sh`** - waits for Postgres (via a socket probe), applies migrations,
-  optionally seeds, then `exec`s the server.
+  optionally seeds, then launches the server. It also honors the platform's `$PORT`
+  (e.g. Render injects it) by binding gunicorn to `0.0.0.0:$PORT` (default 8000).
 - **`docker-compose.yml`** - two services: `web` (the Django app, port `8000`) and
   `db` (`postgres:15-alpine`) with a healthcheck and a persistent `pgdata` volume.
-- **`.dockerignore`** - keeps `.env`, `.venv`, and caches out of the image.
+- **`.dockerignore`** - keeps `.env`, `.venv`, `staticfiles/`, and caches out of the image.
 
-> Note: the image ships **`gunicorn`** for production. The default `CMD` runs
-> Django's `runserver` for convenience; switch to gunicorn for real deployments
-> (see below).
+> The image runs **`gunicorn`** in production by default (3 workers, `library.wsgi:application`),
+> not Django's `runserver`. Static files (Django admin CSS/JS) are served by **WhiteNoise**
+> with `CompressedManifestStaticFilesStorage`, so the app works correctly with `DEBUG=False`.
+> `ALLOWED_HOSTS` always includes `.onrender.com` (and `localhost`/`127.0.0.1`), so a
+> missing/wrong host env value can't cause HTTP 400s on deploy.
+
+### Files
+
+| File                  | Purpose                                                        |
+|-----------------------|----------------------------------------------------------------|
+| `Dockerfile`          | Python 3.12-slim image; collectstatic; gunicorn CMD           |
+| `entrypoint.sh`       | wait-for-DB, migrate, seed, honor `$PORT`                     |
+| `docker-compose.yml`  | local `web` + `db` stack                                       |
+| `render.yaml`         | one-click Render Blueprint (web + free Postgres)              |
+| `.github/workflows/`  | GitHub Actions: compose smoke test + GHCR push                |
+| `.dockerignore`       | keeps secrets/caches out of the image                         |
 
 -----------------------------------------------------------------------------
 
@@ -183,9 +199,11 @@ sample borrow orders so the UI and API have something to show immediately.
 ├── Dockerfile
 ├── docker-compose.yml
 ├── entrypoint.sh
+├── render.yaml                 # Render Blueprint (one-click deploy)
 ├── .dockerignore
 ├── requirements.txt            # canonical deps for the image
 ├── .env / .env.example         # configuration (secrets NOT committed)
+├── .github/workflows/          # CI: docker compose smoke test + GHCR push
 └── library/                    # Django project root
     ├── manage.py
     ├── requirements.txt        # dev deps mirror
@@ -199,11 +217,11 @@ sample borrow orders so the UI and API have something to show immediately.
 
 -----------------------------------------------------------------------------
 
-## Deploying (free options)
+## Deploying
 
 This is a Dockerized Django + Postgres app, so it fits any container host:
 
-- **Render** - point at the repo, use the `Dockerfile`, add a free Postgres. Easiest.
+- **Render** - the repo ships a `render.yaml` Blueprint: one-click deploy (web + free Postgres).
 - **Fly.io** - `fly launch` + `fly postgres` (needs card on file, not charged free).
 - **Railway** - free $5/mo credit covers a small web + Postgres.
 - **Oracle Cloud Always-Free** - a free ARM VM forever; `docker compose up` yourself.
@@ -212,18 +230,35 @@ This is a Dockerized Django + Postgres app, so it fits any container host:
 > tunnel cannot run Django + Postgres - they're for static files or temporary local
 > exposure respectively.
 
+### Deploy to Render (free, one-click)
+
+1. Push this repo to GitHub.
+2. In Render: **New** -> **Blueprint** -> connect the repo. The `render.yaml` creates:
+   - a **web** service (Docker, free) running gunicorn, and
+   - a **free PostgreSQL** database, with `DB_*` env vars auto-wired to it.
+3. Render builds the image, migrates, and seeds on first boot. Open the assigned
+   `https://<app>.onrender.com` URL and log in with a seeded account (below).
+
+Health-check tip (free tier): the Blueprint keeps `healthCheckPath: /api/schema/`.
+The free Postgres is slow to cold-start (migrate + seed can take minutes), so in the
+Render dashboard raise the **Health Check Timeout** (e.g. 200-300s). The seed is a
+no-op once users exist, so subsequent restarts boot in seconds.
+
+Known gotcha: Django 4.1 does **not** treat `*` as a host wildcard - only a leading
+dot (`.onrender.com`) matches subdomains. The settings already include `.onrender.com`,
+which is why the health check passes; don't set `ALLOWED_HOSTS=*.onrender.com`.
+
 -----------------------------------------------------------------------------
 
-## Production tip
+## Production notes
 
-For a real deployment, run gunicorn instead of runserver. From inside the image:
-
-```bash
-gunicorn library.wsgi:application --bind 0.0.0.0:8000
-```
-
-Set `DEBUG=False` and a strong `SECRET_KEY` via environment variables, and serve
-static files through a reverse proxy (nginx / the platform's web server).
+- **Server:** the image runs `gunicorn library.wsgi:application` (3 workers). The
+  entrypoint binds to `$PORT` (Render injects it; defaults to 8000), so no change is
+  needed per platform.
+- **Static files:** served by **WhiteNoise** with `CompressedManifestStaticFilesStorage`
+  (collectstatic runs at image build). Works correctly with `DEBUG=False`.
+- **Settings:** set `DEBUG=False` and a strong `SECRET_KEY` via environment. `ALLOWED_HOSTS`
+  always allows `.onrender.com`, `localhost`, and `127.0.0.1`.
 
 -----------------------------------------------------------------------------
 
