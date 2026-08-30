@@ -10,3 +10,4 @@ __pycache__/
 *.log
 README.md
 .pytest_cache/
+staticfiles/

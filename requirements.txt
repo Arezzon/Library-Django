@@ -21,3 +21,5 @@ pytz==2022.2.1
 tzdata==2022.2
 # WSGI server for production-like serving inside the container
 gunicorn==22.0.0
+# Serves static files (Django admin) in production when DEBUG=False
+whitenoise==6.7.0

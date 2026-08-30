@@ -1,0 +1,56 @@
+# Render Blueprint
+# One-click deploy: push this repo to GitHub, then in Render click
+# "New" -> "Blueprint" and select the repo. Render creates both
+# the web service and the Postgres database from this file.
+#
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: library-django
+    runtime: docker
+    repo: https://github.com/Arezzon/Library-Django
+    branch: main
+    dockerfilePath: ./Dockerfile
+    plan: free
+    # Gunicorn is the container CMD; Render passes the PORT it assigns.
+    healthCheckPath: /api/schema/
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*.onrender.com,localhost,127.0.0.1"
+      - key: DB_ENGINE
+        value: django.db.backends.postgresql_psycopg2
+      - key: DJANGO_SEED
+        value: "true"
+      # These three are pulled from the database defined below.
+      - key: DB_HOST
+        fromDatabase:
+          name: library-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: library-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: library-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: library-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: library-db
+          property: database
+
+databases:
+  - name: library-db
+    databaseName: library_db
+    user: library_user
+    plan: free
+    postgresMajorVersion: "15"
