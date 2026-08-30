@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}User Profile #{{ target_user.id }} - Library{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+    <div class="card">
+        <!-- Card Header -->
+        <div class="card-header">
+            <div class="flex items-center space-x-3">
+                <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-base sm:text-lg flex-shrink-0">
+                    {{ target_user.email|slice:":1"|upper }}
+                </div>
+                <div class="truncate">
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 truncate">{{ target_user.email }}</h1>
+                    <p class="text-xs text-slate-500">User ID: #{{ target_user.id }}</p>
+                </div>
+            </div>
+            <div>
+                {% if target_user.is_librarian %}
+                    <span class="badge-purple">Librarian</span>
+                {% else %}
+                    <span class="badge-info">Reader</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="p-4 sm:p-6 space-y-3 sm:space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">First Name</span>
+                    <span class="text-sm font-semibold text-slate-800 mt-1 block">{{ target_user.first_name|default:"—" }}</span>
+                </div>
+                <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">Last Name</span>
+                    <span class="text-sm font-semibold text-slate-800 mt-1 block">{{ target_user.last_name|default:"—" }}</span>
+                </div>
+                <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">Middle Name</span>
+                    <span class="text-sm font-semibold text-slate-800 mt-1 block">{{ target_user.middle_name|default:"—" }}</span>
+                </div>
+                <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">Account Status</span>
+                    <span class="text-sm font-semibold mt-1 block {% if target_user.is_active %}text-emerald-600{% else %}text-slate-500{% endif %}">
+                        {% if target_user.is_active %}Active Account{% else %}Inactive{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">Registration Date</span>
+                <span class="text-sm font-semibold text-slate-800 mt-1 block">{{ target_user.created_at|date:"F j, Y, H:i" }}</span>
+            </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="card-footer">
+            <div>
+                {% if request.user.is_librarian %}
+                <a href="{% url 'user_list' %}" class="text-sm text-slate-600 hover:text-slate-900 transition flex items-center justify-center sm:justify-start">← Back to Users</a>
+                {% else %}
+                <a href="{% url 'home' %}" class="text-sm text-slate-600 hover:text-slate-900 transition flex items-center justify-center sm:justify-start">← Back to Home</a>
+                {% endif %}
+            </div>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                {% if request.user.is_librarian %}
+                <a href="{% url 'user_update' target_user.id %}" class="btn-sm-secondary w-full sm:w-auto">
+                    Edit Profile
+                </a>
+                <a href="{% url 'books_by_user' target_user.id %}" class="btn-sm-primary w-full sm:w-auto">
+                    View Borrowed Books
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

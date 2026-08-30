@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Account | LibrarySys{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto my-4 sm:my-8 px-0 sm:px-4">
+    <div class="card">
+        <!-- Header -->
+        <div class="card-header justify-center flex-col text-center py-6 sm:py-8">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                </svg>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Create an Account</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Join the library community as a reader or librarian</p>
+        </div>
+
+        <!-- Form -->
+        <div class="card-body">
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                {% include 'includes/form_snippet.html' %}
+                <button type="submit" class="btn-primary w-full justify-center mt-2">
+                    Register Account
+                </button>
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-slate-100 text-center text-xs sm:text-sm text-slate-500">
+                Already have an account?
+                <a href="{% url 'login' %}" class="text-indigo-600 font-semibold hover:text-indigo-700 transition">Sign in here</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

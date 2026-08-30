@@ -1,0 +1,63 @@
+{% if form.non_field_errors %}
+    <div class="bg-rose-50 border border-rose-200 text-rose-700 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl text-xs sm:text-sm mb-5 space-y-1">
+        {% for error in form.non_field_errors %}
+            <p class="flex items-center gap-2 font-medium">
+                <svg class="w-4 h-4 flex-shrink-0 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                </svg>
+                <span>{{ error }}</span>
+            </p>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% for hidden in form.hidden_fields %}
+    {{ hidden }}
+{% endfor %}
+
+<div class="space-y-4">
+    {% for field in form.visible_fields %}
+        <div>
+            {% if field.field.widget.input_type == "checkbox" %}
+                <div class="flex items-center space-x-3 pt-1">
+                    {{ field }}
+                    <label for="{{ field.id_for_label }}" class="text-sm font-medium text-slate-700 select-none cursor-pointer">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                            <span class="text-rose-500">*</span>
+                        {% endif %}
+                    </label>
+                </div>
+                {% if field.help_text %}
+                    <p class="text-xs text-slate-400 mt-1 pl-7">{{ field.help_text }}</p>
+                {% endif %}
+            {% else %}
+                <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1.5">
+                    {{ field.label }}
+                    {% if field.field.required %}
+                        <span class="text-rose-500">*</span>
+                    {% endif %}
+                </label>
+                
+                {{ field }}
+
+                {% if field.help_text %}
+                    <p class="text-xs text-slate-400 mt-1">{{ field.help_text }}</p>
+                {% endif %}
+            {% endif %}
+
+            {% if field.errors %}
+                <div class="mt-1.5 space-y-1">
+                    {% for error in field.errors %}
+                        <p class="text-xs text-rose-600 font-medium flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span>{{ error }}</span>
+                        </p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>

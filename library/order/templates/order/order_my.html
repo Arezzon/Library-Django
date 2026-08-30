@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}My Orders - Library{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">My Borrowed Books</h1>
+            <p class="text-slate-500 text-xs sm:text-sm mt-1">Track your active reading loans and return history</p>
+        </div>
+        <a href="{% url 'book_list' %}" class="btn-primary w-full sm:w-auto justify-center">
+            Browse Catalog
+        </a>
+    </div>
+
+    {% if messages %}
+        <div class="space-y-2">
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if orders %}
+        <!-- Desktop / Tablet Table View -->
+        <div class="hidden md:block table-wrapper">
+            <div class="overflow-x-auto">
+                <table class="table-custom">
+                    <thead class="table-thead">
+                        <tr>
+                            <th class="table-th">Order ID</th>
+                            <th class="table-th">Book Title</th>
+                            <th class="table-th">Borrowed At</th>
+                            <th class="table-th">Planned Return</th>
+                            <th class="table-th">Returned At</th>
+                            <th class="table-th text-right whitespace-nowrap">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for order in orders %}
+                            <tr class="hover:bg-slate-50/75 transition">
+                                <td class="table-td font-mono text-xs text-slate-400">#{{ order.id }}</td>
+                                <td class="table-td font-semibold text-slate-900">
+                                    <a href="{% url 'book_detail' order.book.id %}" class="hover:text-indigo-600 transition">
+                                        {{ order.book.name }}
+                                    </a>
+                                </td>
+                                <td class="table-td text-slate-500 whitespace-nowrap">{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                                <td class="table-td text-slate-500 whitespace-nowrap">{{ order.plated_end_at|date:"Y-m-d H:i" }}</td>
+                                <td class="table-td text-slate-500 whitespace-nowrap">
+                                    {% if order.end_at %}
+                                        {{ order.end_at|date:"Y-m-d H:i" }}
+                                    {% else %}
+                                        <span class="text-xs text-slate-400 italic">Not returned</span>
+                                    {% endif %}
+                                </td>
+                                <td class="table-td text-right whitespace-nowrap">
+                                    {% if order.end_at %}
+                                        <span class="badge-success">
+                                            Returned
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 whitespace-nowrap">
+                                            Active
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mobile Card View (Screens < md) -->
+        <div class="grid grid-cols-1 gap-3 md:hidden">
+            {% for order in orders %}
+                <div class="card p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400">Order #{{ order.id }}</span>
+                        {% if order.end_at %}
+                            <span class="badge-success">Returned</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 whitespace-nowrap">
+                                Active Loan
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <a href="{% url 'book_detail' order.book.id %}" class="font-bold text-slate-900 hover:text-indigo-600 transition text-base block">
+                            {{ order.book.name }}
+                        </a>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                            <span class="text-slate-400 block">Borrowed:</span>
+                            <span class="font-medium text-slate-700">{{ order.created_at|date:"Y-m-d" }}</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block">Return Deadline:</span>
+                            <span class="font-medium text-slate-700">{{ order.plated_end_at|date:"Y-m-d" }}</span>
+                        </div>
+                        {% if order.end_at %}
+                        <div class="col-span-2 pt-1 border-t border-slate-50">
+                            <span class="text-slate-400">Returned Date:</span>
+                            <span class="font-medium text-emerald-700 ml-1">{{ order.end_at|date:"Y-m-d H:i" }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card p-8 sm:p-12 text-center">
+            <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                </svg>
+            </div>
+            <h3 class="text-base font-semibold text-slate-900">No active orders</h3>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1 mb-4">You haven't borrowed any books from the library yet.</p>
+            <a href="{% url 'book_list' %}" class="btn-primary w-full sm:w-auto justify-center">
+                Browse Books Catalog
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

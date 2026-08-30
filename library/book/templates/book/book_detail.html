@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ book.name }} - Book Details{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    {% if messages %}
+    <div class="space-y-2">
+        {% for message in messages %}
+        <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <!-- Header -->
+        <div class="card-header">
+            <div>
+                <span class="text-xs font-mono text-slate-400 block mb-0.5">Book #{{ book.id }}</span>
+                <h1 class="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">{{ book.name }}</h1>
+            </div>
+            <div>
+                {% if book.available_count > 0 %}
+                <span class="badge-success">● {{ book.available_count }} of {{ book.count }} Available</span>
+                {% else %}
+                <span class="badge-danger">● All {{ book.count }} Borrowed</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Body Details -->
+        <div class="p-4 sm:p-6 md:p-8 space-y-6">
+            <!-- Authors Section -->
+            <div>
+                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Authors</h3>
+                {% if book.authors.all %}
+                <div class="flex flex-wrap gap-2">
+                    {% for author in book.authors.all %}
+                    <div class="inline-flex items-center space-x-2 bg-indigo-50 border border-indigo-100 text-indigo-800 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium">
+                        <svg class="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span>{{ author.name }} {{ author.patronymic }} {{ author.surname }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-400 italic">No authors attached to this book.</p>
+                {% endif %}
+            </div>
+
+            <!-- Description Section -->
+            <div>
+                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h3>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-700 text-xs sm:text-sm leading-relaxed">
+                    {{ book.description|default:"No description provided for this book." }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer / Action Area -->
+        <div class="card-footer">
+            <a href="{% url 'book_list' %}" class="text-sm text-slate-600 hover:text-slate-900 transition flex items-center justify-center sm:justify-start">
+                ← Back to Catalog
+            </a>
+
+            <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                {% if request.user.is_librarian %}
+                <a href="{% url 'book_update' book.id %}" class="btn-secondary w-full sm:w-auto justify-center">
+                    Edit Book
+                </a>
+                {% endif %}
+
+                {% if request.user.is_visitor %}
+                    {% if book.available_count > 0 %}
+                    <a href="{% url 'order_create' book.id %}" class="btn-primary w-full sm:w-auto justify-center">
+                        Borrow This Book
+                    </a>
+                    {% else %}
+                    <button disabled class="inline-flex items-center justify-center px-5 py-2.5 bg-slate-200 text-slate-400 text-sm font-medium rounded-xl cursor-not-allowed w-full sm:w-auto">
+                        Currently Unavailable
+                    </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

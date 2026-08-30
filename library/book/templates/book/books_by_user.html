@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Books Provided to User - Library{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Books Borrowed by User #{{ target_user.id }}</h1>
+            <p class="text-slate-500 text-xs sm:text-sm mt-1">
+                <strong>{{ target_user.first_name }} {{ target_user.last_name }}</strong> ({{ target_user.email }})
+            </p>
+        </div>
+        <a href="{% url 'user_list' %}" class="text-sm text-slate-600 hover:text-slate-900 transition flex items-center">
+            ← Back to Users List
+        </a>
+    </div>
+
+    {% if active_orders %}
+        <!-- Desktop / Tablet Table View -->
+        <div class="hidden md:block table-wrapper">
+            <div class="overflow-x-auto">
+                <table class="table-custom">
+                    <thead class="table-thead">
+                        <tr>
+                            <th class="table-th">Order ID</th>
+                            <th class="table-th">Book Title</th>
+                            <th class="table-th">Borrowed Date</th>
+                            <th class="table-th">Planned Return Deadline</th>
+                            <th class="table-th text-right whitespace-nowrap">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for order in active_orders %}
+                            <tr class="hover:bg-slate-50/75 transition">
+                                <td class="table-td font-mono text-xs text-slate-400">#{{ order.id }}</td>
+                                <td class="table-td font-semibold text-slate-900">
+                                    <a href="{% url 'book_detail' order.book.id %}" class="hover:text-indigo-600 transition">
+                                        {{ order.book.name }}
+                                    </a>
+                                </td>
+                                <td class="table-td text-slate-500 whitespace-nowrap">{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                                <td class="table-td whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 whitespace-nowrap">
+                                        {{ order.plated_end_at|date:"Y-m-d H:i" }}
+                                    </span>
+                                </td>
+                                <td class="table-td text-right whitespace-nowrap">
+                                    <form method="post" action="{% url 'order_close' order.id %}" class="inline-flex" onsubmit="return confirm('Return book and close order #{{ order.id }}?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn-sm-success">
+                                            Return Book
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mobile Card View (Screens < md) -->
+        <div class="grid grid-cols-1 gap-3 md:hidden">
+            {% for order in active_orders %}
+                <div class="card p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400">Order #{{ order.id }}</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 whitespace-nowrap">
+                            Due: {{ order.plated_end_at|date:"Y-m-d" }}
+                        </span>
+                    </div>
+
+                    <div>
+                        <a href="{% url 'book_detail' order.book.id %}" class="font-bold text-slate-900 hover:text-indigo-600 transition text-base block">
+                            {{ order.book.name }}
+                        </a>
+                        <p class="text-xs text-slate-400 mt-1">Borrowed: {{ order.created_at|date:"Y-m-d H:i" }}</p>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
+                        <form method="post" action="{% url 'order_close' order.id %}" class="w-full" onsubmit="return confirm('Return book and close order #{{ order.id }}?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-sm-success w-full justify-center">
+                                Return Book
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card p-8 text-center text-slate-500">
+            This user currently has no borrowed (unreturned) books.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

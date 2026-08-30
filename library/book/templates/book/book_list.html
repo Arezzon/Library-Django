@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}Books Catalog - Library{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Books Catalog</h1>
+            <p class="text-slate-500 text-xs sm:text-sm mt-1">Discover, filter and borrow books from our repository</p>
+        </div>
+        {% if request.user.is_librarian %}
+            <a href="{% url 'book_create' %}" class="btn-primary w-full sm:w-auto justify-center">
+                + Add New Book
+            </a>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+        <div class="space-y-2">
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Filter & Search Bar -->
+    <div class="card p-4 sm:p-6">
+        <form method="get" action="{% url 'book_list' %}" class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+            <div class="sm:col-span-6">
+                <input type="text" id="q" name="q" value="{{ query }}" placeholder="Search by title or description..."
+                    class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+            </div>
+
+            <div class="sm:col-span-4">
+                <select id="author_id" name="author_id"
+                    class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                    <option value="">All Authors</option>
+                    {% for author in authors %}
+                        <option value="{{ author.id }}" {% if selected_author_id == author.id %}selected{% endif %}>
+                            {{ author.name }} {{ author.surname }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="sm:col-span-2 flex items-center space-x-2">
+                <button type="submit" class="btn-primary flex-1 justify-center">
+                    Filter
+                </button>
+                {% if query or selected_author_id %}
+                    <a href="{% url 'book_list' %}" class="p-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 rounded-xl text-xs transition flex items-center justify-center flex-shrink-0" title="Reset Filters">
+                        ✕
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Books Table & Mobile Cards -->
+    {% if books %}
+        <!-- Desktop / Tablet Table View -->
+        <div class="hidden md:block table-wrapper">
+            <div class="overflow-x-auto">
+                <table class="table-custom">
+                    <thead class="table-thead">
+                        <tr>
+                            <th class="table-th">ID</th>
+                            <th class="table-th">Book Title</th>
+                            <th class="table-th">Authors</th>
+                            <th class="table-th">Copies Available</th>
+                            <th class="table-th text-right whitespace-nowrap">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for book in books %}
+                            <tr class="hover:bg-slate-50/75 transition">
+                                <td class="table-td font-mono text-xs text-slate-400">#{{ book.id }}</td>
+                                <td class="table-td">
+                                    <a href="{% url 'book_detail' book.id %}" class="font-semibold text-slate-900 hover:text-indigo-600 transition">
+                                        {{ book.name }}
+                                    </a>
+                                    {% if book.description %}
+                                        <p class="text-xs text-slate-400 truncate max-w-xs">{{ book.description }}</p>
+                                    {% endif %}
+                                </td>
+                                <td class="table-td">
+                                    {% if book.authors.all %}
+                                        <div class="flex flex-wrap gap-1.5">
+                                            {% for author in book.authors.all %}
+                                                <span class="badge-slate">
+                                                    {{ author.name }} {{ author.surname }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-xs text-slate-400 italic">No author assigned</span>
+                                    {% endif %}
+                                </td>
+                                <td class="table-td whitespace-nowrap">
+                                    {% if book.available_count > 0 %}
+                                        <span class="badge-success">
+                                            {{ book.available_count }} of {{ book.count }} in stock
+                                        </span>
+                                    {% else %}
+                                        <span class="badge-danger">
+                                            0 of {{ book.count }} (All borrowed)
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="table-td text-right whitespace-nowrap">
+                                    <a href="{% url 'book_detail' book.id %}" class="btn-sm-secondary">
+                                        Details →
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mobile Card View (Screens < md) -->
+        <div class="grid grid-cols-1 gap-3 md:hidden">
+            {% for book in books %}
+                <div class="card p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400">#{{ book.id }}</span>
+                        {% if book.available_count > 0 %}
+                            <span class="badge-success">
+                                {{ book.available_count }} of {{ book.count }} in stock
+                            </span>
+                        {% else %}
+                            <span class="badge-danger">
+                                0 of {{ book.count }} (Borrowed)
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <a href="{% url 'book_detail' book.id %}" class="font-bold text-slate-900 hover:text-indigo-600 transition text-base block">
+                            {{ book.name }}
+                        </a>
+                        {% if book.description %}
+                            <p class="text-xs text-slate-500 mt-1 line-clamp-2">{{ book.description }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Authors Tags -->
+                    <div class="pt-2 border-t border-slate-100">
+                        {% if book.authors.all %}
+                            <div class="flex flex-wrap gap-1.5">
+                                {% for author in book.authors.all %}
+                                    <span class="badge-slate">
+                                        {{ author.name }} {{ author.surname }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-xs text-slate-400 italic">No author assigned</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
+                        <a href="{% url 'book_detail' book.id %}" class="btn-sm-secondary w-full text-center justify-center">
+                            View Details →
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card p-8 text-center text-slate-500">
+            No books found matching your criteria.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

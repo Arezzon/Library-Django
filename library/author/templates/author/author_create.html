@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Author | LibrarySys{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-0 sm:px-4 py-4 sm:py-8">
+    <div class="card">
+        <!-- Card Header -->
+        <div class="card-header">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900">Add New Author</h1>
+                    <p class="text-xs text-slate-500">Register author details and attach books</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Body -->
+        <div class="card-body">
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                {% include 'includes/form_snippet.html' %}
+                <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
+                    <a href="{% url 'author_list' %}" class="btn-secondary w-full sm:w-auto justify-center">Cancel</a>
+                    <button type="submit" class="btn-primary w-full sm:w-auto justify-center">Save Author</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

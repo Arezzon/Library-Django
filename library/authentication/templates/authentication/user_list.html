@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Users Management - Library{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">User Accounts</h1>
+            <p class="text-slate-500 text-xs sm:text-sm mt-1">View registered readers and library staff</p>
+        </div>
+    </div>
+
+    {% if users %}
+        <!-- Desktop / Tablet Table View -->
+        <div class="hidden md:block table-wrapper">
+            <div class="overflow-x-auto">
+                <table class="table-custom">
+                    <thead class="table-thead">
+                        <tr>
+                            <th class="table-th">ID</th>
+                            <th class="table-th">User Email</th>
+                            <th class="table-th">Full Name</th>
+                            <th class="table-th">Role</th>
+                            <th class="table-th">Status</th>
+                            <th class="table-th text-right whitespace-nowrap">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for user in users %}
+                            <tr class="hover:bg-slate-50/75 transition">
+                                <td class="table-td font-mono text-xs text-slate-400">#{{ user.id }}</td>
+                                <td class="table-td font-medium text-slate-900">{{ user.email }}</td>
+                                <td class="table-td text-slate-600">{{ user.first_name }} {{ user.middle_name }} {{ user.last_name }}</td>
+                                <td class="table-td whitespace-nowrap">
+                                    {% if user.is_librarian %}
+                                        <span class="badge-purple">Librarian</span>
+                                    {% else %}
+                                        <span class="badge-info">Reader</span>
+                                    {% endif %}
+                                </td>
+                                <td class="table-td whitespace-nowrap">
+                                    {% if user.is_active %}
+                                        <span class="badge-success">Active</span>
+                                    {% else %}
+                                        <span class="badge-slate">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="table-td text-right whitespace-nowrap">
+                                    <div class="inline-flex items-center justify-end gap-2">
+                                        <a href="{% url 'user_detail' user.id %}" class="btn-sm-secondary">
+                                            Profile
+                                        </a>
+                                        <a href="{% url 'books_by_user' user.id %}" class="btn-sm-primary">
+                                            Borrowed Books
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mobile Card View (Visible on screens < md) -->
+        <div class="grid grid-cols-1 gap-3 md:hidden">
+            {% for user in users %}
+                <div class="card p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400">#{{ user.id }}</span>
+                        <div class="flex items-center gap-1.5">
+                            {% if user.is_librarian %}
+                                <span class="badge-purple">Librarian</span>
+                            {% else %}
+                                <span class="badge-info">Reader</span>
+                            {% endif %}
+                            {% if user.is_active %}
+                                <span class="badge-success">Active</span>
+                            {% else %}
+                                <span class="badge-slate">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-slate-900 text-sm">{{ user.email }}</p>
+                        {% if user.first_name or user.last_name %}
+                            <p class="text-xs text-slate-500 mt-0.5">{{ user.first_name }} {{ user.middle_name }} {{ user.last_name }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                        <a href="{% url 'user_detail' user.id %}" class="btn-sm-secondary flex-1 text-center justify-center">
+                            Profile
+                        </a>
+                        <a href="{% url 'books_by_user' user.id %}" class="btn-sm-primary flex-1 text-center justify-center">
+                            Borrowed Books
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card p-8 text-center text-slate-500">
+            No user accounts found.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

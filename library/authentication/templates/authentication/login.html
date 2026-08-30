@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In | LibrarySys{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-4 sm:my-10 px-0 sm:px-4">
+    <div class="card">
+        <!-- Header -->
+        <div class="card-header justify-center flex-col text-center py-6 sm:py-8">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                </svg>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Welcome Back</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Please sign in to access your library account</p>
+        </div>
+
+        <!-- Form Body -->
+        <div class="card-body">
+            {% if error %}
+                <div class="alert-error mb-5">
+                    <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span>{{ error }}</span>
+                </div>
+            {% endif %}
+
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                {% include 'includes/form_snippet.html' %}
+                <button type="submit" class="btn-primary w-full justify-center mt-2">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-slate-100 text-center text-xs sm:text-sm text-slate-500">
+                Don't have an account?
+                <a href="{% url 'register' %}" class="text-indigo-600 font-semibold hover:text-indigo-700 transition">Create an account</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}All Orders - Library{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">All Library Orders</h1>
+            <p class="text-slate-500 text-xs sm:text-sm mt-1">Manage reader loans and process book returns</p>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="space-y-2">
+        {% for message in messages %}
+        <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if orders %}
+    <!-- Desktop / Tablet Table View -->
+    <div class="hidden md:block table-wrapper">
+        <div class="overflow-x-auto">
+            <table class="table-custom">
+                <thead class="table-thead">
+                    <tr>
+                        <th class="table-th">ID</th>
+                        <th class="table-th">Reader / User</th>
+                        <th class="table-th">Book Title</th>
+                        <th class="table-th">Borrowed At</th>
+                        <th class="table-th">Planned Return</th>
+                        <th class="table-th">Returned At</th>
+                        <th class="table-th text-right whitespace-nowrap">Status / Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for order in orders %}
+                    <tr class="hover:bg-slate-50/75 transition">
+                        <td class="table-td font-mono text-xs text-slate-400">#{{ order.id }}</td>
+                        <td class="table-td font-medium text-slate-900">
+                            <a href="{% url 'user_detail' order.user.id %}" class="hover:text-indigo-600 transition">
+                                {{ order.user.email }}
+                            </a>
+                            <p class="text-xs text-slate-400 font-normal">{{ order.user.first_name }} {{ order.user.last_name }}</p>
+                        </td>
+                        <td class="table-td font-medium text-slate-900">
+                            <a href="{% url 'book_detail' order.book.id %}" class="hover:text-indigo-600 transition">
+                                {{ order.book.name }}
+                            </a>
+                        </td>
+                        <td class="table-td text-slate-500 whitespace-nowrap">{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                        <td class="table-td text-slate-500 whitespace-nowrap">{{ order.plated_end_at|date:"Y-m-d H:i" }}</td>
+                        <td class="table-td text-slate-500 whitespace-nowrap">
+                            {% if order.end_at %}
+                                {{ order.end_at|date:"Y-m-d H:i" }}
+                            {% else %}
+                                <span class="text-xs text-slate-400 italic">Pending return</span>
+                            {% endif %}
+                        </td>
+                        <td class="table-td text-right whitespace-nowrap">
+                            <div class="inline-flex items-center justify-end gap-2">
+                                <a href="{% url 'order_update' order.id %}" class="btn-sm-primary">
+                                    Edit
+                                </a>
+                                {% if order.end_at %}
+                                    <span class="badge-success">
+                                        Closed
+                                    </span>
+                                {% else %}
+                                    <form method="post" action="{% url 'order_close' order.id %}" class="inline-flex" onsubmit="return confirm('Confirm book return and close order #{{ order.id }}?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn-sm-success">
+                                            Close (Return)
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Mobile Card View (Screens < md) -->
+    <div class="grid grid-cols-1 gap-3 md:hidden">
+        {% for order in orders %}
+            <div class="card p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-mono text-slate-400">Order #{{ order.id }}</span>
+                    {% if order.end_at %}
+                        <span class="badge-success">Closed</span>
+                    {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 whitespace-nowrap">
+                            Active Loan
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <a href="{% url 'book_detail' order.book.id %}" class="font-bold text-slate-900 hover:text-indigo-600 transition text-base block">
+                        {{ order.book.name }}
+                    </a>
+                    <div class="text-xs text-slate-500 mt-1">
+                        Reader: <a href="{% url 'user_detail' order.user.id %}" class="font-medium text-indigo-600 hover:underline">{{ order.user.email }}</a>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                        <span class="text-slate-400 block">Borrowed:</span>
+                        <span class="font-medium text-slate-700">{{ order.created_at|date:"Y-m-d" }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block">Deadline:</span>
+                        <span class="font-medium text-slate-700">{{ order.plated_end_at|date:"Y-m-d" }}</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                    <a href="{% url 'order_update' order.id %}" class="btn-sm-primary flex-1 text-center justify-center">
+                        Edit
+                    </a>
+                    {% if not order.end_at %}
+                        <form method="post" action="{% url 'order_close' order.id %}" class="inline-flex flex-1" onsubmit="return confirm('Confirm book return and close order #{{ order.id }}?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-sm-success w-full justify-center">
+                                Close (Return)
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card p-8 text-center text-slate-500">
+        No orders found in the database.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
