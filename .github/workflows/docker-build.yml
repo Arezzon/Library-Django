@@ -1,0 +1,100 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Smoke test: build with docker compose and verify the app actually serves.
+  # Runs on every trigger (including PRs) so broken images never get pushed.
+  # -------------------------------------------------------------------------
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build images with docker compose
+        run: docker compose build
+
+      - name: Start stack (web + db) and wait for health
+        run: docker compose up -d --wait
+
+      - name: Wait for the web server to accept connections
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/api/schema/ >/dev/null; then
+              echo "App is up after ${i}s"
+              break
+            fi
+            echo "  waiting for app... (${i}s)"
+            sleep 1
+          done
+
+      - name: Verify key endpoints respond
+        run: |
+          echo "== /api/docs/ =="
+          curl -fsS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8000/api/docs/
+          echo "== /api/schema/ =="
+          curl -fsS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8000/api/schema/
+          echo "== /api/v1/ (API root) =="
+          curl -fsS http://localhost:8000/api/v1/
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  # -------------------------------------------------------------------------
+  # Build & push the image to GitHub Container Registry.
+  # Only runs after the smoke test passes, and never on pull requests.
+  # -------------------------------------------------------------------------
+  build:
+    needs: smoke-test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # needed to push to GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
