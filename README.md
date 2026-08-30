@@ -13,7 +13,7 @@ A full-featured **Library Management System** built with **Python + Django 4.1**
 
 This is a small but complete library app:
 
-- **Web UI** (server-rendered Django templates) for browsing books, authors, and orders.
+- **Web UI** (server-rendered Django templates) using Tailwind for browsing books, authors, and orders.
 - **Role-based access** - regular *visitors* and *librarians* (librarians get the admin powers).
 - **REST API** with auto-generated OpenAPI docs (Swagger / ReDoc) via `drf-spectacular`.
 - **PostgreSQL** as the database, with a seeded sample dataset so you can log in and explore immediately.
