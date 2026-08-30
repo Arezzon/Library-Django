@@ -223,6 +223,13 @@ def _seed_orders(created_users: dict[str, CustomUser], created_books: dict[str, 
 
 
 def seed_data():
+    # Fast no-op on warm boots / redeploys: if any user already exists,
+    # assume the dataset was seeded before and skip the (slow on free DB)
+    # seeding entirely. This keeps container startup fast.
+    if CustomUser.objects.exists():
+        print("[*] Users already present - skipping sample data seeding.")
+        return
+
     print("[*] Starting database seeding...")
     created_users = _seed_users()
     created_authors = _seed_authors()
