@@ -22,6 +22,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Verify browser tracking logic
+        run: node --test scripts/test_tracking_js.cjs
+
       - name: Build images with docker compose
         run: docker compose build
 
@@ -29,7 +32,7 @@ jobs:
         run: docker compose up -d --wait
 
       - name: Run Django regression tests against PostgreSQL
-        run: docker compose exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 web python manage.py test authentication author book order --verbosity 2
+        run: docker compose exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events --verbosity 2
 
       - name: Wait for the web server to accept connections
         run: |
@@ -50,6 +53,12 @@ jobs:
           curl -fsS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8000/api/schema/
           echo "== /api/v1/ (API root) =="
           curl -fsS http://localhost:8000/api/v1/
+
+      - name: Verify real asynchronous event tracking
+        run: docker compose exec -T web python manage.py smoke_test_tracking
+
+      - name: Verify event queue survives worker and broker restart
+        run: python scripts/smoke_tracking_recovery.py
 
       - name: Tear down
         if: always()

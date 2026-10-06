@@ -70,9 +70,14 @@ def user_list(request: HttpRequest) -> HttpResponse:
 @librarian_or_owner_required(user_id_param='user_id')
 def user_detail(request: HttpRequest, user_id: int) -> HttpResponse:
     target_user = get_object_or_404(CustomUser, pk=user_id)
-    return render(request, 'authentication/user_detail.html', {'target_user': target_user})
+    context = {'target_user': target_user}
+    if request.user.is_librarian:
+        from events.analytics import build_analytics_context
+        context.update(build_analytics_context(request, user=target_user))
+        context['profile_activity'] = True
+    return render(request, 'authentication/user_detail.html', context)
 
 
 def logout(request: HttpRequest) -> HttpResponse:
     auth_logout(request)
-    return redirect("login")
+    return redirect("login")

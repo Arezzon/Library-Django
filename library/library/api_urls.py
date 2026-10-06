@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
+from events.api_views import ClientEventView
 from authentication.api_views import CustomUserViewSet
 from author.api_views import AuthorViewSet
 from book.api_views import BookViewSet
@@ -13,6 +14,7 @@ router.register(r'book', BookViewSet, basename='book')
 router.register(r'order', OrderViewSet, basename='order')
 
 urlpatterns = [
+    path('events/', ClientEventView.as_view(), name='client-event'),
     path('', include(router.urls)),
 
     #/api/v1/user/{user_id}/order/{id}?

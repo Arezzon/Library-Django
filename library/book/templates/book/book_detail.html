@@ -75,7 +75,7 @@
 
                 {% if request.user.is_visitor %}
                     {% if book.available_count > 0 %}
-                    <a href="{% url 'order_create' book.id %}" class="btn-primary w-full sm:w-auto justify-center">
+                    <a data-track-event="borrow_intent" data-book-id="{{ book.id }}" href="{% url 'order_create' book.id %}" class="btn-primary w-full sm:w-auto justify-center">
                         Borrow This Book
                     </a>
                     {% else %}

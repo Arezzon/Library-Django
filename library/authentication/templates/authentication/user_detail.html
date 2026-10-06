@@ -3,16 +3,16 @@
 {% block title %}User Profile #{{ target_user.id }} - Library{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto space-y-6">
-    <div class="card">
+<div class="{% if profile_activity %}max-w-7xl lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6{% else %}max-w-2xl{% endif %} mx-auto space-y-6 {% if profile_activity %}lg:space-y-0{% endif %}">
+    <div id="user-profile-card" class="card {% if profile_activity %}lg:sticky lg:top-24{% endif %}">
         <!-- Card Header -->
         <div class="card-header">
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-3 min-w-0">
                 <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-base sm:text-lg flex-shrink-0">
                     {{ target_user.email|slice:":1"|upper }}
                 </div>
                 <div class="truncate">
-                    <h1 class="text-base sm:text-lg font-bold text-slate-900 truncate">{{ target_user.email }}</h1>
+                    <h1 title="{{ target_user.email }}" class="text-base sm:text-lg font-bold text-slate-900 truncate">{{ target_user.email }}</h1>
                     <p class="text-xs text-slate-500">User ID: #{{ target_user.id }}</p>
                 </div>
             </div>
@@ -55,7 +55,7 @@
         </div>
 
         <!-- Footer Actions -->
-        <div class="card-footer">
+        <div class="card-footer {% if profile_activity %}lg:flex-col lg:items-stretch{% endif %}">
             <div>
                 {% if request.user.is_librarian %}
                 <a href="{% url 'user_list' %}" class="text-sm text-slate-600 hover:text-slate-900 transition flex items-center justify-center sm:justify-start">← Back to Users</a>
@@ -63,7 +63,7 @@
                 <a href="{% url 'home' %}" class="text-sm text-slate-600 hover:text-slate-900 transition flex items-center justify-center sm:justify-start">← Back to Home</a>
                 {% endif %}
             </div>
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 {% if profile_activity %}lg:flex-col lg:items-stretch{% endif %}">
                 {% if request.user.is_librarian %}
                 <a href="{% url 'user_update' target_user.id %}" class="btn-sm-secondary w-full sm:w-auto">
                     Edit Profile
@@ -75,5 +75,10 @@
             </div>
         </div>
     </div>
+    {% if profile_activity %}
+        <section id="user-activity" class="min-w-0 scroll-mt-24 lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
+            {% include 'events/_analytics_content.html' %}
+        </section>
+    {% endif %}
 </div>
 {% endblock %}
