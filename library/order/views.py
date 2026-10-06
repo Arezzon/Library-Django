@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from authentication.decorators import librarian_required
-from .models import Order
+from .models import Order, BookUnavailableError
 from book.models import Book
 from .forms import OrderCreateForm, OrderUpdateForm
 
@@ -71,9 +71,13 @@ def order_update(request: HttpRequest, order_id: int) -> HttpResponse:
     if request.method == 'POST':
         form = OrderUpdateForm(request.POST, instance=order)
         if form.is_valid():
-            form.save()
-            messages.success(request, f'Order #{order.id} updated successfully.')
-            return redirect('order_all')
+            try:
+                form.save()
+            except BookUnavailableError as error:
+                form.add_error(None, str(error))
+            else:
+                messages.success(request, f'Order #{order.id} updated successfully.')
+                return redirect('order_all')
     else:
         form = OrderUpdateForm(instance=order)
     return render(request, 'order/order_update.html', {'form': form, 'order': order})
@@ -84,4 +88,3 @@ def order_close(request: HttpRequest, order_id: int) -> HttpResponse:
     if request.method == 'POST':
         _close_order(request, order_id)
     return redirect('order_all')
-
