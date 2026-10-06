@@ -6,6 +6,7 @@ from django.db.models import Q
 from authentication.decorators import librarian_required
 from authentication.models import CustomUser
 from .models import Book
+from .embeddings import EmbeddingGenerationError
 from author.models import Author
 from order.models import Order
 from .forms import BookForm
@@ -53,9 +54,13 @@ def book_create(request: HttpRequest) -> HttpResponse:
     if request.method == 'POST':
         form = BookForm(request.POST)
         if form.is_valid():
-            book = form.save()
-            messages.success(request, f'Book "{book.name}" created successfully.')
-            return redirect('book_list')
+            try:
+                book = form.save()
+            except EmbeddingGenerationError as error:
+                form.add_error(None, str(error))
+            else:
+                messages.success(request, f'Book "{book.name}" created successfully.')
+                return redirect('book_list')
     else:
         form = BookForm()
     return render(request, 'book/book_create.html', {'form': form})
@@ -67,9 +72,13 @@ def book_update(request: HttpRequest, book_id: int) -> HttpResponse:
     if request.method == 'POST':
         form = BookForm(request.POST, instance=book)
         if form.is_valid():
-            form.save()
-            messages.success(request, f'Book "{book.name}" updated successfully.')
-            return redirect('book_detail', book_id=book.id)
+            try:
+                form.save()
+            except EmbeddingGenerationError as error:
+                form.add_error(None, str(error))
+            else:
+                messages.success(request, f'Book "{book.name}" updated successfully.')
+                return redirect('book_detail', book_id=book.id)
     else:
         form = BookForm(instance=book)
     return render(request, 'book/book_update.html', {'form': form, 'book': book})

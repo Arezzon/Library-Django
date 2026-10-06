@@ -3,6 +3,7 @@ import sys
 import django
 import datetime
 from django.utils import timezone
+from django.core.management import call_command
 
 # Setup Django environment
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'library.settings')
@@ -228,6 +229,7 @@ def seed_data():
     # seeding entirely. This keeps container startup fast.
     if CustomUser.objects.exists():
         print("[*] Users already present - skipping sample data seeding.")
+        call_command("generate_book_embeddings")
         return
 
     print("[*] Starting database seeding...")
@@ -235,6 +237,7 @@ def seed_data():
     created_authors = _seed_authors()
     created_books = _seed_books(created_authors)
     _seed_orders(created_users, created_books)
+    call_command("generate_book_embeddings")
     print("\nDatabase successfully populated with sample data!")
 
 

@@ -31,7 +31,7 @@ This is a small but complete library app:
 |                                                                     |
 |      +----------------------+         +----------------------+      |
 |      | web  (Django)        |   TCP   | db  (PostgreSQL)     |      |
-|      | port 8000            | <-----> | postgres:15-alpine   |      |
+|      | port 8000            | <-----> | Postgres + pgvector  |      |
 |      | gunicorn (3 workers) |         | volume: pgdata       |      |
 |      +----------------------+         +----------------------+      |
 +---------------------------------------------------------------------+
@@ -113,7 +113,7 @@ docker compose down -v         # also wipe the database volume (fresh start)
   optionally seeds, then launches the server. It also honors the platform's `$PORT`
   (e.g. Render injects it) by binding gunicorn to `0.0.0.0:$PORT` (default 8000).
 - **`docker-compose.yml`** - two services: `web` (the Django app, port `8000`) and
-  `db` (`postgres:15-alpine`) with a healthcheck and a persistent `pgdata` volume.
+  `db` (`pgvector/pgvector:0.8.2-pg15`) with a healthcheck and a persistent `pgdata` volume.
 - **`.dockerignore`** - keeps `.env`, `.venv`, `staticfiles/`, and caches out of the image.
 
 > The image runs **`gunicorn`** in production by default (3 workers, `library.wsgi:application`),
@@ -154,6 +154,60 @@ cd library && python seed_db.py
 ```
 
 -----------------------------------------------------------------------------
+
+## Book embeddings (KAN-27)
+
+Generate multilingual document embeddings from book titles and descriptions:
+
+```bash
+docker compose exec web python manage.py generate_book_embeddings
+# Restrict a run, regenerate, or use an already cached model:
+docker compose exec web python manage.py generate_book_embeddings --book-id 1 --batch-size 8
+docker compose exec web python manage.py generate_book_embeddings --force --offline
+```
+
+The model is [intfloat/multilingual-e5-small](https://huggingface.co/intfloat/multilingual-e5-small),
+pinned to revision `614241f622f53c4eeff9890bdc4f31cfecc418b3`. It runs on CPU through
+FastEmbed/ONNX and produces normalized 384-dimensional vectors. Document input is
+`passage: <title>\n<description>`; future search queries must use the same model with
+the `query: ` prefix. No paid API or API key is required. The first run downloads
+the model files; subsequent runs use the persistent `embedding_cache` Docker volume.
+Every new book automatically receives an embedding when saved. A missing or blank
+description uses the title alone.
+Changing the title or description regenerates it; changing stock counts or saving
+unchanged text does not when its vector is current. Clearing a description
+regenerates the vector from the title. Every save also repairs missing vectors,
+stale input hashes and outdated model names/revisions. This applies
+to normal ORM saves, web forms, the API and the admin, including admin text edits.
+Generation is synchronous: the save succeeds only after the vector is stored.
+If inference fails, the transaction rolls back both book changes and the vector;
+web/API/admin report the failure. The model initializes lazily and is cached per
+process. The first text save may download its files; later saves reuse the cache.
+
+Migration `book.0003` enables the PostgreSQL `vector` extension and creates a
+separate `BookEmbedding` table (`vector(384)`, model/revision, input SHA-256 and timestamp).
+Compose uses `pgvector/pgvector:0.8.2-pg15`, retaining PostgreSQL major version 15.
+For an externally hosted database, ensure pgvector is installed and the migration
+user can enable the extension, or have an administrator enable it beforehand.
+SQLite is not supported by this command. Apply migrations before running it.
+
+The management command remains available for legacy books and forced regeneration
+(including model revision changes). Book.objects.bulk_create is rejected; create
+books through create() or save(). QuerySet.update and bulk_update reject name or
+description changes, while stock-only updates remain supported. Raw SQL and
+Django raw fixture loading bypass model hooks and require backfilling.
+Unchanged inputs/model revisions are skipped; title-only books are included. Command inference runs in batches outside database locks;
+a vector is saved only if the
+book text still matches the captured input. If text changes during inference,
+the command reports it and a subsequent run processes the new text. Successfully
+completed batches remain saved if a later batch fails. Normal book saves generate
+and persist under the book row lock to keep the text/vector pair atomic. This
+ticket does not add a search endpoint or a scheduled generation job. Semantic
+search should validate the input hash and model metadata of imported vectors.
+
+Docker CI enables `RUN_BOOK_EMBEDDING_MODEL_TESTS=1` to test real Ukrainian/English
+inference and a pgvector cosine-distance query in addition to offline regression
+tests for idempotency, batching, invalid outputs and concurrent text edits.
 
 ## REST API
 
@@ -267,3 +321,5 @@ which is why the health check passes; don't set `ALLOWED_HOSTS=*.onrender.com`.
 ## License
 
 This project is provided as a learning / marathon exercise.
+
+With `DJANGO_SEED=true`, startup runs the idempotent embedding backfill even when existing users cause sample-data creation to be skipped. Current vectors are preserved; generation failure stops startup for retry.

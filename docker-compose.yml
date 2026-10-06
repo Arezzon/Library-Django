@@ -8,7 +8,7 @@
 
 services:
   db:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:0.8.2-pg15
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-library_db}
@@ -39,6 +39,7 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DJANGO_SEED: ${DJANGO_SEED:-true}
+      BOOK_EMBEDDING_CACHE_DIR: /app/.cache/book-embeddings
     ports:
       - "8000:8000"
     depends_on:
@@ -48,6 +49,8 @@ services:
       # Mount app source for live reload when using runserver.
       # Comment out to use the code baked into the image.
       - ./library:/app/library
+      - embedding_cache:/app/.cache/book-embeddings
 
 volumes:
   pgdata:
+  embedding_cache:

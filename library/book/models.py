@@ -1,8 +1,23 @@
-from django.db import models
+from django.db import models, router, transaction
 from django.db.models import Count, Q
+from pgvector.django import VectorField
 
 
 class BookQuerySet(models.QuerySet):
+    def bulk_create(self, *args, **kwargs):
+        raise ValueError('Book bulk_create bypasses embeddings; use create() or save().')
+
+    def update(self, **kwargs):
+        if {'name', 'description'}.intersection(kwargs):
+            raise ValueError('Book text update bypasses embeddings; use save().')
+        return super().update(**kwargs)
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        fields = tuple(fields)
+        if {'name', 'description'}.intersection(fields):
+            raise ValueError('Book text bulk_update bypasses embeddings; use save().')
+        return super().bulk_update(objs, fields, batch_size=batch_size)
+
     def with_availability(self):
         """Count unreturned orders in SQL, including books with no orders.
 
@@ -39,6 +54,42 @@ class Book(models.Model):
     count = models.IntegerField(default=DEFAULT_COUNT)
     id = models.AutoField(primary_key=True)
     objects = BookQuerySet.as_manager()
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        """Keep book text and its embedding consistent in a single transaction.
+
+        Normal ORM saves, web forms, API and admin all use this path.
+        Bulk creation and bulk text writes are rejected by the queryset.
+        """
+        from .embeddings import (regenerate_book_embedding, document_text, input_hash,
+                                 MODEL_NAME, MODEL_REVISION)
+
+        if update_fields is not None:
+            update_fields = frozenset(update_fields)
+            if not update_fields:
+                return
+        database = using or router.db_for_write(type(self), instance=self)
+        with transaction.atomic(using=database):
+            if self.pk is not None:
+                type(self).objects.using(database).select_for_update().filter(
+                    pk=self.pk
+                ).values('pk').first()
+            result = super().save(
+                force_insert=force_insert, force_update=force_update,
+                using=database, update_fields=update_fields,
+            )
+            # Read what actually persisted, including partial update_fields.
+            current = type(self).objects.using(database).get(pk=self.pk)
+            existing = BookEmbedding.objects.using(database).filter(book_id=self.pk).values(
+                'input_hash', 'model', 'model_revision',
+            ).first()
+            if existing is None or (
+                existing['input_hash'] != input_hash(document_text(current.name, current.description))
+                or existing['model'] != MODEL_NAME or existing['model_revision'] != MODEL_REVISION
+            ):
+                regenerate_book_embedding(current, database)
+                self._state.fields_cache.pop('embedding', None)
+            return result
 
     @property
     def available_count(self):
@@ -169,3 +220,15 @@ class Book(models.Model):
         returns data for json request with QuerySet of all books
         """
         return list(Book.objects.all())
+
+
+class BookEmbedding(models.Model):
+    """A reproducible document embedding, kept separate from catalog responses."""
+    book = models.OneToOneField(
+        Book, on_delete=models.CASCADE, related_name='embedding', primary_key=True,
+    )
+    vector = VectorField(dimensions=384)
+    input_hash = models.CharField(max_length=64)
+    model = models.CharField(max_length=100)
+    model_revision = models.CharField(max_length=40)
+    updated_at = models.DateTimeField(auto_now=True)
