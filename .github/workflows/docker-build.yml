@@ -31,6 +31,10 @@ jobs:
       - name: Start stack (web + db) and wait for health
         run: docker compose up -d --wait
 
+      # The development source bind mount hides staticfiles collected in the image.
+      - name: Collect static files for the mounted source
+        run: docker compose exec -T web python manage.py collectstatic --noinput
+
       - name: Run Django regression tests against PostgreSQL
         run: docker compose exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events --verbosity 2
 
