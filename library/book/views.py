@@ -13,7 +13,7 @@ from .forms import BookForm
 
 def _filter_books(query: str, author_id: str):
     """Filter book queryset by search query and/or author ID."""
-    books = Book.objects.prefetch_related('authors').all()
+    books = Book.objects.with_availability().prefetch_related('authors')
 
     if query:
         books = books.filter(Q(name__icontains=query) | Q(description__icontains=query))
@@ -42,7 +42,9 @@ def book_list(request: HttpRequest) -> HttpResponse:
 
 @login_required(login_url='login')
 def book_detail(request: HttpRequest, book_id: int) -> HttpResponse:
-    book = get_object_or_404(Book.objects.prefetch_related('authors'), pk=book_id)
+    book = get_object_or_404(
+        Book.objects.with_availability().prefetch_related('authors'), pk=book_id
+    )
     return render(request, 'book/book_detail.html', {'book': book})
 
 
@@ -82,4 +84,3 @@ def books_by_user(request: HttpRequest, user_id: int) -> HttpResponse:
         'target_user': target_user,
         'active_orders': active_orders,
     })
-
