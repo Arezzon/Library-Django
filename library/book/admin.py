@@ -1,5 +1,7 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.shortcuts import redirect
 from .models import Book
+from .embeddings import EmbeddingGenerationError
 from order.models import Order
 
 
@@ -14,6 +16,13 @@ class OrderInline(admin.TabularInline):
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        try:
+            return super().changeform_view(request, object_id, form_url, extra_context)
+        except EmbeddingGenerationError as error:
+            self.message_user(request, str(error), level=messages.ERROR)
+            return redirect(request.path)
+
     list_display = ('id', 'name', 'count', 'get_authors', 'description')
     list_filter = ('id', 'name', 'authors')
     search_fields = ('id', 'name', 'authors__name', 'authors__surname')
@@ -31,8 +40,6 @@ class BookAdmin(admin.ModelAdmin):
     inlines = [OrderInline]
 
     def get_readonly_fields(self, request, obj=None):
-        if obj:
-            return ('name', 'description', 'get_authors')
         return ('get_authors',)
 
     @admin.display(description='Authors')

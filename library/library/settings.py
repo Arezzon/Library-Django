@@ -31,6 +31,10 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+BOOK_EMBEDDING_CACHE_DIR = Path(os.getenv(
+    'BOOK_EMBEDDING_CACHE_DIR', str(BASE_DIR.parent / '.cache' / 'book-embeddings')
+))
+
 # Always allow Render's *.onrender.com hosts; merge with any ALLOWED_HOSTS
 # provided via environment (comma-separated). Strip whitespace so a trailing
 # space in a Render env value can't cause Django to reject the host (HTTP 400).
