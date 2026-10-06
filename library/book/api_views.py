@@ -4,5 +4,5 @@ from .serializers import BookSerializer
 
 
 class BookViewSet(viewsets.ModelViewSet):
-    queryset = Book.objects.all().order_by('id')
+    queryset = Book.objects.with_availability().prefetch_related('authors').order_by('id')
     serializer_class = BookSerializer

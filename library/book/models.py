@@ -1,4 +1,19 @@
 from django.db import models
+from django.db.models import Count, Q
+
+
+class BookQuerySet(models.QuerySet):
+    def with_availability(self):
+        """Count unreturned orders in SQL, including books with no orders.
+
+        Distinct order IDs prevent author joins from multiplying the count.
+        Annotations are a snapshot; refetch after changing orders.
+        """
+        return self.annotate(
+            active_order_count=Count(
+                'order', filter=Q(order__end_at__isnull=True), distinct=True
+            )
+        )
 
 
 class Book(models.Model):
@@ -23,10 +38,18 @@ class Book(models.Model):
     description = models.CharField(blank=True, max_length=DESCRIPTION_MAX_LEN)
     count = models.IntegerField(default=DEFAULT_COUNT)
     id = models.AutoField(primary_key=True)
+    objects = BookQuerySet.as_manager()
 
     @property
     def available_count(self):
-        active_orders = self.order_set.filter(end_at__isnull=True).count()
+        """Derived availability, without a separately persisted stock counter."""
+        active_orders = getattr(self, 'active_order_count', None)
+        if active_orders is None:
+            active_orders = 0
+            if self.pk is not None:
+                active_orders = self.order_set.aggregate(
+                    active_count=Count('pk', filter=Q(end_at__isnull=True))
+                )['active_count']
         return max(0, self.count - active_orders)
 
     def __str__(self):

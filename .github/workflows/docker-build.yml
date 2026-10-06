@@ -28,6 +28,9 @@ jobs:
       - name: Start stack (web + db) and wait for health
         run: docker compose up -d --wait
 
+      - name: Run Django regression tests against PostgreSQL
+        run: docker compose exec -T web python manage.py test authentication author book order --verbosity 2
+
       - name: Wait for the web server to accept connections
         run: |
           for i in $(seq 1 30); do
