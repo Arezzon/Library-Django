@@ -1,0 +1,12 @@
+# Shared owners for the repository.
+* @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario
+
+# Business analyst: documentation.
+/docs/ @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @anastasiiaMirovska
+
+# Lead QA: test suites and test files.
+**/tests/ @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
+**/tests.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
+**/test_*.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
+**/*_test.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
+**/conftest.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
