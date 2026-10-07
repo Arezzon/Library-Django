@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'author',
     'book',
     'order',
+    'events.apps.EventsConfig',
     'rest_framework',
     'drf_spectacular',
 ]
@@ -68,6 +69,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'events.middleware.EventTrackingMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -192,3 +194,22 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
+# Only the worker writes analytics events; requests publish JSON tasks to Redis.
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_TASK_DEFAULT_QUEUE = 'events'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_CONNECTION_TIMEOUT = 1
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'visibility_timeout': 120,
+    'socket_connect_timeout': 1,
+    'socket_timeout': 1,
+    'retry_policy': {'max_retries': 0},
+}
+
+# Eager execution is for isolated unit tests; smoke tests use the real worker.
+CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
+CELERY_TASK_EAGER_PROPAGATES = True

@@ -28,7 +28,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     # The Django settings read these env vars directly.
-    environment:
+    environment: &app_environment
+      CELERY_BROKER_URL: redis://redis:6379/0
       DEBUG: ${DEBUG:-False}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-prod}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
@@ -43,6 +44,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
+      redis:
+        condition: service_healthy
       db:
         condition: service_healthy
     volumes:
@@ -51,6 +54,36 @@ services:
       - ./library:/app/library
       - embedding_cache:/app/.cache/book-embeddings
 
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always", "--maxmemory-policy", "noeviction"]
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Web owns migrations/seeding; the worker executes only committed tasks.
+    entrypoint: ["celery"]
+    command: ["-A", "library", "worker", "--loglevel=INFO", "--concurrency=2", "--queues=events"]
+    environment: *app_environment
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./library:/app/library
+
 volumes:
   pgdata:
   embedding_cache:
+  redisdata:

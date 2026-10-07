@@ -1,0 +1,49 @@
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div><p class="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">Library insights</p>
+            {% if profile_activity %}<h2 class="text-2xl font-bold text-slate-900">User activity</h2>{% else %}<h1 class="text-2xl font-bold text-slate-900">Activity Analytics</h1>{% endif %}
+            <p class="text-sm text-slate-500 mt-1">{% if profile_activity %}Actions performed by {{ target_user.email }} in the selected period.{% else %}Understand what readers explore and borrow.{% endif %}</p></div>
+        <a href="{% if profile_activity %}{% url 'user_detail' target_user.id %}{% else %}{% url 'events_dashboard' %}{% endif %}?days={{ days }}&amp;event_type={{ selected_type }}" class="btn-secondary">Refresh</a>
+    </div>
+    <form method="get" class="card p-4 flex flex-col sm:flex-row gap-3 sm:items-end">
+        <div><label for="days" class="block text-xs font-semibold text-slate-500 mb-1">Period</label>
+            <select name="days" id="days" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
+                <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+            </select></div>
+        <div class="flex-1"><label for="event_type" class="block text-xs font-semibold text-slate-500 mb-1">Action</label>
+            <select name="event_type" id="event_type" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
+                <option value="">All actions</option>{% for value,label in event_types %}<option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select></div><button class="btn-primary" type="submit">Apply filters</button>
+    </form>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card p-5"><p class="text-xs text-slate-500">Recorded actions</p><p class="text-3xl font-bold text-slate-900 mt-2">{{ summary.total }}</p></div>
+        <div class="card p-5"><p class="text-xs text-slate-500">{% if profile_activity %}Catalog searches{% else %}Active users{% endif %}</p><p class="text-3xl font-bold text-indigo-600 mt-2">{% if profile_activity %}{{ summary.searches }}{% else %}{{ summary.users }}{% endif %}</p></div>
+        <div class="card p-5"><p class="text-xs text-slate-500">Book views</p><p class="text-3xl font-bold text-slate-900 mt-2">{{ summary.views }}</p></div>
+        <div class="card p-5"><p class="text-xs text-slate-500">Books borrowed</p><p class="text-3xl font-bold text-emerald-600 mt-2">{{ summary.borrows }}</p></div>
+    </div>
+    <div class="grid lg:grid-cols-3 gap-6">
+        <section class="card lg:col-span-2"><div class="card-header"><h2 class="font-semibold text-slate-900">Daily activity</h2><span class="text-xs text-slate-400">Latest {{ bars|length }} days · UTC</span></div>
+            <div class="p-5"><div class="flex gap-2 items-end h-44" role="img" aria-label="Daily event counts">
+                {% for bar in bars %}<div class="flex-1 h-full flex flex-col justify-end items-center min-w-0">
+                    <span class="text-xs text-slate-500 mb-1">{{ bar.total }}</span>
+                    <div class="w-full rounded-t-md {% if bar.total %}bg-indigo-500{% else %}bg-slate-100{% endif %}" style="height:{{ bar.height }}%; min-height:3px; max-height:130px" title="{{ bar.day|date:'Y-m-d' }}: {{ bar.total }} actions"></div>
+                    <span class="text-[10px] text-slate-400 mt-2">{{ bar.day|date:'d/m' }}</span></div>{% endfor %}
+            </div></div>
+        </section>
+        <section class="card"><div class="card-header"><h2 class="font-semibold text-slate-900">Action breakdown</h2></div><div class="p-5 space-y-4">
+            {% for row in distribution %}<div><div class="flex justify-between gap-2 text-xs mb-1"><span class="text-slate-600">{{ row.label }}</span><span class="font-semibold">{{ row.total }}</span></div><div class="h-1.5 bg-slate-100 rounded-full"><div class="h-1.5 bg-indigo-500 rounded-full" style="width:{{ row.percent }}%"></div></div></div>
+            {% empty %}<p class="text-sm text-slate-400">No actions in this period.</p>{% endfor %}
+        </div></section>
+    </div>
+    <section class="card"><div class="card-header"><h2 class="font-semibold text-slate-900">Most explored books</h2><span class="text-xs text-slate-400">Views and catalog clicks</span></div>
+        <div class="p-5 space-y-3">{% for row in popular %}<div class="flex items-center justify-between gap-3"><div class="flex items-center gap-3 min-w-0"><span class="text-xs font-mono text-slate-400">{{ forloop.counter }}</span>{% if row.exists %}<a class="text-sm font-medium text-slate-800 hover:text-indigo-600 truncate" href="{% url 'book_detail' row.book_id %}">{{ row.title }}</a>{% else %}<span class="text-sm text-slate-500">{{ row.title }}</span>{% endif %}</div><span class="badge-info">{{ row.total }} actions</span></div>{% empty %}<p class="text-sm text-slate-400">Explore the catalog to see which books attract interest.</p>{% endfor %}</div>
+    </section>
+    <section class="card"><div class="card-header"><h2 class="font-semibold text-slate-900">Recent activity</h2><span class="text-xs text-slate-400">{{ page_obj.paginator.count }} actions</span></div>
+        <div class="overflow-x-auto"><table class="table-custom"><thead class="table-thead"><tr><th class="table-th">When (UTC)</th>{% if not profile_activity %}<th class="table-th">User</th>{% endif %}<th class="table-th">Action</th><th class="table-th">Book / details</th><th class="table-th">Source</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">{% for event in page_obj %}<tr class="hover:bg-slate-50"><td class="table-td whitespace-nowrap text-xs">{{ event.occurred_at|date:'d M H:i:s' }}</td>{% if not profile_activity %}<td class="table-td text-xs">{{ event.user.email|default:'Deleted user' }}</td>{% endif %}<td class="table-td"><span class="badge-slate">{{ event.get_event_type_display }}</span></td><td class="table-td text-xs">{% if event.book_id %}Book #{{ event.book_id }}{% endif %}{% if event.properties.query %}<span class="text-slate-500">{{ event.properties.query }}</span>{% endif %}{% if event.properties.order_id %}<span class="text-slate-400"> · Order #{{ event.properties.order_id }}</span>{% endif %}</td><td class="table-td"><span class="{% if event.source == 'server' %}badge-purple{% else %}badge-info{% endif %}">{{ event.get_source_display }}</span></td></tr>
+            {% empty %}<tr><td colspan="{% if profile_activity %}4{% else %}5{% endif %}" class="p-10 text-center"><p class="font-medium text-slate-700">No activity yet</p><p class="text-sm text-slate-400 mt-2">{% if profile_activity %}This user has no tracked actions in the selected period.{% else %}Sign in, open a book or search the catalog, then refresh this page.{% endif %}</p></td></tr>{% endfor %}</tbody></table></div>
+        {% if page_obj.has_other_pages %}<div class="card-footer"><span class="text-xs text-slate-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span><div class="flex gap-2">{% if page_obj.has_previous %}<a class="btn-sm-secondary" href="?days={{ days }}&amp;event_type={{ selected_type }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}{% if page_obj.has_next %}<a class="btn-sm-primary" href="?days={{ days }}&amp;event_type={{ selected_type }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}</div></div>{% endif %}
+    </section>
+</div>
