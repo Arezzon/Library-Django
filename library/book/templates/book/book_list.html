@@ -79,7 +79,7 @@
                             <tr class="hover:bg-slate-50/75 transition">
                                 <td class="table-td font-mono text-xs text-slate-400">#{{ book.id }}</td>
                                 <td class="table-td">
-                                    <a href="{% url 'book_detail' book.id %}" class="font-semibold text-slate-900 hover:text-indigo-600 transition">
+                                    <a data-track-event="book_click" data-book-id="{{ book.id }}" href="{% url 'book_detail' book.id %}" class="font-semibold text-slate-900 hover:text-indigo-600 transition">
                                         {{ book.name }}
                                     </a>
                                     {% if book.description %}
@@ -111,7 +111,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="table-td text-right whitespace-nowrap">
-                                    <a href="{% url 'book_detail' book.id %}" class="btn-sm-secondary">
+                                    <a data-track-event="book_click" data-book-id="{{ book.id }}" href="{% url 'book_detail' book.id %}" class="btn-sm-secondary">
                                         Details →
                                     </a>
                                 </td>
@@ -140,7 +140,7 @@
                     </div>
 
                     <div>
-                        <a href="{% url 'book_detail' book.id %}" class="font-bold text-slate-900 hover:text-indigo-600 transition text-base block">
+                        <a data-track-event="book_click" data-book-id="{{ book.id }}" href="{% url 'book_detail' book.id %}" class="font-bold text-slate-900 hover:text-indigo-600 transition text-base block">
                             {{ book.name }}
                         </a>
                         {% if book.description %}
@@ -164,7 +164,7 @@
                     </div>
 
                     <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
-                        <a href="{% url 'book_detail' book.id %}" class="btn-sm-secondary w-full text-center justify-center">
+                        <a data-track-event="book_click" data-book-id="{{ book.id }}" href="{% url 'book_detail' book.id %}" class="btn-sm-secondary w-full text-center justify-center">
                             View Details →
                         </a>
                     </div>

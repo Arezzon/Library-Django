@@ -323,3 +323,60 @@ which is why the health check passes; don't set `ALLOWED_HOSTS=*.onrender.com`.
 This project is provided as a learning / marathon exercise.
 
 With `DJANGO_SEED=true`, startup runs the idempotent embedding backfill even when existing users cause sample-data creation to be skipped. Current vectors are preserved; generation failure stops startup for retry.
+
+## User event tracking (KAN-30)
+
+Run `docker compose up --build -d` to start the web app, PostgreSQL, Redis and the
+Celery worker. Redis uses an AOF volume with synchronous fsync; no Redis port is
+published. Worker events are acknowledged after persistence and retried with
+backoff on database failures. UUID-based inserts are idempotent.
+
+Authenticated book views and catalog searches are captured by middleware. Login
+and logout use auth signals. Order creation, returns, reopening and reassignment
+use model signals and publish only after transaction commit. The actor and the
+reader are distinct: librarian actions include `reader_id` in their properties.
+Failed actions, anonymous requests, seed data, analytics pages and tracking API
+requests are not counted as successful business events. Bulk/raw order writes
+bypass signals and are outside the tracked application paths.
+
+`POST /api/v1/events/` accepts JSON with `event_id` (UUID), `event_type`
+(`book_click` or `borrow_intent`), `book_id` and `path` (catalog or book detail).
+It requires authentication and session CSRF, derives identity from the session,
+and rejects unknown fields and server-only event types. HTTP 202 means queued,
+not yet stored; a stopped worker can consume the queue after it restarts.
+The endpoint returns retryable HTTP 503 if the broker is unavailable. Server
+tracking logs enqueue failures without breaking the business action; it is
+best effort during broker outages, and has no database outbox fallback.
+
+Catalog/book-page links send explicit client events with a CSRF token. The
+browser retains at most 50 pending events per user in sessionStorage, retries
+the same UUID after navigation/network recovery and expires saved entries after
+24 hours. It never reads passwords, arbitrary form inputs, cookies or full URLs.
+Search text is explicitly retained (up to 200 characters) for analytics.
+
+Librarians see **Analytics** in navigation at `/events/`: period/action filters,
+counts, daily activity, action distribution, popular books and paginated recent
+activity. The same analytics are scoped to the selected user on
+`/authentication/users/<id>/`, visible only to librarians; profile filters and
+pagination stay on that profile. Readers cannot access analytics. Empty states and deleted
+users/books are supported. Event data is not yet used to rank recommendations.
+No external analytics provider or data export is configured.
+
+Local verification (run on a disposable stack):
+
+```bash
+docker compose exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events --verbosity 2
+node --test scripts/test_tracking_js.cjs
+docker compose exec -T web python manage.py smoke_test_tracking
+python3 scripts/smoke_tracking_recovery.py
+```
+
+The unit-test process enables eager tasks to keep existing suites in their own
+test database; event tests mock publishing to verify async enqueue boundaries.
+The HTTP smoke command uses a real Redis broker and separate worker, creates
+its own test user/book, exercises the UI/API workflow, then cleans them up.
+Both checks run in Docker Build / smoke-test on pull requests. Deployment
+outside Compose also needs `CELERY_BROKER_URL` and a continuously running
+`celery -A library worker --queues=events` process; a web process alone cannot
+persist queued events. The existing Render blueprint does not provision these
+additional services.
