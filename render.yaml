@@ -6,6 +6,8 @@
 #
 # Docs: https://render.com/docs/blueprint-spec
 
+# Omitted region uses Render's Oregon default. For existing resources,
+# match their current region before syncing; regions cannot be changed in place.
 services:
   - type: web
     name: library-django
@@ -13,7 +15,6 @@ services:
     branch: main
     dockerfilePath: ./Dockerfile
     plan: free
-    region: frankfurt
     dockerCommand: python /app/scripts/render_start.py
     # HTTP health check. The schema endpoint (/api/schema/) needs no auth and
     # returns 200 once gunicorn is listening. ALLOWED_HOSTS now includes
@@ -62,13 +63,11 @@ services:
   - type: keyvalue
     name: library-queue
     plan: free
-    region: frankfurt
     maxmemoryPolicy: noeviction
     ipAllowList: []
 
 databases:
   - name: library-db
-    region: frankfurt
     databaseName: library_db
     user: library_user
     plan: free
