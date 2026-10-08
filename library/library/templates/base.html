@@ -209,7 +209,10 @@
 
                     {# Librarian Menu #}
                     {% if request.user.is_librarian %}
-                        <a href="{% url 'events_dashboard' %}" class="mobile-nav-link">Activity Analytics</a>
+                        <a href="{% url 'events_dashboard' %}" class="mobile-nav-link">
+                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 16v-5m5 5V7m5 9v-8"></path></svg>
+                            Analytics
+                        </a>
                         <a href="/author/" class="mobile-nav-link">
                             <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                             Authors

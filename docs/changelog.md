@@ -1,3 +1,7 @@
+2026-10-08
+README and mobile analytics navigation
+Reworked the README with Docker and venv quick starts, prerequisites, platform-specific commands, Memurai/Redis guidance, troubleshooting, API and analytics documentation. Added the mobile Analytics icon to match the other navigation items.
+
 2026-10-07
 Fresh base for feature branches
 Added a skill and repository rule to create feature branches from an updated origin/main, with a verified feature branch base when a dependency requires it.
