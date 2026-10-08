@@ -380,8 +380,3 @@ outside Compose also needs `CELERY_BROKER_URL` and a continuously running
 `celery -A library worker --queues=events` process; a web process alone cannot
 persist queued events. The existing Render blueprint does not provision these
 additional services.
-
-### Render Free deployment
-
-See [the Ukrainian setup guide](docs/render-free.md) for the KAN-47 free-tier
-Blueprint, shared web/Celery process, initial data, and hosting limitations.

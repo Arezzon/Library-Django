@@ -2,7 +2,7 @@
 # One-click deploy: push this repo to GitHub, then in Render click
 # "New" -> "Blueprint" and select the repo. Render creates both
 # the web service, Key Value queue and Postgres database from this file.
-# Free demo: web and Celery share a container; see docs/render-free.md.
+# Free demo: web and Celery share a container.
 #
 # Docs: https://render.com/docs/blueprint-spec
 
