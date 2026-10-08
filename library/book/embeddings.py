@@ -6,7 +6,10 @@ from functools import lru_cache
 from django.conf import settings
 
 MODEL_NAME = 'intfloat/multilingual-e5-small'
-MODEL_REVISION = '614241f622f53c4eeff9890bdc4f31cfecc418b3'
+SOURCE_REVISION = '614241f622f53c4eeff9890bdc4f31cfecc418b3'
+# Artifact-specific identity fits the existing 40-character database field.
+MODEL_REVISION = hashlib.sha1((SOURCE_REVISION + ':onnx-int8').encode()).hexdigest()
+MODEL_FILE = 'onnx/model_qint8_avx512_vnni.onnx'
 DIMENSIONS = 384
 
 
@@ -33,31 +36,54 @@ def normalized_vector(values):
     return [value / norm for value in vector]
 
 
+class SmallE5Encoder:
+    """Pinned int8 E5, one document at a time, without the FastEmbed model registry."""
+    def __init__(self, snapshot):
+        import onnxruntime as ort
+        from sentencepiece import SentencePieceProcessor
+
+        self.tokenizer = SentencePieceProcessor(model_file=str(snapshot / 'onnx/sentencepiece.bpe.model'))
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
+        options.enable_cpu_mem_arena = False
+        options.enable_mem_pattern = False
+        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+        self.session = ort.InferenceSession(
+            str(snapshot / MODEL_FILE), sess_options=options,
+            providers=['CPUExecutionProvider'],
+        )
+
+    def embed(self, texts, batch_size=1):
+        import numpy as np
+
+        for text in texts:
+            # XLM-R vocabulary offset: BOS=0, EOS=2, unknown=3.
+            pieces = self.tokenizer.encode(text, out_type=int)[:510]
+            ids = [0] + [piece + 1 if piece else 3 for piece in pieces] + [2]
+            inputs = {
+                'input_ids': np.asarray([ids], dtype=np.int64),
+                'attention_mask': np.asarray([[1] * len(ids)], dtype=np.int64),
+                'token_type_ids': np.asarray([[0] * len(ids)], dtype=np.int64),
+            }
+            inputs = {item.name: inputs[item.name] for item in self.session.get_inputs()}
+            hidden = self.session.run(None, inputs)[0]
+            mask = np.asarray([1] * len(ids), dtype=np.float32)[None, :, None]
+            pooled = (hidden * mask).sum(axis=1) / mask.sum(axis=1)
+            yield normalized_vector(pooled[0])
+
+
 @lru_cache(maxsize=2)
 def load_embedding_model(offline=False):
-    # Lazy initialization and per-process caching avoid loading on every save.
-    from fastembed import TextEmbedding
-    from fastembed.common.model_description import ModelSource, PoolingType
+    from pathlib import Path
     from huggingface_hub import snapshot_download
 
     snapshot = snapshot_download(
-        repo_id=MODEL_NAME, revision=MODEL_REVISION,
+        repo_id=MODEL_NAME, revision=SOURCE_REVISION,
         cache_dir=str(settings.BOOK_EMBEDDING_CACHE_DIR), local_files_only=offline,
-        allow_patterns=[
-            'config.json', 'tokenizer.json', 'tokenizer_config.json',
-            'special_tokens_map.json', 'onnx/model.onnx',
-        ],
+        allow_patterns=['onnx/sentencepiece.bpe.model', MODEL_FILE],
     )
-    if MODEL_NAME not in {model['model'] for model in TextEmbedding.list_supported_models()}:
-        TextEmbedding.add_custom_model(
-            model=MODEL_NAME, pooling=PoolingType.MEAN, normalization=True,
-            sources=ModelSource(hf=MODEL_NAME), dim=DIMENSIONS,
-            model_file='onnx/model.onnx',
-        )
-    return TextEmbedding(
-        model_name=MODEL_NAME, specific_model_path=snapshot,
-        threads=2, providers=['CPUExecutionProvider'],
-    )
+    return SmallE5Encoder(Path(snapshot))
 
 
 def regenerate_book_embedding(book, database):

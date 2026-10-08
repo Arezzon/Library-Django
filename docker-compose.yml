@@ -52,7 +52,6 @@ services:
       # Mount app source for live reload when using runserver.
       # Comment out to use the code baked into the image.
       - ./library:/app/library
-      - embedding_cache:/app/.cache/book-embeddings
 
   redis:
     image: redis:7.4-alpine
@@ -85,5 +84,4 @@ services:
 
 volumes:
   pgdata:
-  embedding_cache:
   redisdata:

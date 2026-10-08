@@ -168,10 +168,10 @@ docker compose exec web python manage.py generate_book_embeddings --force --offl
 
 The model is [intfloat/multilingual-e5-small](https://huggingface.co/intfloat/multilingual-e5-small),
 pinned to revision `614241f622f53c4eeff9890bdc4f31cfecc418b3`. It runs on CPU through
-FastEmbed/ONNX and produces normalized 384-dimensional vectors. Document input is
+ONNX Runtime using the pinned int8 artifact and produces normalized 384-dimensional vectors. Document input is
 `passage: <title>\n<description>`; future search queries must use the same model with
-the `query: ` prefix. No paid API or API key is required. The first run downloads
-the model files; subsequent runs use the persistent `embedding_cache` Docker volume.
+the `query: ` prefix. No paid API or API key is required. Docker builds download the model files into the image; runtime inference works offline.
+The int8 artifact has its own revision identity so older fp32 vectors are regenerated.
 Every new book automatically receives an embedding when saved. A missing or blank
 description uses the title alone.
 Changing the title or description regenerates it; changing stock counts or saving
@@ -182,7 +182,7 @@ to normal ORM saves, web forms, the API and the admin, including admin text edit
 Generation is synchronous: the save succeeds only after the vector is stored.
 If inference fails, the transaction rolls back both book changes and the vector;
 web/API/admin report the failure. The model initializes lazily and is cached per
-process. The first text save may download its files; later saves reuse the cache.
+process. The first text save initializes the model; later saves reuse the in-process session.
 
 Migration `book.0003` enables the PostgreSQL `vector` extension and creates a
 separate `BookEmbedding` table (`vector(384)`, model/revision, input SHA-256 and timestamp).

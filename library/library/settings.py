@@ -42,6 +42,10 @@ _allowed = os.getenv('ALLOWED_HOSTS', '')
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
 ALLOWED_HOSTS += ['.onrender.com', 'localhost', '127.0.0.1']
 
+# Render terminates TLS before forwarding requests to the container.
+if os.getenv('RENDER') == 'true':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -166,6 +170,11 @@ LOGGING = {
         },
     },
     'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
         'dev': {
             'handlers': ['console'],
             'level': 'DEBUG',

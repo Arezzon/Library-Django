@@ -22,6 +22,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Validate Render free deployment
+        run: |
+          python -m pip install PyYAML
+          python scripts/check_render_config.py
+          python -m unittest discover -s scripts -p "test_render_start.py" -v
+
       - name: Verify browser tracking logic
         run: node --test scripts/test_tracking_js.cjs
 
@@ -63,6 +69,11 @@ jobs:
 
       - name: Verify event queue survives worker and broker restart
         run: python scripts/smoke_tracking_recovery.py
+
+      - name: Verify seeded Render service under 512 MiB
+        run: |
+          docker compose stop worker
+          python scripts/smoke_render_free.py
 
       - name: Tear down
         if: always()

@@ -3,6 +3,7 @@ import sys
 import django
 import datetime
 from django.utils import timezone
+from django.db import transaction
 from django.core.management import call_command
 
 # Setup Django environment
@@ -223,6 +224,7 @@ def _seed_orders(created_users: dict[str, CustomUser], created_books: dict[str, 
             print("  + Created closed order for bob@library.com: 'Clean Code'")
 
 
+@transaction.atomic
 def seed_data():
     # Fast no-op on warm boots / redeploys: if any user already exists,
     # assume the dataset was seeded before and skip the (slow on free DB)

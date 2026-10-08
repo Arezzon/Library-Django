@@ -265,6 +265,32 @@ class BookEmbeddingCommandTests(TestCase):
     'Set RUN_BOOK_EMBEDDING_MODEL_TESTS=1 for real ONNX inference (enabled in Docker CI)',
 )
 class RealBookEmbeddingTests(TestCase):
+    def test_compact_tokenizer_matches_reference_xlm_roberta_ids(self):
+        from .embeddings import load_embedding_model
+        model = load_embedding_model(offline=True)
+        # Golden IDs from the pinned Hugging Face tokenizer.json artifact.
+        for text, expected in [
+            ('passage: Книга про історію України', [0, 46692, 12, 136429, 591, 169293, 2513, 2]),
+            ('passage: A book about Ukraine', [0, 46692, 12, 62, 12877, 1672, 82739, 2]),
+            ('', [0, 2]),
+        ]:
+            pieces = model.tokenizer.encode(text, out_type=int)
+            self.assertEqual([0] + [piece + 1 if piece else 3 for piece in pieces] + [2], expected)
+
+    def test_int8_encoder_handles_multilingual_and_truncated_documents(self):
+        from .embeddings import load_embedding_model, normalized_vector
+        model = load_embedding_model(offline=True)
+        texts = ['passage: Книга про історію України',
+                 'passage: A book about the history of Ukraine',
+                 'passage: ' + 'довгий текст ' * 600]
+        vectors = list(model.embed(texts, batch_size=3))
+        self.assertEqual(len(vectors), 3)
+        for vector in vectors:
+            self.assertEqual(len(vector), DIMENSIONS)
+            self.assertAlmostEqual(sum(value * value for value in vector), 1, places=5)
+            self.assertEqual(len(normalized_vector(vector)), DIMENSIONS)
+        self.assertNotEqual(vectors[0], vectors[1])
+
     def test_real_multilingual_model_and_pgvector_distance_query(self):
         from pgvector.django import CosineDistance
         for name, description in [
@@ -554,3 +580,12 @@ class SeedEmbeddingTests(TestCase):
         with self.assertRaises(CommandError):
             seed_data()
         self.assertFalse(BookEmbedding.objects.exists())
+
+    def test_failed_fresh_seed_rolls_back_users_authors_and_books(self):
+        from seed_db import seed_data
+        self.loader.side_effect = RuntimeError('Model unavailable')
+        with self.assertRaises(EmbeddingGenerationError):
+            seed_data()
+        self.assertFalse(CustomUser.objects.exists())
+        self.assertFalse(Author.objects.exists())
+        self.assertFalse(Book.objects.exists())
