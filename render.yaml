@@ -1,7 +1,8 @@
 # Render Blueprint
 # One-click deploy: push this repo to GitHub, then in Render click
 # "New" -> "Blueprint" and select the repo. Render creates both
-# the web service and the Postgres database from this file.
+# the web service, Key Value queue and Postgres database from this file.
+# Free demo: web and Celery share a container; see docs/render-free.md.
 #
 # Docs: https://render.com/docs/blueprint-spec
 
@@ -9,10 +10,11 @@ services:
   - type: web
     name: library-django
     runtime: docker
-    repo: https://github.com/Arezzon/Library-Django
     branch: main
     dockerfilePath: ./Dockerfile
     plan: free
+    region: frankfurt
+    dockerCommand: python /app/scripts/render_start.py
     # HTTP health check. The schema endpoint (/api/schema/) needs no auth and
     # returns 200 once gunicorn is listening. ALLOWED_HOSTS now includes
     # ".onrender.com" so Render's request is not rejected (HTTP 400). If the
@@ -30,7 +32,12 @@ services:
         value: django.db.backends.postgresql_psycopg2
       - key: DJANGO_SEED
         value: "true"
-      # These three are pulled from the database defined below.
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: library-queue
+          property: connectionString
+      # Database connection fields are supplied by Render.
       - key: DB_HOST
         fromDatabase:
           name: library-db
@@ -52,8 +59,16 @@ services:
           name: library-db
           property: database
 
+  - type: keyvalue
+    name: library-queue
+    plan: free
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
 databases:
   - name: library-db
+    region: frankfurt
     databaseName: library_db
     user: library_user
     plan: free

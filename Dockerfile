@@ -12,13 +12,21 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Copy the whole repo, then move into the Django project directory
-COPY . /app
-WORKDIR /app/library
+COPY requirements.txt /app/requirements.txt
 
 RUN pip install --upgrade pip && \
     pip install -r /app/requirements.txt && \
     rm -rf /root/.cache
+
+# Bake the pinned int8 model into the image: no cold-start model download.
+ENV BOOK_EMBEDDING_CACHE_DIR=/app/.cache/book-embeddings \
+    HF_HUB_OFFLINE=1 \
+    TOKENIZERS_PARALLELISM=false
+RUN HF_HUB_OFFLINE=0 python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='intfloat/multilingual-e5-small', revision='614241f622f53c4eeff9890bdc4f31cfecc418b3', cache_dir='/app/.cache/book-embeddings', allow_patterns=['onnx/sentencepiece.bpe.model', 'onnx/model_qint8_avx512_vnni.onnx'])"
+
+# Copy source after dependencies/model so code changes reuse build layers.
+COPY . /app
+WORKDIR /app/library
 
 # Collect static files (Django admin CSS/JS) so WhiteNoise can serve them
 # even when DEBUG=False. Uses STATIC_ROOT = library/staticfiles.

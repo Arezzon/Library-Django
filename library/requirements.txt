@@ -19,7 +19,9 @@ uritemplate==4.2.0
 gunicorn==22.0.0
 whitenoise==6.7.0
 pgvector==0.5.0
-fastembed==0.8.1
+onnxruntime==1.30.0
+sentencepiece==0.2.1
+huggingface-hub==1.33.0
 
 # Background event tracking
 celery[redis]==5.6.3

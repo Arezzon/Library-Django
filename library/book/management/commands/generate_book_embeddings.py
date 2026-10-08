@@ -13,7 +13,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--book-id', type=int, action='append', dest='book_ids')
-        parser.add_argument('--batch-size', type=int, default=16)
+        parser.add_argument('--batch-size', type=int, default=1)
         parser.add_argument('--force', action='store_true', help='Regenerate unchanged embeddings.')
         parser.add_argument('--offline', action='store_true', help='Use only cached model files.')
         parser.add_argument('--database', default='default')
