@@ -1,5 +1,6 @@
 """Run the small Render demo web/worker pair; stop both if either exits."""
 import os
+from pathlib import Path
 import signal
 import subprocess
 import sys
@@ -9,6 +10,9 @@ import time
 def main():
     if not os.environ.get('CELERY_BROKER_URL'):
         raise SystemExit('CELERY_BROKER_URL is required for the Render web/worker service')
+    if os.environ.get('LIBRARY_BOOTSTRAPPED') != '1':
+        # Some hosting launchers override ENTRYPOINT as well as CMD.
+        os.execv('/entrypoint.sh', ['/entrypoint.sh', sys.executable, str(Path(__file__).resolve())])
     children = []
     stopping = False
 
@@ -24,6 +28,7 @@ def main():
             ['celery', '-A', 'library', 'worker', '--loglevel=INFO', '--pool=solo',
              '--concurrency=1', '--queues=events', '--without-gossip', '--without-mingle'],
             ['gunicorn', 'library.wsgi:application', '--workers=1', '--timeout=120',
+             '--access-logfile=-', '--error-logfile=-', '--capture-output',
              '--bind', '0.0.0.0:' + os.environ.get('PORT', '8000')],
         ]
         for command in commands:

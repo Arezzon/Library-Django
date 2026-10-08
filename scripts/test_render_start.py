@@ -7,6 +7,8 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
+import importlib.util
 
 SCRIPT = Path(__file__).resolve().with_name('render_start.py')
 
@@ -28,7 +30,7 @@ class RenderLifecycleTests(unittest.TestCase):
                        else 'while True: time.sleep(0.1)\n'))
                 executable.chmod(0o755)
             env = dict(os.environ, PATH=directory + ':' + os.environ['PATH'],
-                       CELERY_BROKER_URL='redis://example:6379/0')
+                       CELERY_BROKER_URL='redis://example:6379/0', LIBRARY_BOOTSTRAPPED='1')
             process = subprocess.Popen([sys.executable, str(SCRIPT)], env=env)
             pids = []
             try:
@@ -63,3 +65,14 @@ class RenderLifecycleTests(unittest.TestCase):
         result = subprocess.run([sys.executable, str(SCRIPT)], env=env, capture_output=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(b'CELERY_BROKER_URL is required', result.stderr)
+
+    def test_direct_start_enters_database_bootstrap_before_starting_children(self):
+        spec = importlib.util.spec_from_file_location('render_supervisor', SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        env = dict(os.environ, CELERY_BROKER_URL='redis://example:6379/0')
+        env.pop('LIBRARY_BOOTSTRAPPED', None)
+        with patch.dict(os.environ, env, clear=True), patch.object(module.os, 'execv', side_effect=RuntimeError('exec replaced process')) as execute:
+            with self.assertRaisesRegex(RuntimeError, 'exec replaced process'):
+                module.main()
+        execute.assert_called_once_with('/entrypoint.sh', ['/entrypoint.sh', sys.executable, str(SCRIPT)])

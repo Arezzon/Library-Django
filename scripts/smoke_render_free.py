@@ -32,12 +32,12 @@ network = next(iter(web['NetworkSettings']['Networks']))
 name = (args.project_name or 'library-ci') + '-render-free'
 command = ['docker', 'run', '-d', '--name', name, '--network', network,
            '--memory', '512m', '--memory-swap', '512m', '--cpus', args.cpus,
-           '-p', f'127.0.0.1:{args.port}:10000']
+           '--entrypoint', 'python', '-p', f'127.0.0.1:{args.port}:10000']
 for item in web['Config']['Env']:
-    if item.split('=', 1)[0] not in ('DJANGO_SEED', 'PORT', 'CELERY_TASK_ALWAYS_EAGER'):
+    if item.split('=', 1)[0] not in ('DJANGO_SEED', 'PORT', 'CELERY_TASK_ALWAYS_EAGER', 'LIBRARY_BOOTSTRAPPED'):
         command += ['-e', item]
 command += ['-e', 'DJANGO_SEED=true', '-e', 'RENDER=true', '-e', 'PORT=10000', web['Image'],
-            'python', '/app/scripts/render_start.py']
+            '/app/scripts/render_start.py']
 try:
     subprocess.run(command, check=True)
     for attempt in range(600):

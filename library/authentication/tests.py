@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 
+from django.urls import path
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from .models import CustomUser
 
@@ -38,3 +39,27 @@ class RenderLoginTests(TestCase):
             HTTP_HOST='testserver', HTTP_X_FORWARDED_PROTO='https', HTTP_ORIGIN='https://foreign.example')
         self.assertEqual(response.status_code, 403)
         self.assertNotIn('_auth_user_id', self.client.session)
+
+
+def failing_view(request):
+    raise RuntimeError('render diagnostic regression')
+
+
+urlpatterns = [path('diagnostic-error/', failing_view)]
+
+
+@override_settings(DEBUG=False, ROOT_URLCONF=__name__)
+class ProductionErrorLoggingTests(SimpleTestCase):
+    def test_server_error_includes_traceback_in_console_without_debug(self):
+        import io
+        import logging
+        from unittest.mock import patch
+        logger = logging.getLogger('django.request')
+        self.assertTrue(logger.handlers)
+        stream = io.StringIO()
+        with patch.object(logger.handlers[0], 'stream', stream):
+            response = Client(raise_request_exception=False).get('/diagnostic-error/')
+        self.assertEqual(response.status_code, 500)
+        self.assertIn('Traceback (most recent call last)', stream.getvalue())
+        self.assertIn('RuntimeError: render diagnostic regression', stream.getvalue())
+        self.assertNotContains(response, 'render diagnostic regression', status_code=500)

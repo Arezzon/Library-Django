@@ -46,4 +46,6 @@ if [ "$#" -gt 0 ] && [ "$(basename "$1")" = "gunicorn" ]; then
   fi
 fi
 
+# Tell the Render supervisor that database initialization already completed.
+export LIBRARY_BOOTSTRAPPED=1
 exec "$@"
