@@ -19,7 +19,9 @@ assert env['DJANGO_SEED']['value'] == 'true', 'Seed and embeddings must remain e
 assert env['DEBUG']['value'] == 'False'
 assert len(config['databases']) == 1
 assert config['databases'][0]['plan'] == 'free'
-assert web['region'] == queue['region'] == config['databases'][0]['region']
+# Render defaults omitted regions to Oregon; explicit regions must agree.
+regions = {resource.get('region', 'oregon') for resource in (web, queue, config['databases'][0])}
+assert len(regions) == 1, 'Web, queue and database must share a region for private networking'
 for key, prop in [('DB_HOST', 'host'), ('DB_PORT', 'port'), ('DB_USER', 'user'),
                   ('DB_PASSWORD', 'password'), ('DB_NAME', 'database')]:
     assert env[key]['fromDatabase'] == {'name': 'library-db', 'property': prop}
