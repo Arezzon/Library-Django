@@ -1,3 +1,7 @@
+2026-10-13
+GitHub review and bug-report templates
+Added a pull request template with a Definition of Done checklist and a bug-report template with reproduction, expected result, actual result, and environment fields. Existing CODEOWNERS already assigns repository, documentation, and test owners.
+
 2026-10-08
 README and mobile analytics navigation
 Reworked the README with Docker and venv quick starts, prerequisites, platform-specific commands, Memurai/Redis guidance, troubleshooting, API and analytics documentation. Added the mobile Analytics icon to match the other navigation items.
