@@ -1,4 +1,8 @@
 2026-10-13
+Template guidance for GitHub contributions
+Updated the repository guidance and PR delivery skill to follow the pull request template and use the bug report template when drafting GitHub defects.
+
+2026-10-13
 GitHub review and bug-report templates
 Added a pull request template with a Definition of Done checklist and a bug-report template with reproduction, expected result, actual result, and environment fields. Existing CODEOWNERS already assigns repository, documentation, and test owners.
 
