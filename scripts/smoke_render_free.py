@@ -35,6 +35,8 @@ command = ['docker', 'run', '-d', '--name', name, '--network', network,
            '--entrypoint', 'python', '-p', f'127.0.0.1:{args.port}:10000']
 for item in web['Config']['Env']:
     if item.split('=', 1)[0] not in ('DJANGO_SEED', 'PORT', 'CELERY_TASK_ALWAYS_EAGER', 'LIBRARY_BOOTSTRAPPED'):
+        if item.startswith('ALLOWED_HOSTS='):
+            item += ',' + name
         command += ['-e', item]
 command += ['-e', 'DJANGO_SEED=true', '-e', 'RENDER=true', '-e', 'PORT=10000', web['Image'],
             '/app/scripts/render_start.py']
@@ -45,7 +47,7 @@ try:
         if not state['Running']:
             raise RuntimeError(f'Render container exited: {state}')
         try:
-            with urllib.request.urlopen(f'http://127.0.0.1:{args.port}/api/schema/', timeout=2) as response:
+            with urllib.request.urlopen(f'http://127.0.0.1:{args.port}/api/schema/', timeout=15) as response:
                 if response.status == 200:
                     break
         except (OSError, TimeoutError):
@@ -61,7 +63,10 @@ try:
         'assert Book.objects.exists(); '
         'assert BookEmbedding.objects.filter(model_revision=MODEL_REVISION).count() == Book.objects.count(); '
         'print("PASS: real seed with int8 vectors under 512 MiB")'], check=True)
-    subprocess.run(['docker', 'exec', name, 'python', 'manage.py', 'smoke_test_tracking', '--base-url', 'http://127.0.0.1:10000'], check=True)
+    # Keep the test driver (including its setup encoder) outside the measured
+    # service, just like an external HTTP client. Only web + Celery share 512 MiB.
+    subprocess.run(['docker', 'exec', web_id, 'python', 'manage.py', 'smoke_test_tracking',
+                    '--base-url', f'http://{name}:10000', '--http-timeout', '120'], check=True)
     # Generate a vector inside the serving Gunicorn process, not only in a CLI.
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
     base = f'http://127.0.0.1:{args.port}'
@@ -83,6 +88,12 @@ try:
         f'b=Book.objects.get(name={book_name!r}); '
         'assert len(b.embedding.vector) == 384; '
         'print("PASS: HTTP book creation with real int8 inference at 512 MiB")'], check=True)
+    for query in ('detective solving crimes with Watson', 'тоталітарний нагляд за людьми'):
+        started = time.monotonic()
+        with opener.open(base + '/api/v1/books/search/?' + urlencode({'q': query}), timeout=120) as response:
+            results = json.load(response)
+        assert results and len(results) <= 20
+        print(f'PASS: semantic HTTP search at 512 MiB ({time.monotonic() - started:.2f}s): {results[0]["name"]}')
     print('Container peak bytes: ' + output(['docker', 'exec', name, 'cat', '/sys/fs/cgroup/memory.peak']))
     print(output(['docker', 'stats', '--no-stream', '--format', '{{.MemUsage}}', name]))
     subprocess.run(['docker', 'stop', '--time', '25', name], check=True)

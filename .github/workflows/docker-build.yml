@@ -61,6 +61,8 @@ jobs:
           curl -fsS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8000/api/docs/
           echo "== /api/schema/ =="
           curl -fsS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8000/api/schema/
+          echo "== semantic search =="
+          curl -fsS "http://localhost:8000/api/v1/books/search/?q=detective"
           echo "== /api/v1/ (API root) =="
           curl -fsS http://localhost:8000/api/v1/
 

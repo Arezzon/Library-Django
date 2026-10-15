@@ -2,7 +2,6 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
 from authentication.decorators import librarian_required
 from authentication.models import CustomUser
 from .models import Book
@@ -10,19 +9,18 @@ from .embeddings import EmbeddingGenerationError
 from author.models import Author
 from order.models import Order
 from .forms import BookForm
+from .search import search_books
 
 
 def _filter_books(query: str, author_id: str):
     """Filter book queryset by search query and/or author ID."""
     books = Book.objects.with_availability().prefetch_related('authors')
 
-    if query:
-        books = books.filter(Q(name__icontains=query) | Q(description__icontains=query))
-
     if author_id and author_id.isdigit():
         books = books.filter(authors__id=int(author_id))
 
-    return books.distinct().order_by('id')
+    books = books.distinct()
+    return search_books(books, query) if query else books.order_by('id')
 
 
 @login_required(login_url='login')
@@ -30,7 +28,11 @@ def book_list(request: HttpRequest) -> HttpResponse:
     query = request.GET.get('q', '').strip()
     author_id = request.GET.get('author_id', '').strip()
 
-    books = _filter_books(query, author_id)
+    try:
+        books = _filter_books(query, author_id)
+    except (ValueError, EmbeddingGenerationError) as error:
+        messages.error(request, str(error))
+        books = Book.objects.none()
     authors = Author.objects.all().order_by('surname', 'name')
 
     return render(request, 'book/book_list.html', {

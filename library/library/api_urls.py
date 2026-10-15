@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from events.api_views import ClientEventView
 from authentication.api_views import CustomUserViewSet
 from author.api_views import AuthorViewSet
-from book.api_views import BookViewSet
+from book.api_views import BookViewSet, BookSearchView
 from order.api_views import OrderViewSet, UserOrderViewSet
 
 router = DefaultRouter()
@@ -14,6 +14,7 @@ router.register(r'book', BookViewSet, basename='book')
 router.register(r'order', OrderViewSet, basename='order')
 
 urlpatterns = [
+    path('books/search/', BookSearchView.as_view(), name='book-search'),
     path('events/', ClientEventView.as_view(), name='client-event'),
     path('', include(router.urls)),
 
