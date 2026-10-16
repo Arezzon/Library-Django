@@ -83,7 +83,7 @@ class BookAvailabilityTests(TestCase):
         queryset = Book.objects.with_availability().filter(authors__surname='Author')
         self.assertEqual(queryset.get(pk=self.book.pk).available_count, 1)
         filtered = _filter_books('Borrowed', str(self.author.pk))
-        self.assertEqual(filtered.get(pk=self.book.pk).available_count, 1)
+        self.assertEqual(list(filtered)[0].available_count, 1)
 
     def test_returned_order_restores_availability_on_refetch(self):
         self.active_order.end_at = timezone.now()

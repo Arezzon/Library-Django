@@ -27,3 +27,10 @@ class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = ['id', 'name', 'description', 'count', 'available_count', 'authors']
+
+
+class BookSearchSerializer(BookSerializer):
+    similarity = serializers.FloatField(read_only=True)
+
+    class Meta(BookSerializer.Meta):
+        fields = BookSerializer.Meta.fields + ['similarity']

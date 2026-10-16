@@ -21,6 +21,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--base-url', default='http://127.0.0.1:8000')
         parser.add_argument('--timeout', type=int, default=30)
+        parser.add_argument('--http-timeout', type=int, default=10)
 
     def handle(self, *args, **options):
         base = options['base_url'].rstrip('/')
@@ -42,7 +43,7 @@ class Command(BaseCommand):
                 headers['Content-Type'] = 'application/json' if json_body else 'application/x-www-form-urlencoded'
             if token:
                 headers['X-CSRFToken'] = token
-            with opener.open(Request(base + path, data=body, headers=headers), timeout=10) as response:
+            with opener.open(Request(base + path, data=body, headers=headers), timeout=options['http_timeout']) as response:
                 return response.status, response.read().decode()
 
         def csrf(html):
