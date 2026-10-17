@@ -1,3 +1,7 @@
+2026-10-18
+Delete books from the edit page
+Added a librarian-only delete action beside the edit controls using the logout button style, with confirmation, CSRF protection, a borrowing-history guard, and focused tests for deletion and access control.
+
 2026-10-13
 Template guidance for GitHub contributions
 Updated the repository guidance and PR delivery skill to follow the pull request template and use the bug report template when drafting GitHub defects.

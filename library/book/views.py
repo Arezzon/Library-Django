@@ -2,6 +2,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.views.decorators.http import require_POST
 from authentication.decorators import librarian_required
 from authentication.models import CustomUser
 from .models import Book
@@ -84,6 +86,22 @@ def book_update(request: HttpRequest, book_id: int) -> HttpResponse:
     else:
         form = BookForm(instance=book)
     return render(request, 'book/book_update.html', {'form': form, 'book': book})
+
+
+@librarian_required
+@require_POST
+def book_delete(request: HttpRequest, book_id: int) -> HttpResponse:
+    with transaction.atomic():
+        book = get_object_or_404(Book.objects.select_for_update(), pk=book_id)
+        if Order.objects.filter(book_id=book_id).exists():
+            messages.error(request, 'This book cannot be deleted because it has borrowing history.')
+            return redirect('book_update', book_id=book_id)
+
+        name = book.name
+        book.delete()
+
+    messages.success(request, f'Book "{name}" deleted successfully.')
+    return redirect('book_list')
 
 
 @librarian_required
