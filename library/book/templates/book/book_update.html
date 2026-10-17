@@ -30,6 +30,10 @@
                     <button type="submit" class="btn-primary w-full sm:w-auto justify-center">Update Book</button>
                 </div>
             </form>
+            <form method="post" action="{% url 'book_delete' book.id %}" class="mt-5 pt-5 border-t border-slate-100" onsubmit="return confirm('Delete this book permanently? This cannot be undone.');">
+                {% csrf_token %}
+                <button type="submit" class="btn-danger w-full sm:w-auto justify-center">Delete Book</button>
+            </form>
         </div>
     </div>
 </div>
