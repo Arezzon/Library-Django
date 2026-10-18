@@ -1,8 +1,5 @@
-# Shared owners for the repository.
-* @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario
-
-# Business analyst: documentation.
-/docs/ @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @anastasiiaMirovska
+# Repository-wide owner.
+* @Arezzon
 
 # Lead QA: test suites and test files.
 **/tests/ @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
@@ -10,3 +7,9 @@
 **/test_*.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
 **/*_test.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
 **/conftest.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
+
+# Business analysis documentation.
+/docs/ba/ @Arezzon @anastasiiaMirovska
+
+# Shared documents, including the changelog.
+/docs/shared/ @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @anastasiiaMirovska @Dima22820
