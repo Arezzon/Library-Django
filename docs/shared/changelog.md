@@ -1,4 +1,8 @@
 2026-10-18
+Code ownership by module
+Assigned owners for borrowing, books, and events; grouped business analysis and shared documentation; and updated test ownership so Dima and Arezzon can review test changes.
+
+2026-10-18
 Delete books from the edit page
 Added a librarian-only delete action beside the edit controls using the logout button style, with confirmation, CSRF protection, a borrowing-history guard, and focused tests for deletion and access control.
 
