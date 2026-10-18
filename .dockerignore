@@ -6,7 +6,8 @@ env/
 __pycache__/
 *.py[cod]
 *.sqlite3
-.env
+**/.env
+.env.*
 *.log
 README.md
 .pytest_cache/
