@@ -10,7 +10,7 @@ description: Review and deliver GitHub pull requests, or draft GitHub bug report
 Use the repository's Git remote and GitHub CLI (`gh`) when available. Complete only the delivery actions the user requested.
 
 1. Inspect the branch, working tree, remote, and diff against the PR base. Use the base named by the user, or the repository's default branch.
-2. When preparing a PR, create or update `docs/changelog.md` before publishing it. Add the newest change as one entry with these three lines in order (separate entries with a blank line):
+2. When preparing a PR, create or update `docs/shared/changelog.md` before publishing it. Add the newest change as one entry with these three lines in order (separate entries with a blank line):
 
    ```text
    YYYY-MM-DD

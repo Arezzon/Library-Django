@@ -1,12 +1,24 @@
-# Shared owners for the repository.
-* @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario
+# Repository-wide fallback owner.
+* @Arezzon
 
-# Business analyst: documentation.
-/docs/ @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @anastasiiaMirovska
+# Business analysis documentation.
+/docs/ba/ @anastasiiaMirovska @Arezzon
 
-# Lead QA: test suites and test files.
-**/tests/ @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
-**/tests.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
-**/test_*.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
-**/*_test.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
-**/conftest.py @Arezzon @myrrhfawn @OLEkSandrKoniaiev @fazelukario @Dima22820
+# Borrowing and reservations.
+/library/order/ @fazelukario @Arezzon
+
+# Book catalog and search currently share one Django app.
+/library/book/ @myrrhfawn @OLEkSandrKoniaiev @Arezzon
+
+# Event tracking and analytics currently share one Django app.
+/library/events/ @myrrhfawn @OLEkSandrKoniaiev @Arezzon
+
+# QA owns test suites and test files, including tests inside app directories.
+**/tests/ @Dima22820 @Arezzon
+**/tests.py @Dima22820 @Arezzon
+**/test_*.py @Dima22820 @Arezzon
+**/*_test.py @Dima22820 @Arezzon
+**/conftest.py @Dima22820 @Arezzon
+**/smoke_test_*.py @Dima22820 @Arezzon
+/scripts/smoke_*.py @Dima22820 @Arezzon
+/scripts/test_tracking_js.cjs @Dima22820 @Arezzon
