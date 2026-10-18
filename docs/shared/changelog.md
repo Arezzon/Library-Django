@@ -1,3 +1,7 @@
+2026-10-19
+Lint and format checks in CI
+Added ruff and black settings in pyproject.toml with pinned versions in requirements-dev.txt, and a CI lint job that must pass before the image is published. Formatted the code with black and fixed the lint findings without changing behavior; migrations are excluded.
+
 2026-10-18
 Code ownership by module
 Assigned owners for borrowing, books, and events; grouped business analysis and shared documentation; and updated test ownership so Dima and Arezzon can review test changes.

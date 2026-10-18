@@ -1,0 +1,4 @@
+# Development and CI tooling; not installed into the Docker image.
+# Settings live in pyproject.toml. Bump the pins together and reformat.
+black==26.5.1
+ruff==0.16.10

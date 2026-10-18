@@ -13,6 +13,32 @@ env:
 
 jobs:
   # -------------------------------------------------------------------------
+  # Lint & format: ruff and black with the settings in pyproject.toml.
+  # Needs no Docker stack, so it reports style problems within seconds.
+  # -------------------------------------------------------------------------
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install lint tools
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Lint with ruff
+        run: ruff check --output-format=github .
+
+      - name: Check formatting with black
+        run: black --check --diff .
+
+  # -------------------------------------------------------------------------
   # Smoke test: build with docker compose and verify the app actually serves.
   # Runs on every trigger (including PRs) so broken images never get pushed.
   # -------------------------------------------------------------------------
@@ -83,10 +109,10 @@ jobs:
 
   # -------------------------------------------------------------------------
   # Build & push the image to GitHub Container Registry.
-  # Only runs after the smoke test passes, and never on pull requests.
+  # Only runs after lint and the smoke test pass, and never on pull requests.
   # -------------------------------------------------------------------------
   build:
-    needs: smoke-test
+    needs: [lint, smoke-test]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
