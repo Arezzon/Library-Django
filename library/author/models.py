@@ -5,16 +5,17 @@ import book.models
 
 class Author(models.Model):
     """
-        This class represents an Author. \n
-        Attributes:
-        -----------
-        param name: Describes name of the author
-        type name: str max_length=20
-        param surname: Describes last name of the author
-        type surname: str max_length=20
-        param patronymic: Describes middle name of the author
-        type patronymic: str max_length=20
+    This class represents an Author. \n
+    Attributes:
+    -----------
+    param name: Describes name of the author
+    type name: str max_length=20
+    param surname: Describes last name of the author
+    type surname: str max_length=20
+    param patronymic: Describes middle name of the author
+    type patronymic: str max_length=20
     """
+
     NAME_MAX_LEN = 20
     SURNAME_MAX_LEN = 20
     PATRONYMIC_MAX_LEN = 20
@@ -22,7 +23,7 @@ class Author(models.Model):
     name = models.CharField(blank=True, max_length=NAME_MAX_LEN)
     surname = models.CharField(blank=True, max_length=SURNAME_MAX_LEN)
     patronymic = models.CharField(blank=True, max_length=PATRONYMIC_MAX_LEN)
-    books = models.ManyToManyField(book.models.Book, related_name='authors')
+    books = models.ManyToManyField(book.models.Book, related_name="authors")
     id = models.AutoField(primary_key=True)
 
     def __str__(self):
@@ -46,7 +47,7 @@ class Author(models.Model):
         # return  Author.get_object_or_404()
         try:
             return Author.objects.get(pk=author_id)
-        except:
+        except Exception:
             return None
 
     @staticmethod
@@ -60,7 +61,7 @@ class Author(models.Model):
             author = Author.objects.get(pk=author_id)
             author.delete()
             return True
-        except:
+        except Exception:
             return False
 
     @staticmethod
@@ -75,9 +76,12 @@ class Author(models.Model):
         :return: a new author object which is also written into the DB
         """
         if (
-            name and len(name) <= Author.NAME_MAX_LEN
-            and surname and len(surname) <= Author.SURNAME_MAX_LEN
-            and patronymic and len(patronymic) <= Author.PATRONYMIC_MAX_LEN
+            name
+            and len(name) <= Author.NAME_MAX_LEN
+            and surname
+            and len(surname) <= Author.SURNAME_MAX_LEN
+            and patronymic
+            and len(patronymic) <= Author.PATRONYMIC_MAX_LEN
         ):
             author = Author(name=name, surname=surname, patronymic=patronymic)
             author.save()
@@ -96,10 +100,7 @@ class Author(models.Model):
         """
         # return self.__dict__
 
-    def update(self,
-               name=None,
-               surname=None,
-               patronymic=None):
+    def update(self, name=None, surname=None, patronymic=None):
         """
         Updates author in the database with the specified parameters.\n
         param name: Describes name of the author

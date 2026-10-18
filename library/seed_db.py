@@ -1,16 +1,16 @@
-import os
-import sys
-import django
 import datetime
-from django.utils import timezone
-from django.db import transaction
+import os
+
+import django
 from django.core.management import call_command
+from django.db import transaction
+from django.utils import timezone
 
 # Setup Django environment
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'library.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "library.settings")
 django.setup()
 
-from authentication.models import CustomUser, ROLE_VISITOR, ROLE_LIBRARIAN
+from authentication.models import ROLE_LIBRARIAN, ROLE_VISITOR, CustomUser
 from author.models import Author
 from book.models import Book
 from order.models import Order
@@ -69,7 +69,7 @@ def _seed_users() -> dict[str, CustomUser]:
                 middle_name=u_data["middle_name"],
                 last_name=u_data["last_name"],
                 role=u_data["role"],
-                is_active=True
+                is_active=True,
             )
             print(f"  + Created user: {user.email} (Role: {user.get_role_name()})")
         else:
@@ -96,7 +96,7 @@ def _seed_authors() -> dict[str, Author]:
         author, created = Author.objects.get_or_create(
             name=a_data["name"],
             surname=a_data["surname"],
-            patronymic=a_data["patronymic"]
+            patronymic=a_data["patronymic"],
         )
         if created:
             print(f"  + Created author: {author.name} {author.surname}")
@@ -169,10 +169,7 @@ def _seed_books(created_authors: dict[str, Author]) -> dict[str, Book]:
     for b_data in books_data:
         book, created = Book.objects.get_or_create(
             name=b_data["name"],
-            defaults={
-                "description": b_data["description"],
-                "count": b_data["count"]
-            }
+            defaults={"description": b_data["description"], "count": b_data["count"]},
         )
         for a_surname in b_data["authors"]:
             if a_surname in created_authors:
@@ -186,7 +183,9 @@ def _seed_books(created_authors: dict[str, Author]) -> dict[str, Book]:
     return created_books
 
 
-def _seed_orders(created_users: dict[str, CustomUser], created_books: dict[str, Book]) -> None:
+def _seed_orders(
+    created_users: dict[str, CustomUser], created_books: dict[str, Book]
+) -> None:
     """Create sample active and returned orders."""
     now = timezone.now()
     reader_user = created_users.get("reader@library.com")
@@ -194,32 +193,47 @@ def _seed_orders(created_users: dict[str, CustomUser], created_books: dict[str, 
     bob_user = created_users.get("bob@library.com")
 
     if reader_user and "Kobzar" in created_books:
-        if not Order.objects.filter(user=reader_user, book=created_books["Kobzar"]).exists():
+        if not Order.objects.filter(
+            user=reader_user, book=created_books["Kobzar"]
+        ).exists():
             Order.objects.create(
                 user=reader_user,
                 book=created_books["Kobzar"],
                 plated_end_at=now + datetime.timedelta(days=DEFAULT_BORROW_DAYS),
-                end_at=None
+                end_at=None,
             )
             print("  + Created active order for reader@library.com: 'Kobzar'")
 
     if alice_user and "1984" in created_books:
-        if not Order.objects.filter(user=alice_user, book=created_books["1984"]).exists():
+        if not Order.objects.filter(
+            user=alice_user, book=created_books["1984"]
+        ).exists():
             Order.objects.create(
                 user=alice_user,
                 book=created_books["1984"],
                 plated_end_at=now + datetime.timedelta(days=SHORT_BORROW_DAYS),
-                end_at=None
+                end_at=None,
             )
             print("  + Created active order for alice@library.com: '1984'")
 
-    if bob_user and "Clean Code: A Handbook of Agile Software Craftsmanship" in created_books:
-        if not Order.objects.filter(user=bob_user, book=created_books["Clean Code: A Handbook of Agile Software Craftsmanship"]).exists():
+    if (
+        bob_user
+        and "Clean Code: A Handbook of Agile Software Craftsmanship" in created_books
+    ):
+        if not Order.objects.filter(
+            user=bob_user,
+            book=created_books[
+                "Clean Code: A Handbook of Agile Software Craftsmanship"
+            ],
+        ).exists():
             Order.objects.create(
                 user=bob_user,
-                book=created_books["Clean Code: A Handbook of Agile Software Craftsmanship"],
-                plated_end_at=now - datetime.timedelta(days=CLOSED_ORDER_PLATED_DAYS_AGO),
-                end_at=now - datetime.timedelta(days=CLOSED_ORDER_END_DAYS_AGO)
+                book=created_books[
+                    "Clean Code: A Handbook of Agile Software Craftsmanship"
+                ],
+                plated_end_at=now
+                - datetime.timedelta(days=CLOSED_ORDER_PLATED_DAYS_AGO),
+                end_at=now - datetime.timedelta(days=CLOSED_ORDER_END_DAYS_AGO),
             )
             print("  + Created closed order for bob@library.com: 'Clean Code'")
 
