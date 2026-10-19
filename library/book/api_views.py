@@ -39,6 +39,6 @@ class BookSearchView(GenericAPIView):
             books = search_books(
                 Book.objects.with_availability().prefetch_related("authors"), query
             )
-        except EmbeddingGenerationError as error:
-            return Response({"detail": str(error)}, status=503)
+        except EmbeddingGenerationError as _error:
+            return Response({"detail": "Service temporarily unavailable."}, status=503)
         return Response(self.get_serializer(books, many=True).data)
