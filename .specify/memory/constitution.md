@@ -1,3 +1,61 @@
+<!--
+Sync Impact Report (temporary: remove before committing)
+
+Version change: 1.0.0 → 2.0.0
+Bump rationale: MAJOR. Principle VI's rule that the Render free-tier deployment (512 MiB
+shared container, scripts/smoke_render_free.py) MUST keep working is removed, and the
+deployment target is redefined as a Raspberry Pi 5 running a Portainer BE stack.
+
+Modified principles:
+- III. Test-Backed Changes: no longer fixes the vector dimension at 384. Real-model tests,
+  including the English/Ukrainian search evaluation set, run on both architectures.
+- IV. Secrets and Safe Defaults: deployment webhook URLs are secrets. Demo seeding is off by
+  default on the server stack.
+- V. Consistent Data, Best-Effort Side Effects: search never mixes vectors from different
+  models.
+- VI. "Lean, Reproducible Deployment" → "Lean, Portable, Reproducible Deployment":
+  - Render is replaced by the Raspberry Pi 5 / Portainer BE stack, with a 4 GB budget and a
+    500 ms p95 search target.
+  - Images and files must run unchanged on linux/amd64 and linux/arm64.
+  - The embedding model is defined by one build-time setting.
+  - Compose is split into docker-compose.yml (server) and docker-compose-dev.yml (local
+    development).
+
+Modified sections:
+- Technology & Platform Constraints:
+  - Database: the vector dimension follows the configured model.
+  - Embeddings: the model is defined by the setting, not named here.
+  - Serving: multi-architecture images on GHCR, deployed to the Pi as a Portainer stack.
+  - Changing the embedding model or vector size now counts as a component change.
+- Development Workflow & Quality Gates, item 4:
+  - smoke-test runs on native amd64 and arm64 runners, with no Render checks.
+  - Lint and smoke-test triggers are listed.
+  - Publishing and redeploying happen only for pushes to main and version tags.
+
+Added sections: none
+Removed sections: none
+
+Templates:
+- ✅ .specify/templates/plan-template.md: the Constitution Check reads gates at runtime; no
+  edit needed.
+- ✅ .specify/templates/spec-template.md, tasks-template.md, checklist-template.md: no
+  principle-specific text.
+
+Runtime guidance to align (not edited by this command; ship with feature 001):
+- ⚠ AGENTS.md: the CI description refers to "the Docker Compose web service"; local and CI
+  now use docker-compose-dev.yml.
+- ⚠ README.md: the Render deployment section, and docker compose commands that now need
+  -f docker-compose-dev.yml.
+- ⚠ docs/ba/semantic-search.md: E5 prefixes, int8 model, Render Free and the 512 MiB check.
+- ⚠ docs/shared/changelog.md: the changelog entry for this amendment that Governance
+  requires.
+
+Follow-up TODOs:
+- These rules describe the state after feature 001 (specs/001-rpi-portainer-deploy).
+  render.yaml, the Render scripts and the e5 model remain until that feature merges, so
+  deliver this amendment in the same pull request.
+-->
+
 # Library Django Constitution
 
 ## Core Principles
@@ -40,33 +98,35 @@ endpoint that does not declare otherwise.
 
 - Every behavior change and bug fix MUST include Django tests in the owning app (`tests.py` or
   `test_*.py`) that fail without the change and pass with it.
-- Tests MUST run against PostgreSQL with pgvector, as CI does; SQLite is not supported because
-  migrations create `vector(384)` columns.
+- Tests MUST run against PostgreSQL with pgvector, as CI does. SQLite is not supported, because
+  book embeddings are stored in pgvector `vector` columns.
 - Default test runs MUST NOT download or execute the embedding model; they mock the encoder
-  (for example by patching `book.embeddings.load_embedding_model`). Real ONNX inference tests
-  are gated by `RUN_BOOK_EMBEDDING_MODEL_TESTS=1`, which CI enables.
+  (for example by patching `book.embeddings.load_embedding_model`). Real ONNX inference tests,
+  including the search-quality evaluation set of English and Ukrainian queries, are gated by
+  `RUN_BOOK_EMBEDDING_MODEL_TESTS=1`, which CI enables on both supported architectures.
 - Celery-backed code is unit-tested with `CELERY_TASK_ALWAYS_EAGER=True`; real queue behavior
   is covered by `manage.py smoke_test_tracking` and `scripts/smoke_tracking_recovery.py`, which
   MUST keep passing.
 - Changes to `library/events/static/events/tracking.js` MUST keep
   `node --test scripts/test_tracking_js.cjs` passing and MUST extend it for new behavior.
 
-Rationale: CI is the only gate before an image is published, and a test that cannot fail
-protects nothing.
+Rationale: CI is the only gate before an image is published and the server redeploys it, and a
+test that cannot fail protects nothing.
 
 ### IV. Secrets and Safe Defaults
 
-- Secrets (`SECRET_KEY`, database and broker credentials, tokens) MUST come only from the
-  environment. Source code, settings, Dockerfiles, Compose files, fixtures and `.env.example`
-  MUST NOT contain real or default secret values.
+- Secrets MUST come only from the environment: `SECRET_KEY`, database and broker credentials,
+  tokens, and deployment webhook URLs. Source code, settings, Dockerfiles, Compose files,
+  fixtures and `.env.example` MUST NOT contain real or default secret values.
 - Settings MUST fail closed: a missing `SECRET_KEY` raises `ImproperlyConfigured`, `DEBUG` is
   off unless set to `True`, and every new security-relevant setting defaults to its safe value.
 - Logs, error messages, API responses, test output and issue reports MUST NOT include secrets,
   credentials, connection URLs containing passwords, or personal data the feature does not need.
 - Demo accounts created by `seed_db.py` are for local and demo use only and MUST remain
-  documented as such.
+  documented as such. Demo seeding MUST be off by default in the server stack.
 
-Rationale: a default secret in the repository or the image is a published secret.
+Rationale: a default secret in the repository or the image is a published secret, and seeded
+demo passwords are public.
 
 ### V. Consistent Data, Best-Effort Side Effects
 
@@ -76,49 +136,71 @@ Rationale: a default secret in the repository or the image is a published secret
 - Writes that must succeed or fail together (an order with its stock change, a book with its
   embedding) MUST run inside `transaction.atomic`. When a required step fails, such as embedding
   inference during a book save, the whole business change MUST roll back.
+- Every stored book vector MUST record the model that produced it, and search MUST compare only
+  vectors from the current embedding model. Vectors from another model are excluded until they
+  are re-encoded.
 - Analytics and other non-essential side effects MUST NOT block, slow or undo a business
   operation: they publish after commit (`transaction.on_commit`), a broker outage is logged
   rather than raised to the user, and the events API answers a retryable `503`.
 - Event ingestion MUST stay idempotent: retrying the same client `event_id` MUST NOT create a
   second event.
 
-Rationale: catalog and borrowing data are the system of record; analytics are derived and may
-be lost, but must never corrupt that record.
+Rationale: catalog and borrowing data are the system of record. Analytics are derived and may
+be lost, and vectors can be rebuilt, but neither may corrupt that record or mix incompatible
+results.
 
-### VI. Lean, Reproducible Deployment
+### VI. Lean, Portable, Reproducible Deployment
 
 - Runtime dependencies MUST be pinned to exact versions in `requirements.txt`, kept identical in
   `library/requirements.txt`; lint and format tools are pinned in `requirements-dev.txt`. Model
   revisions used for inference MUST be pinned.
-- The Render free-tier deployment (web and Celery worker sharing one container under 512 MiB)
-  MUST keep working, and `scripts/smoke_render_free.py` MUST pass. A change that adds a
-  dependency, model or background process MUST report the peak memory that script measures.
+- The embedding model MUST be defined in exactly one place: a build-time setting read from an
+  environment variable with a default. The setting covers the model's identity, its pinned
+  revision and its model-specific details, such as vector size and text preparation. The image
+  build fetches the model through the dedicated model-fetch script. No Dockerfile, Compose file,
+  code or test may name the model elsewhere. Images ship with their model, and running
+  containers MUST NOT download one.
+- Images, scripts, model files and Compose files MUST run unchanged on `linux/amd64` and
+  `linux/arm64`. Files tuned for one CPU family or instruction set MUST NOT be used.
+- The Raspberry Pi 5 deployment MUST keep working. `docker-compose.yml` runs as a Portainer
+  Business Edition Git stack using published images only, never building on the server, and the
+  whole stack (web, worker, database, broker) stays within 4 GB of memory. A change that adds a
+  dependency, model or background process MUST report its measured effect against that budget
+  and against the semantic search target: 95% of searches under 500 ms on the Pi.
 - A new runtime dependency, external service or infrastructure component MUST be justified in
   the plan's Complexity Tracking table, including the simpler alternative that was rejected.
-- The Docker Compose stack (`web`, `db`, `redis`, `worker`) MUST build and start from `.env`
-  values alone. Changes to setup or configuration MUST update `.env.example`, the README and,
-  where relevant, `render.yaml` in the same pull request.
+- The local development stack, `docker-compose-dev.yml` (`web`, `db`, `redis`, `worker`), MUST
+  build and start from `.env` values alone. The server stack, `docker-compose.yml`, MUST start
+  from published images and the Portainer stack's environment values alone. Changes to setup or
+  configuration MUST update `.env.example`, the README and the operator deployment guide in the
+  same pull request.
 
-Rationale: the hosted demo runs on free plans with hard limits, and exact pins keep CI, Docker
-and Render builds identical.
+Rationale: the site runs on a shared Raspberry Pi 5 with a fixed memory budget, CI and the
+server run on different CPU architectures, and exact pins plus a single model definition keep
+local, CI and server builds identical.
 
 ## Technology & Platform Constraints
 
 - **Runtime**: Python 3.12, Django 4.1, Django REST Framework, drf-spectacular.
-- **Database**: PostgreSQL (version 15 in Compose and on Render) with the `vector` extension;
-  book embeddings are 384-dimensional pgvector columns.
+- **Database**: PostgreSQL 15 with the `vector` extension in both Compose stacks; book
+  embeddings are pgvector columns whose dimension follows the configured embedding model.
 - **Background work**: Celery on a Redis-compatible broker, JSON serialization only, `events`
   queue. The web process MUST keep serving pages while the broker is unavailable.
-- **Embeddings**: ONNX Runtime running the pinned `intfloat/multilingual-e5-small` model on CPU,
-  in process. Hosted model APIs and external vector services are not used.
+- **Embeddings**: ONNX Runtime on CPU, in process, running one pinned multilingual model that
+  serves English and Ukrainian, including cross-language queries. The model is selected by the
+  single embedding-model setting (Principle VI). Hosted model APIs and external vector services
+  are not used.
 - **UI**: server-rendered Django templates, Tailwind via CDN and plain JavaScript in app static
   directories, with no frontend build step.
-- **Serving**: Gunicorn with WhiteNoise in the Docker image; Docker Compose for local
-  development and CI; a Render Blueprint for the hosted demo.
+- **Serving**: Gunicorn with WhiteNoise in multi-architecture images (`linux/amd64`,
+  `linux/arm64`) published to GHCR. `docker-compose-dev.yml` serves local development and CI.
+  `docker-compose.yml` is deployed on a Raspberry Pi 5 as a Portainer Business Edition Git
+  stack and redeployed through its webhook.
 - **Code style**: ruff and black, configured in `pyproject.toml` (line length 88, target
   `py312`). Migrations are excluded from both and stay as Django generated them.
-- Replacing any component above, upgrading Django or DRF, or adding a frontend toolchain MUST
-  be identified in the feature spec and justified in the plan under Principle VI.
+- Each of these MUST be identified in the feature spec and justified in the plan under
+  Principle VI: replacing any component above, changing the embedding model or its vector size,
+  upgrading Django or DRF, or adding a frontend toolchain.
 
 ## Development Workflow & Quality Gates
 
@@ -132,14 +214,16 @@ and Render builds identical.
    repository root and the Django tests for every affected app from `library/`.
 4. **CI gates**: all of these MUST pass before merge:
    - the `lint` job;
-   - the `smoke-test` job: Render configuration checks, tracking JavaScript tests,
-     `manage.py test authentication author book order events` on PostgreSQL, endpoint checks,
-     asynchronous tracking smoke test, broker and worker recovery, and the 512 MiB Render check;
+   - the `smoke-test` job, on native `linux/amd64` and `linux/arm64` runners: tracking
+     JavaScript tests, `manage.py test authentication author book order events` on PostgreSQL
+     with real-model tests, endpoint checks, the asynchronous tracking smoke test, broker and
+     worker recovery, and a validity check of `docker-compose.yml`;
    - CodeQL, with any alert newly raised by the change resolved or dismissed with a recorded
      reason.
 
-   Images are published to GHCR only from non-pull-request builds after `lint` and `smoke-test`
-   pass.
+   `lint` and `smoke-test` run on pushes to `main`, on version tags and on pull requests to
+   `main`. Only pushes to `main` and version tags publish images for both architectures to GHCR
+   and call the server's redeploy webhook, and only after both jobs pass on both architectures.
 
 5. **Pull requests**: the title follows `<action>(<service>): <description>`; the description
    follows `.github/PULL_REQUEST_TEMPLATE.md`, with Definition of Done items checked only when
@@ -173,4 +257,4 @@ and Render builds identical.
   or a component in Technology & Platform Constraints changes, so the rules match what is
   actually enforced.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-19
+**Version**: 2.0.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-20
