@@ -57,11 +57,28 @@ jobs:
       - name: Verify browser tracking logic
         run: node --test scripts/test_tracking_js.cjs
 
+      # Compose has no default secrets; generate throwaway ones for this run.
+      - name: Generate disposable stack secrets
+        run: |
+          for name in SECRET_KEY DB_PASSWORD; do
+            value=$(python -c 'import secrets; print(secrets.token_urlsafe(50))')
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+
       - name: Build images with docker compose
         run: docker compose build
 
       - name: Start stack (web + db) and wait for health
         run: docker compose up -d --wait
+
+      # Without a SECRET_KEY from the runtime environment Django must refuse
+      # to start; this also fails if the image bakes in a default key.
+      - name: Verify the image ships no default SECRET_KEY
+        run: |
+          image=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q web)")
+          docker run --rm --entrypoint python "$image" -c 'import library.settings' 2>&1 \
+            | grep 'ImproperlyConfigured: SECRET_KEY'
 
       # The development source bind mount hides staticfiles collected in the image.
       - name: Collect static files for the mounted source

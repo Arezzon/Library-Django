@@ -5,12 +5,23 @@ set -e
 DB_HOST="${DB_HOST:-postgres}"
 DB_PORT="${DB_PORT:-5432}"
 
-echo "Waiting for PostgreSQL at ${DB_HOST}:${DB_PORT}..."
+# DATABASE_URL takes precedence over DB_* in the Django settings as well.
+if [ -n "${DATABASE_URL}" ]; then
+  echo "Waiting for PostgreSQL from DATABASE_URL..."
+else
+  echo "Waiting for PostgreSQL at ${DB_HOST}:${DB_PORT}..."
+fi
 # Busy-wait using Python's socket (no nc dependency needed)
 while ! python - <<PY 2>/dev/null
 import socket, os, sys
-host = os.getenv("DB_HOST", "postgres")
-port = int(os.getenv("DB_PORT", "5432"))
+from urllib.parse import urlsplit
+url = os.getenv("DATABASE_URL")
+if url:
+    parts = urlsplit(url)
+    host, port = parts.hostname, parts.port or 5432
+else:
+    host = os.getenv("DB_HOST", "postgres")
+    port = int(os.getenv("DB_PORT", "5432"))
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.settimeout(2)
 try:

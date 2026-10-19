@@ -5,10 +5,7 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=library.settings \
-    PIP_NO_CACHE_DIR=1 \
-    # Build-time fallback so collectstatic has a key to read during image build.
-    # Overridden at runtime by the real SECRET_KEY from the environment.
-    SECRET_KEY=build-time-placeholder-not-used-at-runtime
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
@@ -30,7 +27,9 @@ WORKDIR /app/library
 
 # Collect static files (Django admin CSS/JS) so WhiteNoise can serve them
 # even when DEBUG=False. Uses STATIC_ROOT = library/staticfiles.
-RUN python manage.py collectstatic --noinput --clear
+# Settings require a key; scoping it to this command keeps it out of the image
+# environment, so a container without a real SECRET_KEY refuses to start.
+RUN SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput --clear
 
 # Bash-like entrypoint (sh is fine on slim)
 COPY entrypoint.sh /entrypoint.sh

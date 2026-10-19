@@ -22,6 +22,10 @@ assert env["CELERY_BROKER_URL"]["fromService"] == {
 }
 assert env["DJANGO_SEED"]["value"] == "true", "Seed and embeddings must remain enabled"
 assert env["DEBUG"]["value"] == "False"
+assert env["SECRET_KEY"] == {
+    "key": "SECRET_KEY",
+    "generateValue": True,
+}, "Render must generate SECRET_KEY; never commit its value"
 assert len(config["databases"]) == 1
 assert config["databases"][0]["plan"] == "free"
 # Render defaults omitted regions to Oregon; explicit regions must agree.

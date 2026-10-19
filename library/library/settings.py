@@ -12,7 +12,9 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 
 import os
 from pathlib import Path
+from urllib.parse import parse_qsl, unquote, urlsplit
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -25,10 +27,19 @@ load_dotenv(BASE_DIR / ".env")
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", "default-unsafe-secret-key")
+# No fallback: a key published in the repository or the image would let anyone
+# forge sessions, password-reset links and other signed values.
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY.strip():
+    raise ImproperlyConfigured(
+        "SECRET_KEY is not set. Generate one with "
+        'python -c "import secrets; print(secrets.token_urlsafe(50))" '
+        "and add it to .env or the service environment."
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "True") == "True"
+# Off unless explicitly enabled, so a missing variable never exposes debug pages.
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -111,16 +122,41 @@ WSGI_APPLICATION = "library.wsgi.application"
 #     }
 # }
 
-DATABASES = {
-    "default": {
-        "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql_psycopg2"),
-        "NAME": os.getenv("DB_NAME", "library_db"),
-        "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
-        "HOST": os.getenv("DB_HOST", "localhost"),
-        "PORT": os.getenv("DB_PORT", "5432"),
+
+def _database_from_url(url):
+    """Translate a postgres:// DATABASE_URL into Django connection settings."""
+    parts = urlsplit(url)
+    # The message never echoes the URL: it contains the database password.
+    if parts.scheme not in ("postgres", "postgresql"):
+        raise ImproperlyConfigured(
+            "DATABASE_URL must use the postgres:// or postgresql:// scheme."
+        )
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": unquote(parts.path.lstrip("/")),
+        "USER": unquote(parts.username or ""),
+        "PASSWORD": unquote(parts.password or ""),
+        "HOST": parts.hostname or "",
+        "PORT": str(parts.port or ""),
+        "OPTIONS": dict(parse_qsl(parts.query)),
     }
-}
+
+
+# A hosting provider's DATABASE_URL wins over the individual DB_* values.
+# The password has no default: it must come from the environment.
+if os.getenv("DATABASE_URL"):
+    DATABASES = {"default": _database_from_url(os.environ["DATABASE_URL"])}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql_psycopg2"),
+            "NAME": os.getenv("DB_NAME", "library_db"),
+            "USER": os.getenv("DB_USER", "postgres"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators

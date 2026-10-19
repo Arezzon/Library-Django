@@ -25,6 +25,7 @@ embeddings and asynchronous activity analytics.
 ### Docker
 
 ```bash
+cp .env.example .env    # then set SECRET_KEY and DB_PASSWORD
 docker compose up --build
 ```
 
@@ -98,13 +99,23 @@ the Redis broker is unavailable.
 
 ```bash
 cp .env.example .env
-docker compose up --build
 ```
 
 #### Windows PowerShell
 
 ```powershell
 Copy-Item .env.example .env
+```
+
+Fill in the required values in `.env`. The project ships no default secrets,
+so Compose refuses to start while they are blank:
+
+| Variable | Value |
+| --- | --- |
+| `SECRET_KEY` | Output of `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
+| `DB_PASSWORD` | A password of your choice; Compose creates the database with it |
+
+```bash
 docker compose up --build
 ```
 
@@ -153,22 +164,28 @@ python -m pip install --upgrade pip
 python -m pip install -r ./library/requirements.txt
 ```
 
-Create `.env` in the repository root:
+Create `.env` in the repository root from `.env.example`:
 
 ```dotenv
-SECRET_KEY=local-development-secret-key
+SECRET_KEY=<generated-secret-key>
 DEBUG=True
 ALLOWED_HOSTS=127.0.0.1,localhost
 
 DB_ENGINE=django.db.backends.postgresql_psycopg2
 DB_NAME=library_db
 DB_USER=postgres
-DB_PASSWORD=your-postgres-password
+DB_PASSWORD=<your-postgres-password>
 DB_HOST=localhost
 DB_PORT=5432
 
 CELERY_BROKER_URL=redis://localhost:6379/0
 ```
+
+Django refuses to start without `SECRET_KEY`; generate one with
+`python -c "import secrets; print(secrets.token_urlsafe(50))"`. Instead of the
+`DB_*` values you can set a single
+`DATABASE_URL=postgresql://user:password@localhost:5432/library_db`, which
+takes precedence.
 
 Then apply migrations and start Django.
 
@@ -349,7 +366,9 @@ same UUID after temporary network failures.
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | `extension "vector" is not available` | pgvector is not installed in the PostgreSQL server | Use the pgvector Docker image or install a PostgreSQL-compatible pgvector extension, then run `python manage.py migrate` again |
-| `password authentication failed for user "postgres"` | Wrong PostgreSQL credentials | Set the actual `DB_PASSWORD` in `.env` and retry |
+| `ImproperlyConfigured: SECRET_KEY is not set` | `.env` or the service environment has no `SECRET_KEY` | Generate a key with `python -c "import secrets; print(secrets.token_urlsafe(50))"` and set it |
+| `required variable SECRET_KEY is missing a value` | Compose found no `.env` or blank required values | Copy `.env.example` to `.env` and fill in `SECRET_KEY` and `DB_PASSWORD` |
+| `password authentication failed for user "postgres"` | Wrong PostgreSQL credentials | Set the actual `DB_PASSWORD` in `.env` and retry. A Compose volume keeps the password it was created with (`postgres` for volumes created without `.env` by earlier versions); reuse it or recreate the volume with `docker compose down -v` |
 | `503 /api/v1/events/` | Redis/Memurai is stopped or Celery cannot reach the broker | Start the broker on port `6379`, verify it responds to `PING`, then start the Celery worker |
 | Analytics page is empty | Events are queued but not consumed | Keep `celery -A library worker --queues=events` running and refresh the page |
 | `Missing staticfiles manifest entry` in tests | Static files were not collected | Run `python manage.py collectstatic --noinput` from `library/` |
@@ -378,21 +397,24 @@ OpenAPI schema:  http://localhost:8000/api/schema/
 
 ## Configuration
 
-| Variable | Local default | Purpose |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `DEBUG` | `True` | Django debug mode |
-| `SECRET_KEY` | — | Session and cryptographic signing |
+| `DEBUG` | `False` | Django debug mode; set `True` for local development only |
+| `SECRET_KEY` | — (required) | Session and cryptographic signing |
 | `ALLOWED_HOSTS` | `localhost,127.0.0.1` | Accepted HTTP hosts |
+| `DATABASE_URL` | — | Full PostgreSQL URL; overrides the `DB_*` values |
 | `DB_NAME` | `library_db` | PostgreSQL database |
 | `DB_USER` | `postgres` | PostgreSQL user |
-| `DB_PASSWORD` | — | PostgreSQL password |
+| `DB_PASSWORD` | — (required by Compose) | PostgreSQL password |
 | `DB_HOST` | `localhost` | PostgreSQL host; Compose uses `db` |
 | `DB_PORT` | `5432` | PostgreSQL port |
 | `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Redis broker |
 | `DJANGO_SEED` | `false` locally | Seed on container startup |
 | `BOOK_EMBEDDING_CACHE_DIR` | `.cache/book-embeddings` | Model cache directory |
 
-`.env` is intentionally ignored by Git. Never commit real credentials.
+`.env` is ignored by Git and Docker builds, so local secrets reach neither
+commits nor images. `.env.example` holds placeholders only; never commit real
+credentials.
 
 ## Tests and checks
 
@@ -464,6 +486,11 @@ DEBUG=False
 SECRET_KEY=<long-random-secret>
 ALLOWED_HOSTS=<real-hostnames>
 ```
+
+Django refuses to start without `SECRET_KEY`, and `DEBUG` stays off unless it
+is set to `True`. The Blueprint generates `SECRET_KEY` and pins `DEBUG=False`.
+Hosts that provide a single connection string can set `DATABASE_URL` instead
+of the `DB_*` values.
 
 Keep a continuously running Celery worker wherever activity analytics is
 enabled. A web process alone cannot consume queued events.
