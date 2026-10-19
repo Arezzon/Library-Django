@@ -33,8 +33,8 @@ class BookSearchView(GenericAPIView):
     def get(self, request):
         try:
             query = validate_query(request.query_params.get("q", ""))
-        except ValueError as error:
-            return Response({"q": str(error)}, status=400)
+        except ValueError:
+            return Response({"q": "Invalid query parameter."}, status=400)
         try:
             books = search_books(
                 Book.objects.with_availability().prefetch_related("authors"), query
