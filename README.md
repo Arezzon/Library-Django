@@ -437,6 +437,19 @@ node --test scripts/test_tracking_js.cjs
 > **Tip:** If tests fail with `Missing staticfiles manifest entry`, run
 > `python manage.py collectstatic --noinput` before the test command.
 
+Lint and format checks run from the repository root. CI runs the same commands
+in its `lint` job, and the image is published only when they pass:
+
+```bash
+python -m pip install -r requirements-dev.txt
+ruff check .
+black --check .
+```
+
+To fix findings, run `ruff check --fix .` (unused imports, import order) and
+then `black .`. Rule selection lives in `pyproject.toml`; Django migrations are
+excluded from both tools.
+
 ## Project layout
 
 ```text
@@ -446,6 +459,8 @@ node --test scripts/test_tracking_js.cjs
 ├── entrypoint.sh              # wait, migrate, seed, start
 ├── render.yaml                # Render Blueprint
 ├── requirements.txt            # canonical container dependencies
+├── requirements-dev.txt       # pinned lint and format tools
+├── pyproject.toml             # ruff and black settings
 ├── .env.example               # safe configuration template
 ├── scripts/                   # smoke and deployment checks
 └── library/

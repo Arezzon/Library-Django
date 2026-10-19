@@ -6,6 +6,7 @@ class TailwindFormMixin:
     Mixin that automatically assigns clean, modern Tailwind CSS classes
     to all form widgets according to their input types.
     """
+
     tailwind_input_class = (
         "w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl shadow-sm "
         "text-slate-900 placeholder-slate-400 text-base sm:text-sm focus:outline-none focus:ring-2 "
@@ -28,7 +29,7 @@ class TailwindFormMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field_name, field in self.fields.items():
+        for field in self.fields.values():
             widget = field.widget
             existing_class = widget.attrs.get("class", "")
 

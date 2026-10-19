@@ -1,16 +1,17 @@
 import logging
 from time import sleep
+
 import pytest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 # Logger configuration
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%H:%M:%S"
+    datefmt="%H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -53,13 +54,17 @@ def test_valid_login_and_logout(driver):
 
     # 3. Submit the login form
     logger.info("3. Submitting login form...")
-    wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']"))).click()
+    wait.until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']"))
+    ).click()
 
     # 4. Verify successful authentication
     logger.info("4. Verifying successful authentication...")
     logout_btn = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Log Out")))
     assert logout_btn.is_displayed(), "Log Out button should be visible after login"
-    assert VALID_EMAIL in driver.page_source, f"Email '{VALID_EMAIL}' should be present on page"
+    assert (
+        VALID_EMAIL in driver.page_source
+    ), f"Email '{VALID_EMAIL}' should be present on page"
     logger.info("   -> Verification passed: User is logged in.")
     sleep(1)
 
@@ -93,13 +98,19 @@ def test_invalid_login(driver):
 
     # 3. Submit the login form
     logger.info("3. Submitting login form with invalid credentials...")
-    wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']"))).click()
+    wait.until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']"))
+    ).click()
 
     # 4. Verify error alert
     logger.info("4. Verifying error message alert...")
-    error_alert = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".alert-error")))
+    error_alert = wait.until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, ".alert-error"))
+    )
     assert error_alert.is_displayed(), "Error message alert should be visible"
-    assert "Invalid email or password" in error_alert.text, "Error message text is incorrect"
+    assert (
+        "Invalid email or password" in error_alert.text
+    ), "Error message text is incorrect"
     logger.info(f"   -> Verification passed: Error displayed ('{error_alert.text}').")
     logger.info("--- PASSED: test_invalid_login ---\n")
     sleep(1)

@@ -7,8 +7,8 @@ ROLE_VISITOR = 0
 ROLE_LIBRARIAN = 1
 
 ROLE_CHOICES = (
-    (ROLE_VISITOR, 'visitor'),
-    (ROLE_LIBRARIAN, 'librarian'),
+    (ROLE_VISITOR, "visitor"),
+    (ROLE_LIBRARIAN, "librarian"),
 )
 
 
@@ -23,7 +23,7 @@ class CustomUserManager(BaseUserManager):
         Create and save a User with the given email and password.
         """
         if not email:
-            raise ValueError(('The Email must be set'))
+            raise ValueError("The Email must be set")
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -34,42 +34,43 @@ class CustomUserManager(BaseUserManager):
         """
         Create and save a SuperUser with the given email and password.
         """
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-        extra_fields.setdefault('role', ROLE_LIBRARIAN)
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("role", ROLE_LIBRARIAN)
 
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError(('Superuser must have is_staff=True.'))
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError(('Superuser must have is_superuser=True.'))
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
         return self.create_user(email, password, **extra_fields)
 
 
 class CustomUser(AbstractBaseUser):
     """
-        This class represents a basic user. \n
-        Attributes:
-        -----------
-        param first_name: Describes first name of the user
-        type first_name: str max length=20
-        param last_name: Describes last name of the user
-        type last_name: str max length=20
-        param middle_name: Describes middle name of the user
-        type middle_name: str max length=20
-        param email: Describes the email of the user
-        type email: str, unique, max length=100
-        param password: Describes the password of the user
-        type password: str
-        param created_at: Describes the date when the user was created. Can't be changed.
-        type created_at: int (timestamp)
-        param updated_at: Describes the date when the user was modified
-        type updated_at: int (timestamp)
-        param role: user role, default role (0, 'visitor')
-        type updated_at: int (choices)
-        param is_active: user role, default value False
-        type updated_at: bool
+    This class represents a basic user. \n
+    Attributes:
+    -----------
+    param first_name: Describes first name of the user
+    type first_name: str max length=20
+    param last_name: Describes last name of the user
+    type last_name: str max length=20
+    param middle_name: Describes middle name of the user
+    type middle_name: str max length=20
+    param email: Describes the email of the user
+    type email: str, unique, max length=100
+    param password: Describes the password of the user
+    type password: str
+    param created_at: Describes the date when the user was created. Can't be changed.
+    type created_at: int (timestamp)
+    param updated_at: Describes the date when the user was modified
+    type updated_at: int (timestamp)
+    param role: user role, default role (0, 'visitor')
+    type updated_at: int (choices)
+    param is_active: user role, default value False
+    type updated_at: bool
     """
+
     ROLE_VISITOR = ROLE_VISITOR
     ROLE_LIBRARIAN = ROLE_LIBRARIAN
 
@@ -91,8 +92,8 @@ class CustomUser(AbstractBaseUser):
     is_active = models.BooleanField(default=False)
     id = models.AutoField(primary_key=True)
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name', 'middle_name']
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name", "middle_name"]
     objects = CustomUserManager()
 
     @property
@@ -196,11 +197,16 @@ class CustomUser(AbstractBaseUser):
             and len(middle_name) <= CustomUser.MIDDLE_NAME_MAX_LEN
             and len(last_name) <= CustomUser.LAST_NAME_MAX_LEN
             and len(email) <= CustomUser.EMAIL_MAX_LEN
-            and len(email.split('@')) == CustomUser.EMAIL_PARTS_COUNT
+            and len(email.split("@")) == CustomUser.EMAIL_PARTS_COUNT
             and len(CustomUser.objects.filter(email=email)) == 0
         ):
-            custom_user = CustomUser(email=email, password=password, first_name=first_name, middle_name=middle_name,
-                                     last_name=last_name)
+            custom_user = CustomUser(
+                email=email,
+                password=password,
+                first_name=first_name,
+                middle_name=middle_name,
+                last_name=last_name,
+            )
             custom_user.save()
             return custom_user
         return None
@@ -222,23 +228,27 @@ class CustomUser(AbstractBaseUser):
         |   'is_active:' True
         | }
         """
-        return {'id': self.id,
-                'first_name': f'{self.first_name}',
-                'middle_name': f'{self.middle_name}',
-                'last_name': f'{self.last_name}',
-                'email': f'{self.email}',
-                'created_at': int(self.created_at.timestamp()),
-                'updated_at': int(self.updated_at.timestamp()),
-                'role': self.role,
-                'is_active': self.is_active}
+        return {
+            "id": self.id,
+            "first_name": f"{self.first_name}",
+            "middle_name": f"{self.middle_name}",
+            "last_name": f"{self.last_name}",
+            "email": f"{self.email}",
+            "created_at": int(self.created_at.timestamp()),
+            "updated_at": int(self.updated_at.timestamp()),
+            "role": self.role,
+            "is_active": self.is_active,
+        }
 
-    def update(self,
-               first_name=None,
-               last_name=None,
-               middle_name=None,
-               password=None,
-               role=None,
-               is_active=None):
+    def update(
+        self,
+        first_name=None,
+        last_name=None,
+        middle_name=None,
+        password=None,
+        role=None,
+        is_active=None,
+    ):
         """
         Updates user profile in the database with the specified parameters.\n
         :param first_name: first name of a user
@@ -256,17 +266,20 @@ class CustomUser(AbstractBaseUser):
         :return: None
         """
         user_to_update = CustomUser.objects.filter(email=self.email).first()
-        if first_name != None and len(first_name) <= CustomUser.FIRST_NAME_MAX_LEN:
+        if first_name is not None and len(first_name) <= CustomUser.FIRST_NAME_MAX_LEN:
             user_to_update.first_name = first_name
-        if last_name != None and len(last_name) <= CustomUser.LAST_NAME_MAX_LEN:
+        if last_name is not None and len(last_name) <= CustomUser.LAST_NAME_MAX_LEN:
             user_to_update.last_name = last_name
-        if middle_name != None and len(middle_name) <= CustomUser.MIDDLE_NAME_MAX_LEN:
+        if (
+            middle_name is not None
+            and len(middle_name) <= CustomUser.MIDDLE_NAME_MAX_LEN
+        ):
             user_to_update.middle_name = middle_name
-        if password != None:
+        if password is not None:
             user_to_update.password = password
-        if role != None:
+        if role is not None:
             user_to_update.role = role
-        if is_active != None:
+        if is_active is not None:
             user_to_update.is_active = is_active
         user_to_update.save()
 
