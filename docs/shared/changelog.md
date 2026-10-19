@@ -1,4 +1,6 @@
 2026-10-19
+Secrets only from environment variables
+Removed default secrets: Django refuses to start without SECRET_KEY, DEBUG is off unless explicitly enabled, the database password has no default, and DATABASE_URL is supported ahead of the DB_* values. The Docker image no longer bakes in a SECRET_KEY, Compose requires SECRET_KEY and DB_PASSWORD from .env, CI generates disposable secrets and checks that the image refuses to start without a key, and .env.example and the README document the required values.
 CodeQL code scanning
 Added a CodeQL workflow that scans GitHub Actions workflows, JavaScript and Python code for security and quality issues on pushes and pull requests to main and every Saturday, and reports findings as code scanning alerts in the repository's Security tab.
 

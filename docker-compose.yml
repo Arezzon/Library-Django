@@ -1,6 +1,7 @@
 # Docker Compose for the Django Library app
 # Services: web (Django + gunicorn/runserver) and db (PostgreSQL)
 # Usage:
+#   cp .env.example .env               # then set SECRET_KEY and DB_PASSWORD
 #   docker compose up --build          # build & run
 #   docker compose up --build -d       # run detached
 #   docker compose down               # stop & remove
@@ -13,7 +14,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-library_db}
       POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env (see .env.example)}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -27,16 +28,17 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    # The Django settings read these env vars directly.
+    # The Django settings read these env vars directly. Secrets have no
+    # defaults: Compose stops with an error until .env provides them.
     environment: &app_environment
       CELERY_BROKER_URL: redis://redis:6379/0
       DEBUG: ${DEBUG:-False}
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-prod}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (see .env.example)}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
       DB_ENGINE: django.db.backends.postgresql_psycopg2
       DB_NAME: ${DB_NAME:-library_db}
       DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env (see .env.example)}
       DB_HOST: db
       DB_PORT: 5432
       DJANGO_SEED: ${DJANGO_SEED:-true}
