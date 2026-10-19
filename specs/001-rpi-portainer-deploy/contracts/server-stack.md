@@ -18,7 +18,8 @@ or `linux/arm64` host.
 The stack has no `build:` keys and no bind mounts.
 
 **`web` healthcheck**:
-- Command: `python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/schema/', timeout=5)"`
+- Command: `python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/version/', timeout=5)"`.
+  The endpoint is described in [version-endpoint.md](version-endpoint.md).
 - Timing: `interval: 30s`, `timeout: 10s`, `retries: 3`, `start_period: 15m`.
 
 The 15-minute start period covers the first startup after a model change (SC-014); a normal

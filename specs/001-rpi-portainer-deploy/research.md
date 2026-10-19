@@ -48,8 +48,8 @@ roughly 6–10× slower than on this workstation. That puts a query at about 100
 2 threads, against the 500 ms target in SC-010. A book save would take about 0.25–0.6 s, against
 the 2 s target in SC-011. The GitHub ARM64 runners are Neoverse server cores, not Pi-class
 hardware, so they can't confirm these numbers. They are confirmed on the Pi with the budget
-check (R8, [quickstart.md](quickstart.md) §5), and the measured values are added to this
-section.
+check during the first deployment (R8, [quickstart.md](quickstart.md) §5), and the measured
+values are added to this section. If they miss, R14 applies.
 
 **Rationale**:
 - `bge-m3` matches the current model on the seed set and widens the separation 3×.
@@ -188,7 +188,7 @@ headroom. Both values can be tuned per server through Portainer variables, witho
 - `gthread` with one process: one model copy, but a single process failure takes down the whole
   site. It remains available through configuration if memory gets tight.
 
-## R7. CI pipeline (FR-001 – FR-004, FR-015 – FR-020, FR-025)
+## R7. CI pipeline (FR-001 – FR-004, FR-015 – FR-020, FR-025, FR-036)
 
 **Decision**: rework `.github/workflows/docker-build.yml`.
 - **Triggers**: `push` to `main`, `push` of `v*` tags, and `pull_request` to `main`. `master` is
@@ -219,19 +219,39 @@ headroom. Both values can be tuned per server through Portainer variables, witho
   - Tags come from `docker/metadata-action`, with `flavor: latest=false`:
     - on `main`: `type=raw,value=main` and `type=sha,prefix=sha-`;
     - on `v*` tags: `type=semver,pattern={{version}}` and `type=sha,prefix=sha-`.
-  - Before it moves `main`, it compares `git ls-remote origin refs/heads/main` with `github.sha`.
-    If `main` has advanced, it pushes only the `sha-` tag and tells `deploy` to skip, with a
-    notice. This satisfies FR-019: a slower, older run can't move `main` back.
-- **`deploy`** (`needs: merge`):
+  - **Forward-only `main` (FR-002, FR-019)**: on `main` pushes, `merge` reads the
+    `org.opencontainers.image.revision` label of the image currently tagged `main`, using
+    `docker buildx imagetools inspect`. It checks out full history (`fetch-depth: 0`). It moves
+    `main` only when there is no current `main` yet, or when
+    `git merge-base --is-ancestor <current> "$GITHUB_SHA"` succeeds; a re-run of the same commit
+    also passes. Otherwise it pushes only the `sha-` tag and sets the output `deploy=false`.
+    - An older run that finishes late can never move `main` back.
+    - A newer commit whose pipeline failed never blocks the last good build, because a failed
+      run never publishes.
+- **`deploy`** (`needs: merge`, `if: needs.merge.outputs.deploy == 'true'`;
+  `environment: production`):
   - It runs on the same events as `publish`.
-  - It reads the repository secret `PORTAINER_WEBHOOK_URL`. If the secret is empty, it emits
-    `::warning::` and exits 0 (FR-017).
+  - The `production` GitHub Environment allows deployments only from the `main` branch and `v*`
+    tags. The webhook URL is that environment's secret `PORTAINER_WEBHOOK_URL`, so
+    pull-request runs never receive it (FR-016). The environment also records each deployment in
+    GitHub's Deployments view.
+  - If the secret is empty, it emits `::warning::` and exits 0 (FR-017).
   - Otherwise it calls `curl --silent --output /dev/null --write-out '%{http_code}' --max-time 300
     --request POST "$PORTAINER_WEBHOOK_URL" 2>/dev/null`. TLS is verified because there is no
     `-k`, and stderr is suppressed so the host never appears in logs.
   - Any status other than 2xx, or any curl exit code other than 0, fails the job with: *"Images
     `<tags>` were published, but the server was not redeployed (HTTP `<code>` / curl exit
     `<n>`)."* (FR-018, FR-020)
+  - When `merge` sets `deploy=false`, the job is skipped and `merge` emits `::notice::` "A newer
+    commit already moved `main`; this build was published as `sha-<short>` only."
+- **Confirming the redeploy (FR-036)**: a final step in `deploy` runs after a 2xx response.
+  - If the environment variable `SITE_URL` is empty, it emits `::notice::` and exits 0.
+  - Otherwise it polls `GET $SITE_URL/api/v1/version/` every 15 s for up to 15 minutes, with TLS
+    verified (R13). It passes when the reported commit equals `$GITHUB_SHA`, or descends from it
+    (`git merge-base --is-ancestor "$GITHUB_SHA" <reported>`). This handles a tag run on an older
+    commit while the Pi follows a newer `main`.
+  - On timeout it fails with: *"Redeploy for `<tags>` was triggered but not confirmed: the site
+    reports `<commit or 'no response'>`. The stack may be pinned, unhealthy or still starting."*
 - **Concurrency**: `publish`, `merge` and `deploy` share
   `concurrency: { group: publish-${{ github.ref }}, cancel-in-progress: false }`.
 
@@ -305,8 +325,9 @@ research note instead.
     `redisdata`.
   - Secrets use `${VAR:?…}`.
   - Seeding defaults to `false`.
-  - `web` has a healthcheck: Python `urllib` against `/api/schema/` on 127.0.0.1, with
-    `start_period: 15m` to cover startup re-encoding (R5).
+  - `web` has a healthcheck: Python `urllib` against `/api/v1/version/` on 127.0.0.1 (R13),
+    with `start_period: 15m` to cover startup re-encoding (R5). That endpoint is cheaper than
+    generating `/api/schema/` every 30 s.
   - Ports are `${WEB_PORT:-8000}:8000`.
 - Relative path volumes aren't needed. The file is self-contained, which keeps it portable to
   Portainer CE or plain `docker compose`.
@@ -364,6 +385,74 @@ verified.
 
 **Alternatives considered**: keeping Render as a warm standby. It would need the 512 MiB
 single-container mode and the e5 model, which conflicts with FR-027.
+
+## R13. Reporting the running version (FR-035)
+
+**Decision**:
+- The Dockerfile declares `ARG APP_COMMIT=unknown` and mirrors it into `ENV APP_COMMIT`.
+  - The declaration sits last in the file, so it never invalidates the dependency or model
+    layers.
+  - CI passes `APP_COMMIT=${{ github.sha }}` to both the smoke-test build and the publishing
+    build.
+- `GET /api/v1/version/` returns `{"commit": "<APP_COMMIT>"}`:
+  - It is implemented as `VersionView` in a new `library/library/api_views.py` and routed in
+    `library/library/api_urls.py`.
+  - It sets `permission_classes = [AllowAny]` and `authentication_classes = []`, and is
+    described with `extend_schema`.
+- Its tests sit in `library/authentication/tests.py`, next to the existing project-wide settings
+  tests, because CI only runs the `authentication author book order events` labels. The tests
+  cover:
+  - anonymous access returning 200;
+  - the response containing only `commit`;
+  - `unknown` being returned when the variable is unset.
+
+**Rationale**:
+- The repository is public, so the commit identifier isn't sensitive.
+- An anonymous endpoint that needs no database is the cheapest way for CI to confirm the
+  redeploy (FR-036) and for the healthcheck to probe the app (R10).
+- Under `/api/v1/` with a declared audience and a schema entry, it complies with Principles I
+  and II.
+
+**Alternatives considered**:
+- A response header on every page: harder to poll, and it leaks into every response.
+- Reading the image label through the Docker API from CI: the Pi's Docker isn't reachable from
+  GitHub.
+
+## R14. Pi measurement gate and what happens on a miss (FR-027, FR-028)
+
+**Decision**:
+- The plan records the workstation measurements from R1.
+- The first deployment runs `smoke_stack_budget.py` on the Pi with `--max-memory-gib 4
+  --max-search-p95-ms 500 --max-save-ms 2000`, as in [quickstart.md](quickstart.md) §5. The
+  results, threads and workers go into R1.
+- The feature is complete only when those pass, or when targets have been relaxed. If they
+  fail:
+  1. Memory: lower `WEB_CONCURRENCY` (3 → 2) and re-run.
+  2. Latency: raise `BOOK_EMBEDDING_THREADS` (2 → 3 → 4), or lower `WEB_CONCURRENCY` to free
+     cores, and re-run. Both are Portainer variables, so no rebuild is needed.
+  3. If latency still misses, keep `bge-m3`. Record the measured p95 values, and relax SC-010
+     or SC-011 to them with the user's sign-off, as a spec edit in the same PR or a follow-up.
+
+**Rationale**: the user chose `bge-m3` for quality, and the targets can only be measured on the
+real hardware.
+
+## R15. Rolling back across the model change (edge case)
+
+**Decision**: the guide's rollback section adds a step for pinning an image built before this
+feature.
+- Those images are `linux/amd64` only: the GHCR manifest for `main` had no arm64 variant on
+  2026-10-19. On the Pi, the oldest possible rollback target is therefore the first image of
+  this feature. The step applies when the stack runs on an x86-64 host.
+- After the pinned stack is healthy, run
+  `docker exec <web container> python manage.py generate_book_embeddings` from the Portainer
+  console. That image's own command re-encodes with its own model.
+- Search then works again.
+- Rolling forward re-encodes automatically (R5).
+- The untyped `vector` column accepts the older model's 384-value vectors, so no schema step is
+  needed.
+
+**Rationale**: older images already contain the backfill command, so recovery is one documented
+command.
 
 ## Dependency and platform checks
 

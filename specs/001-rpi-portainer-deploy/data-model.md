@@ -80,7 +80,7 @@ Runtime tuning, such as `BOOK_EMBEDDING_THREADS`, is not part of the spec and do
 
 | Reference | Points to | Moves? | Written by |
 |---|---|---|---|
-| `<repo>:main` | Newest successful `main` build, both architectures | Yes, but only when `github.sha` is still the head of `main` | `merge` job on `main` pushes |
+| `<repo>:main` | Newest successful `main` build, both architectures | Forward only: it moves only when the commit currently under `main` (its `org.opencontainers.image.revision` label) is an ancestor of the new build's commit, or when no `main` exists yet | `merge` job on `main` pushes |
 | `<repo>:sha-<short>` | That commit's build | Never | Every publishing run |
 | `<repo>:<semver>` | The version-tag build | Never | `v*` tag runs |
 
@@ -106,11 +106,20 @@ following-main ──(operator sets IMAGE_TAG=sha-xxxx, redeploys)──▶ pinn
 pinned ──(operator clears IMAGE_TAG, redeploys)──▶ following-main
 ```
 
-## 6. Deployment webhook (GitHub repository secret): new
+## 6. `production` deployment environment (GitHub): new
 
 | Attribute | Value |
 |---|---|
-| Secret name | `PORTAINER_WEBHOOK_URL` |
-| Value | `https://<public portainer host>/api/stacks/webhooks/<uuid>` (POST) |
-| Visibility | Repository secret, which only repository admins can set. It is never printed: curl stderr is suppressed, and GitHub masks the value. |
-| Absent | The deploy step is skipped with a warning; publishing still succeeds. |
+| Environment | `production`. Its deployment rules allow only the `main` branch and `v*` tags; it is created by a repository admin. |
+| Secret `PORTAINER_WEBHOOK_URL` | `https://<public portainer host>/api/stacks/webhooks/<uuid>` (POST). Only the `deploy` job can read it; pull-request runs never can. It is never printed: curl stderr is suppressed, and GitHub masks the value. |
+| Variable `SITE_URL` (optional) | The site's public base URL, e.g. `https://library.example.com`. If set, `deploy` confirms the redeploy through `/api/v1/version/`; if empty, confirmation is skipped with a notice. |
+| Secret absent | The deploy step is skipped with a warning; publishing still succeeds. |
+| Rotation | Regenerate the webhook in Portainer (GitOps updates → Webhook), then replace the environment secret. |
+
+## 7. Running version (image and API): new
+
+| Attribute | Value |
+|---|---|
+| Source | Build argument `APP_COMMIT`: CI passes `github.sha`, local builds default to `unknown`. It is mirrored to `ENV APP_COMMIT` in the image's last layer. |
+| Exposure | `GET /api/v1/version/` → `{"commit": "<APP_COMMIT>"}`. Anonymous, read-only, and needs no database. See [contracts/version-endpoint.md](contracts/version-endpoint.md). |
+| Used by | The `deploy` confirmation step (FR-036) and the `web` healthcheck. |

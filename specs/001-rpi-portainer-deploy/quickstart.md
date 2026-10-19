@@ -13,7 +13,8 @@ Sections 5–8 run on the Raspberry Pi by the operator, following
 - **Operator**:
   - Raspberry Pi 5 (8 GB) with a 64-bit OS, Docker Engine and Portainer BE, and Portainer
     reachable over HTTPS with a trusted certificate.
-  - Repository admin access, or someone who has it, for the Actions secret.
+  - Repository admin access, or someone who has it, to create the `production` environment and
+    its secret.
 
 ## 1. Local development stack (FR-025, US5)
 
@@ -79,10 +80,22 @@ docker compose -f docker-compose-dev.yml exec -T web python manage.py shell -c \
   tag exists. There is no `latest`.
 - **Push a tag `v0.0.0-test`**: the `0.0.0-test` image is published, `main` doesn't move, and
   `deploy` runs.
+- **Forward-only `main`** (FR-002, FR-019): merge two pull requests quickly, one after the other.
+  Re-run the older commit's `merge` job after the newer one has finished. **Expected**: it pushes
+  only `sha-<short>`, emits the "newer commit already moved `main`" notice, and skips `deploy`.
+- **Secret scope** (FR-016): in a pull-request run, the `deploy` job doesn't exist, and the
+  `production` environment shows no deployment for it.
 - **Webhook visibility** (US3):
   - With no `PORTAINER_WEBHOOK_URL` secret, `deploy` is green with a warning.
   - With a wrong URL, `deploy` is red with "published, but the server was not redeployed", and
     no URL appears in the log.
+- **Version endpoint** (FR-035):
+
+  ```bash
+  curl -fsS http://localhost:8000/api/v1/version/
+  ```
+
+  **Expected**: `{"commit":"unknown"}` on a local build, or the commit SHA on a CI build.
 
 ## 5. First deployment on the Pi (US1, SC-002, SC-003, SC-007)
 
@@ -103,27 +116,48 @@ python3 scripts/smoke_stack_budget.py --project-name <stack name> --base-url htt
   --max-memory-gib 4 --max-search-p95-ms 500 --max-save-ms 2000
 ```
 
-**Expected**: PASS. Record the reported peak memory and latencies in
-[research.md](research.md) §R1.
+**Expected**: PASS. Record the reported peak memory and latencies, with `WEB_CONCURRENCY` and
+`BOOK_EMBEDDING_THREADS`, in [research.md](research.md) §R1. This step is the completion gate
+from FR-028. If it fails, follow the tuning steps in [research.md](research.md) §R14 and re-run.
+If latency still misses, the measured values become the relaxed targets, with the user's
+sign-off.
 
-## 6. Automatic redeploy (US2, SC-001, SC-009)
+## 6. Automatic redeploy (US2, SC-001, SC-009, FR-036)
 
-Add the webhook URL as the `PORTAINER_WEBHOOK_URL` repository secret, then merge a visible text
-change into `main`.
+1. A repository admin creates the `production` environment, limited to `main` and `v*` tags.
+2. In that environment, they add the secret `PORTAINER_WEBHOOK_URL` and, if the site is public,
+   the variable `SITE_URL`.
+3. Merge a visible text change into `main`.
 
 **Expected**:
 - The change is live on the Pi within 30 minutes, without anyone touching the Pi.
 - The web downtime during the swap is under 2 minutes.
+- The `deploy` job ends with "Redeploy confirmed: the site runs <commit>". Without `SITE_URL`,
+  it ends with a notice that confirmation was skipped.
+- `curl -fsS $SITE_URL/api/v1/version/` reports the merged commit.
 
 ## 7. Rollback and resume (US3, SC-005)
 
 1. In Portainer, set `IMAGE_TAG=sha-<earlier short sha>` and redeploy.
-2. Check that the site runs that build: the footer or the change from §6 is gone.
-3. Remove `IMAGE_TAG` and redeploy.
+2. Check that the site runs that build: `/api/v1/version/` reports the earlier commit, and the
+   change from §6 is gone.
+3. While the stack is pinned, merge any change. **Expected**: if `SITE_URL` is set, the `deploy`
+   confirmation fails after 15 minutes with "may be pinned". The Pi stays on the pinned build.
+4. Remove `IMAGE_TAG` and redeploy.
 
 **Expected**:
 - The rollback takes under 5 minutes.
 - The site returns to the newest `main` build.
+
+**Rolling back past this feature** (x86-64 hosts only; R15): images built before this feature
+have no ARM64 variant. After pinning such an image, run:
+
+```bash
+docker exec <web container> python manage.py generate_book_embeddings
+```
+
+**Expected**: search returns results again with the older model. Rolling forward re-encodes
+automatically.
 
 ## 8. Persistence and Render retirement (SC-004, US4)
 

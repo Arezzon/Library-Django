@@ -51,6 +51,26 @@
   and the smoke test run on pushes to `main`, version tags and pull requests to `main`. The image
   build, push and deployment run only after both pass, and only on pushes to `main` and version
   tags.
+- Q: When several merges into `main` overlap, how should CI decide whether a finished build may
+  move the `main` image tag that the Pi follows? → A: Only forward in history. A build moves the
+  tag only if the commit currently under the tag is an ancestor of the build's commit. A newer
+  commit whose pipeline fails doesn't block the last good build, and an older build that finishes
+  late is skipped.
+- Q: Which CI runs should be able to read the Portainer webhook URL? → A: Only the deploy job.
+  The URL is a secret of a GitHub Environment (`production`) whose deployment rules allow only the
+  `main` branch and `v*` tags, so pull-request runs can't read it.
+- Q: Should the Pi be able to roll back to an image built before this feature, and how does
+  search recover? → A: Yes, with one manual step. After pinning the older image, the operator
+  runs the backfill command in the web container to re-encode the vectors with the old model.
+  Rolling forward again re-encodes automatically on startup.
+- Q: After CI calls the webhook, should the pipeline also check that the Pi actually started
+  serving the new version? → A: Yes, when a public site address is configured. CI waits up to
+  15 minutes for the site to report the new commit, or a newer one, and fails the run if it
+  doesn't. Without an address, the check is skipped with a notice.
+- Q: If measurements on the Pi show that `bge-m3` misses the speed or memory targets even after
+  tuning, what should happen? → A: Keep `bge-m3`. First reduce web workers or threads within the
+  4 GB budget. If latency still misses, record the measured values and relax SC-010 or SC-011 to
+  them, with the user's sign-off.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -104,7 +124,7 @@ pulls the new images and redeploys. Nobody logs into the server.
 **Why this priority**: This is the automation the request asks for, and it replaces Render's
 deploy-on-push. It builds on Story 1's stack.
 
-**Independent Test**: With Story 1 in place and the webhook registered as a repository secret,
+**Independent Test**: With Story 1 in place and the webhook stored in the `production` environment,
 merge a visible change, such as page text, into `main`. Without touching the Pi or Portainer,
 confirm that the live site shows the change and that the pipeline run reports the redeploy as
 triggered.
@@ -220,10 +240,15 @@ the model.
   version, the run fails visibly, and the operator can redeploy by hand from Portainer.
 - **Webhook secret missing** (before setup, or in a fork): publishing continues and deployment is
   skipped with a warning, not a failure.
+- **Redeploy triggered but not confirmed**, for example because the image pull failed, the new
+  version is unhealthy, or the stack is pinned to an older version: when the site address is
+  configured, the run fails after 15 minutes (FR-036). During a long, deliberate pin the operator
+  can remove the address to stop these failures.
 - **Trigger before every architecture is published**: must not happen. The webhook is called only
   after the x86-64 and ARM64 variants are available under the same reference.
-- **Overlapping merges**: an older pipeline must not move the "latest `main`" reference back to an
-  older build after a newer one has published it.
+- **Overlapping merges**: an older pipeline that finishes after a newer one must not move the
+  "latest `main`" reference back. A newer commit whose pipeline fails doesn't stop the last
+  successful build from being published and deployed (FR-002, FR-019).
 - **Version tag on an older commit**: the build publishes that version's reference only. The
   "latest `main`" reference does not move back, and the redeploy it triggers leaves the Pi on the
   reference it follows.
@@ -245,6 +270,12 @@ the model.
   (FR-034), so search never returns a partial catalog.
 - **Re-encoding fails part-way**: the web service fails to start and shows as unhealthy. Books
   already re-encoded keep their new vectors, and the next start re-encodes only the rest.
+- **Rollback to an image built before this feature** (possible only on an x86-64 host, because
+  those images have no ARM64 variant; on the Pi the oldest target is the first image of this
+  feature): that image can't re-encode on startup,
+  so its search would ignore every vector made by the new model. The guide's rollback steps have
+  the operator run the backfill command in the web container to restore search. Rolling forward
+  again re-encodes automatically (FR-034).
 - **New version fails to start**, for example on a migration error: the web service reports
   unhealthy and the operator rolls back by pinning. Migrations that the failed version already
   applied are not reverted automatically, and the guide says so.
@@ -269,7 +300,9 @@ the model.
   the right variant on each machine.
 - **FR-002**: Each successful build MUST be available under an immutable reference derived from
   its commit, and a version-tag build also under its version. One moving reference MUST always
-  point to the newest successful `main` build. A version-tag build MUST NOT move it.
+  point to the newest successful `main` build, and it MUST only move forward in `main`'s history.
+  A build may move it only if the commit currently under it is an ancestor of the build's commit.
+  A version-tag build MUST NOT move it.
 - **FR-003**: The publishing image build, the push to the registry and the deployment trigger
   MUST run only after lint and the smoke test pass on both architectures, and only for pushes to
   `main` and version tags. Pull requests MUST NOT publish images or trigger deployment. The
@@ -293,9 +326,11 @@ the model.
   reference other repository files by relative path, using Portainer BE's relative path volumes,
   but application code always comes from the published images.
 - **FR-008**: All secrets and environment-specific settings MUST be supplied through the stack's
-  environment variables in Portainer: secret key, database password, allowed hostnames, published
-  port, demo seeding and image version. The definition MUST refuse to start when a required
-  secret is missing.
+  environment variables in Portainer. These are the secret key, database password, allowed
+  hostnames, published port, demo seeding and image version. They also include optional settings:
+  trusting the proxy's HTTPS header, trusted origins, web worker count, inference threads, and
+  the image repository for forks. The definition MUST refuse to start when a required secret is
+  missing.
 - **FR-009**: Database and message broker data MUST persist across redeploys, image updates and
   host reboots.
 - **FR-010**: Every service MUST restart automatically after a crash or a host reboot.
@@ -317,15 +352,27 @@ the model.
 - **FR-015**: After every architecture variant of a `main` or version-tag build is published
   (which happens only once FR-004 passes), the pipeline MUST call the Portainer stack webhook so
   that the server pulls the new images and redeploys.
-- **FR-016**: The webhook address MUST be stored only as a GitHub repository secret. It MUST NOT
+- **FR-016**: The webhook address MUST be stored only as a secret of a GitHub Environment
+  (`production`) whose deployment rules allow only the `main` branch and `v*` tags. Only the
+  deploy job may use that environment, so pull-request runs can't read the address. It MUST NOT
   be committed or shown in logs, because anyone holding it can trigger a redeploy.
 - **FR-017**: If the webhook secret is not configured, the pipeline MUST skip the trigger with a
   visible warning and MUST still publish the images.
 - **FR-018**: If the webhook call fails because it is unreachable, times out or returns a
   non-success response, the run MUST be marked failed. The message MUST say that images were
   published but the server was not redeployed.
-- **FR-019**: When `main` pipelines overlap, the newest commit MUST be both the one under the
-  moving reference and the one running on the server.
+- **FR-019**: When `main` pipelines overlap, or a newer commit's pipeline fails, the moving
+  reference and the server MUST end up on the newest commit whose pipeline succeeded. A build that
+  is not allowed to move the reference (FR-002) MUST NOT trigger a redeploy; its run shows a
+  notice instead.
+- **FR-035**: The site MUST report the commit its image was built from through an anonymous,
+  read-only response that contains nothing else sensitive.
+- **FR-036**: If the `production` environment defines the site's public address, the pipeline
+  MUST check after a successful webhook call that the redeploy happened. It waits up to 15
+  minutes for the site to report this run's commit or a newer commit on `main`. If that doesn't
+  happen, the run MUST fail with a message saying the redeploy was triggered but not confirmed,
+  and that the server may be pinned or unhealthy. If no address is defined, the check MUST be
+  skipped with a visible notice.
 - **FR-020**: The pipeline MUST call the webhook directly at the operator's existing public HTTPS
   address for Portainer (a domain, port forwarding or a reverse proxy). The call MUST verify the
   server's TLS certificate and MUST NOT skip that check, so the public address needs a publicly
@@ -339,12 +386,15 @@ the model.
   relative path volumes with
   their local filesystem path, if the stack uses them); every required and optional
   environment value and how to generate the secrets; enabling GitOps updates with the webhook
-  mechanism, "Re-pull image" and "Force redeployment"; copying the webhook URL and saving it as a
-  GitHub repository secret, including who needs which repository permission; checking from outside
+  mechanism, "Re-pull image" and "Force redeployment"; creating the `production` GitHub
+  Environment, restricted to `main` and `v*` tags, and saving the webhook URL as its secret and
+  the optional public site address as its variable, including who needs which repository
+  permission; checking from outside
   the local network that the webhook answers over HTTPS with a trusted certificate, and the
   recommendation to expose only the stack webhook path publicly while keeping the Portainer login
   page off the internet; a first-deployment verification checklist; pinning, rollback
-  and unpinning; viewing logs; backing up and restoring the database; and decommissioning the
+  and unpinning, including the backfill step after rolling back to an image built before this
+  feature; viewing logs; backing up and restoring the database; and decommissioning the
   Render services after the Pi is verified.
 - **FR-022**: The guide MUST separate the steps the repository change already provides from the
   steps the operator performs on the Pi, in Portainer, in GitHub settings and in Render.
@@ -370,14 +420,21 @@ the model.
   an ARM64 host. Model files tuned for one CPU family MUST NOT be used, such as quantized files
   built for one instruction set (AVX2, AVX-512 VNNI).
 - **FR-027**: The Render-constrained int8 model MUST be replaced by `BAAI/bge-m3` dense
-  embeddings (1024 dimensions), run from the pinned int8 ONNX export (`Xenova/bge-m3`,
-  `onnx/model_int8.onnx`). It MUST run on CPU on x86-64 and ARM64 and meet the Raspberry Pi 5
-  targets in SC-010 to SC-012. Portable tuning, such as the number of inference threads and model
-  copies per container, may be used to get there.
-- **FR-028**: The plan MUST confirm the choice with measurements. It MUST compare `bge-m3` int8
-  with the current model on the evaluation set, and measure latency and memory on Pi 5-class
-  hardware. It MUST also record the inference thread count and model copies per container that
-  meet SC-010 to SC-012.
+  embeddings (1024 dimensions). These are run from the pinned int8 ONNX export of that model in
+  the `Xenova/bge-m3` repository, file `onnx/model_int8.onnx`. `BAAI/bge-m3` names the model; the
+  model setting and the stored vector tag name the repository the file comes from. The model
+  MUST run on CPU on x86-64 and ARM64 and meet the Raspberry Pi 5 targets in SC-010 to SC-012.
+  Portable tuning, such as the number of inference threads and model copies per container, may
+  be used to get there. If the targets are still missed:
+  - memory (SC-012) is met by reducing web workers or threads;
+  - if latency then misses SC-010 or SC-011, `bge-m3` stays, and the target is relaxed to the
+    measured value with the user's sign-off and recorded in the plan's research.
+- **FR-028**: The plan MUST record how `bge-m3` int8 compares with the current model on the
+  evaluation set, and its latency and memory on a development machine. Latency and memory on
+  the Raspberry Pi 5 MUST be measured with the stack budget check during the first deployment,
+  and recorded together with the inference thread count and worker count used. The feature is
+  complete only when those measurements meet SC-010 to SC-012, or the targets have been relaxed
+  under FR-027.
 - **FR-029**: The chosen model's license MUST allow redistributing its weights inside the public
   images, and the model's revision MUST be pinned.
 - **FR-030**: The project MUST support one embedding model at a time. Its identity (name and
@@ -405,9 +462,10 @@ the model.
 
 ### Key Entities
 
-- **Published image version**: one `main` build of the application in x86-64 and ARM64 variants.
-  It is identified by an immutable commit reference and, while it is the newest, by the moving
-  "latest `main`" reference.
+- **Published image version**: one `main` or version-tag build of the application, in x86-64
+  and ARM64 variants. It is identified by an immutable commit reference, and also by its version
+  if it is a tag build. A `main` build is also identified by the moving "latest `main`" reference
+  while it is the newest successful one.
 - **Server stack**: the set of services on the Pi, defined in the repository, configured with the
   operator's environment values and set to follow either the latest version or a pinned one.
 - **Deployment webhook**: a secret, stack-specific URL issued by Portainer. Calling it makes
@@ -433,7 +491,8 @@ the model.
   them is intact and every activity event queued before them is processed.
 - **SC-005**: The operator can roll back to an earlier published version in under 5 minutes,
   following the guide, with no repository change.
-- **SC-006**: Every failed or skipped deployment trigger shows on its pipeline run. None are
+- **SC-006**: Every failed or skipped deployment trigger shows on its pipeline run. When the site
+  address is configured, so does every redeploy that isn't confirmed within 15 minutes. None are
   silent.
 - **SC-007**: The site on the Pi behaves as it did on Render. The home page, API docs, API schema
   and semantic search all answer, and search returns results for the standard smoke-test query.
@@ -480,16 +539,15 @@ the model.
 - Exposing the site to the internet (domain, TLS certificate, reverse proxy, router or firewall
   rules) is the operator's job. The application only needs to support it through configuration
   (FR-014).
-- Someone with admin rights on the GitHub repository adds the webhook secret. The guide names
-  this step explicitly, because the operator may not be the repository owner.
+- Someone with admin rights on the GitHub repository creates the `production` environment and
+  adds the webhook secret to it. The guide names this step explicitly, because the operator may
+  not be the repository owner.
 - Lint, and the full smoke test on both x86-64 and ARM64, are the gate for publishing.
 - Cleaning up old images in the registry and on the Pi is out of scope. The guide may mention
   pruning.
-- Retiring Render conflicts with the project constitution: Principle VI requires the Render
-  free-tier deployment and its 512 MiB check, and the platform constraints name a Render
-  Blueprint. Its Technology & Platform Constraints also name the `multilingual-e5-small` model and
-  384-dimension vectors, which FR-027 changes. The plan must record an amendment through
-  `/speckit-constitution` before implementation, as the constitution's governance rules require
-  when the deployment target or a listed component changes.
+- Constitution v1.0.0 required the Render deployment, and named the `multilingual-e5-small`
+  model and 384-dimension vectors. It was amended to v2.0.0 on 2026-10-20 to describe the
+  Raspberry Pi deployment, multi-architecture images and the single model setting, so this
+  feature no longer conflicts with it. The amendment ships in this feature's pull request.
 - Render remains the live fallback until the operator confirms the Pi deployment. Only then are
   the Render services shut down.
