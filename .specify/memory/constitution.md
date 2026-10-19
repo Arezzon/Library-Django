@@ -1,38 +1,3 @@
-<!--
-Sync Impact Report
-==================
-Version change: unversioned template → 1.0.0 (initial ratification)
-
-Modified principles (template placeholder → ratified title):
-  - [PRINCIPLE_1_NAME] → I. Domain-Owned Django Apps
-  - [PRINCIPLE_2_NAME] → II. Explicit Role-Based Access
-  - [PRINCIPLE_3_NAME] → III. Test-Backed Changes (NON-NEGOTIABLE)
-  - [PRINCIPLE_4_NAME] → IV. Secrets and Safe Defaults
-  - [PRINCIPLE_5_NAME] → V. Consistent Data, Best-Effort Side Effects
-  - (new)              → VI. Lean, Reproducible Deployment
-
-Added sections:
-  - Technology & Platform Constraints (was [SECTION_2_NAME])
-  - Development Workflow & Quality Gates (was [SECTION_3_NAME])
-  - Governance rules (was [GOVERNANCE_RULES])
-
-Removed sections: none
-
-Templates: not modified. The plan template's "Constitution Check" derives its gates from
-this file at runtime.
-
-Deferred placeholders: none.
-
-Known non-compliance in existing code (follow-up work, not changed by this amendment):
-  - Principle II: the /api/v1/ user, author, book and order viewsets declare no
-    permission_classes and REST_FRAMEWORK sets no DEFAULT_PERMISSION_CLASSES, so DRF
-    allows anonymous create/update/delete on them.
-  - Guidance drift: AGENTS.md lists `manage.py test authentication author book order`;
-    CI also runs the `events` suite.
-
-Remove this comment before committing the amended constitution.
--->
-
 # Library Django Constitution
 
 ## Core Principles
@@ -175,6 +140,7 @@ and Render builds identical.
 
    Images are published to GHCR only from non-pull-request builds after `lint` and `smoke-test`
    pass.
+
 5. **Pull requests**: the title follows `<action>(<service>): <description>`; the description
    follows `.github/PULL_REQUEST_TEMPLATE.md`, with Definition of Done items checked only when
    true and unchecked items explained; one entry is added to `docs/shared/changelog.md`; the
