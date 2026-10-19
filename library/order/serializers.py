@@ -8,13 +8,17 @@ class OrderSerializer(serializers.ModelSerializer):
         try:
             return super().create(validated_data)
         except BookUnavailableError as error:
-            raise serializers.ValidationError({"book": str(error)}) from error
+            raise serializers.ValidationError(
+                {"book": "The selected book is currently unavailable."}
+            ) from error
 
     def update(self, instance, validated_data):
         try:
             return super().update(instance, validated_data)
         except BookUnavailableError as error:
-            raise serializers.ValidationError({"book": str(error)}) from error
+            raise serializers.ValidationError(
+                {"book": "The selected book is currently unavailable."}
+            ) from error
 
     class Meta:
         model = Order
