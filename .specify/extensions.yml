@@ -1,4 +1,5 @@
 installed:
+- github
 - speckit-superpowers-bridge
 settings:
   auto_execute_hooks: true
