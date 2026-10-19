@@ -31,17 +31,17 @@ Phase 2, Foundational, because User Story 1's ARM64 images and the arm64 smoke t
 **Purpose**: Rename the development stack so `docker-compose.yml` is free for the server, while
 keeping local development and CI working.
 
-- [ ] T001 Rename `docker-compose.yml` to `docker-compose-dev.yml` with `git mv`. In `docker-compose-dev.yml`:
+- [x] T001 Rename `docker-compose.yml` to `docker-compose-dev.yml` with `git mv`. In `docker-compose-dev.yml`:
   - add `image: library-django:dev` to the `web` and `worker` services, keeping their `build:` blocks;
   - change the usage comments at the top to `docker compose -f docker-compose-dev.yml …`.
-- [ ] T002 In `.github/workflows/docker-build.yml`:
+- [x] T002 In `.github/workflows/docker-build.yml`:
   - add `-f docker-compose-dev.yml` to every `docker compose` command in the `smoke-test` job (build, up, ps, exec, stop, down);
   - pass `--compose-file docker-compose-dev.yml` to `scripts/smoke_tracking_recovery.py` and `scripts/smoke_render_free.py`, which both already accept it;
   - remove `master` from the `push.branches` and `pull_request.branches` filters, leaving `main` and `tags: ["v*"]` (FR-004).
-- [ ] T003 [P] Edit two files:
+- [x] T003 [P] Edit two files:
   - `.env.example`: add a commented line `# COMPOSE_FILE=docker-compose-dev.yml`, with a one-line explanation that it lets plain `docker compose` use the local development stack;
   - `AGENTS.md`: change the CI description to say that the tests run inside the `web` service of `docker-compose-dev.yml`.
-- [ ] T004 [P] Update `README.md`:
+- [x] T004 [P] Update `README.md`:
   - change every `docker compose …` command to `docker compose -f docker-compose-dev.yml …`, in the TL;DR, Quick start with Docker, Book embeddings, Activity Analytics, Troubleshooting and Tests and checks sections;
   - in Project layout, change the `docker-compose.yml` line to `docker-compose-dev.yml   # local development: web, PostgreSQL, Redis and Celery`.
 
