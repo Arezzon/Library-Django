@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "speckit-superpowers-bridge": {
+      "version": "1.3.0",
+      "source": "local",
+      "manifest_hash": "sha256:40b2c3f1aaa4e02169c60db824627b88d02f4c50319ca993190247f4910728cb",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.speckit-superpowers-bridge.handoff",
+          "speckit.speckit-superpowers-bridge.guard",
+          "speckit.speckit-superpowers-bridge.execute",
+          "speckit.superpowers-bridge"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-10-19T16:21:19.882410+00:00"
+    },
+    "github": {
+      "version": "1.0.2",
+      "source": "local",
+      "manifest_hash": "sha256:384027822560387c1b5573452e64d63e20de9edb79305fa4d57ace2d9d69848c",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.github.taskstoissues"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-10-19T17:51:26.781182+00:00"
+    }
+  }
+}
