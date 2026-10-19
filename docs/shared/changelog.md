@@ -1,3 +1,7 @@
+2026-10-19
+CodeQL code scanning
+Added a CodeQL workflow that scans GitHub Actions workflows, JavaScript and Python code for security and quality issues on pushes and pull requests to main and every Saturday, and reports findings as code scanning alerts in the repository's Security tab.
+
 2026-10-18
 Code ownership by module
 Assigned owners for borrowing, books, and events; grouped business analysis and shared documentation; and updated test ownership so Dima and Arezzon can review test changes.
