@@ -267,7 +267,7 @@ test assertion changed (SC-008).
   - **A finding that cannot be fixed without a behavior change**: suppress it at that line with `# noqa: <code>`, followed by the reason.
   - **`pyproject.toml`**: change it only if the tools warn about a renamed or removed setting or rule (FR-020).
 - [x] T031 [US4] Run the full suite as in quickstart.md §2.4. Every test passes with no test assertion changed (SC-008).
-- [ ] T032 [US4] Finish PR 2:
+- [x] T032 [US4] Finish PR 2:
   - add a changelog entry at the top of `docs/shared/changelog.md` ("Current lint and format tools": versions, plus "no code changes needed" or a summary of the fixes);
   - commit with the preview-commit skill;
   - open the PR with the preview-pr skill, titled `chore(ci): bump black and ruff to their latest releases`;
@@ -289,11 +289,11 @@ Pi, SC-009 holds.
 
 ### Setup for User Story 5
 
-- [ ] T033 [US5] After PR 2 has merged, create `chore/service-images-pg18-redis8` from a freshly fetched `origin/main`, following `.agents/skills/fresh-feature-branch/SKILL.md`. Re-check the newest `pgvector/pgvector:<ver>-pg<major>` and `redis:<ver>-alpine` tags on Docker Hub, and confirm both publish `amd64` and `arm64`. Use any newer tag in place of `0.8.7-pg18` and `8.10.2-alpine` everywhere below and in `contracts/service-images.md`.
+- [x] T033 [US5] After PR 2 has merged, create `chore/service-images-pg18-redis8` from a freshly fetched `origin/main`, following `.agents/skills/fresh-feature-branch/SKILL.md`. Re-check the newest `pgvector/pgvector:<ver>-pg<major>` and `redis:<ver>-alpine` tags on Docker Hub, and confirm both publish `amd64` and `arm64`. Use any newer tag in place of `0.8.7-pg18` and `8.10.2-alpine` everywhere below and in `contracts/service-images.md`.
 
 ### Tests for User Story 5 (write first) ⚠️
 
-- [ ] T034 [US5] In `library/authentication/tests.py`, add `ComposeServiceImagesTests(SimpleTestCase)` (FR-021). It loads `docker-compose.yml` and `docker-compose-dev.yml` from `settings.BASE_DIR.parent` with `yaml.safe_load` (PyYAML is pinned), then asserts:
+- [x] T034 [US5] In `library/authentication/tests.py`, add `ComposeServiceImagesTests(SimpleTestCase)` (FR-021). It loads `docker-compose.yml` and `docker-compose-dev.yml` from `settings.BASE_DIR.parent` with `yaml.safe_load` (PyYAML is pinned), then asserts:
   - `services.db.image` and `services.redis.image` are equal across the two files;
   - the `db` image matches `^pgvector/pgvector:\d+\.\d+\.\d+-pg\d+$` and the `redis` image matches `^redis:\d+\.\d+\.\d+-alpine$` (exact tags, no floating tags);
   - `db` mounts `pgdata18:/var/lib/postgresql` and `redis` mounts `redisdata8:/data`;
@@ -303,38 +303,38 @@ Pi, SC-009 holds.
 
 ### Implementation for User Story 5
 
-- [ ] T035 [US5] In `docker-compose.yml`:
+- [x] T035 [US5] In `docker-compose.yml`:
   - **`db`**: set `image: pgvector/pgvector:0.8.7-pg18` and change the volume to `pgdata18:/var/lib/postgresql`. PostgreSQL 18 images keep data in `/var/lib/postgresql/18/docker` and exit if a volume sits at `/var/lib/postgresql/data` (research R12).
   - **`redis`**: set `image: redis:8.10.2-alpine` and change the volume to `redisdata8:/data`. Keep its `command` and healthcheck.
   - **Top-level `volumes`**: replace `pgdata:` and `redisdata:` with `pgdata18:` and `redisdata8:`.
   - **Comment**: add one line above the volumes, saying they are new so the move to PostgreSQL 18 starts from empty data, and pointing to the operator guide's reset section.
-- [ ] T036 [US5] Make the same image, volume and mount changes in `docker-compose-dev.yml`. Leave the `web` and `worker` source mounts (`./library:/app/library`) unchanged. Rebuild and confirm T034 passes.
-- [ ] T037 [US5] Validate per quickstart.md §4.1 and §4.2:
+- [x] T036 [US5] Make the same image, volume and mount changes in `docker-compose-dev.yml`. Leave the `web` and `worker` source mounts (`./library:/app/library`) unchanged. Rebuild and confirm T034 passes.
+- [x] T037 [US5] Validate per quickstart.md §4.1 and §4.2:
   - `SECRET_KEY=placeholder DB_PASSWORD=placeholder docker compose -f docker-compose.yml config --quiet`, as CI does;
   - `$DC up --build -d --wait` on the new volumes;
   - `select version()` reports PostgreSQL 18.x and `redis-server --version` reports 8.10.x;
   - note the fresh-seed author, book and order counts (the reference values for T039 and T042);
   - the full suite (quickstart.md §2.4), `smoke_test_tracking`, `smoke_tracking_recovery.py` and `smoke_stack_budget.py --max-memory-gib 4` all pass.
-- [ ] T038 [US5] **(manual)** Rehearse the reset and rollback locally, per quickstart.md §4.3:
+- [x] T038 [US5] **(manual)** Rehearse the reset and rollback locally, per quickstart.md §4.3:
   1. On `main` (`pgdata`), add one book.
   2. Switch to the PR 3 branch: the site is freshly seeded and the book is absent.
   3. Switch back to `main`: the book is present.
 
   Then clean up the old local volumes.
-- [ ] T039 [P] [US5] In `docs/deployment/raspberry-pi-portainer.md`:
+- [x] T039 [P] [US5] In `docs/deployment/raspberry-pi-portainer.md`:
   - **New section** "Upgrade to PostgreSQL 18 and Redis 8 (one-time reset)", listed in the Contents. It contains [contracts/service-images.md](contracts/service-images.md) §Reset steps 1–6, with the commands verbatim and the step 1 expected counts filled in from T037. It must open with the step 1 check and its instruction to stop if the check fails (FR-024).
   - **Line 107**: replace "remove the `pgdata` volume" with `pgdata18`.
   - **Line 193 ("Backup and restore")**: name `pgdata18` and `redisdata8`, and add one sentence on where PostgreSQL 18 keeps its data (`/var/lib/postgresql/18/docker`).
-- [ ] T040 [P] [US5] In `README.md`:
+- [x] T040 [P] [US5] In `README.md`:
   - **Line 127**: `| \`db\` | PostgreSQL 18 with pgvector | internal \`5432\` |`.
   - **Line 128**: name Redis 8: "Celery broker (Redis 8) with persistent AOF storage".
   - **Quick start with Docker**: add one sentence saying the stack now uses the volumes `pgdata18` and `redisdata8`, and that the old `<project>_pgdata` and `<project>_redisdata` volumes can be removed with `docker volume rm`.
   - **Line 229**: check that the "PostgreSQL 18" wording for local installs still matches.
-- [ ] T041 [US5] Amend the constitution with `/speckit-constitution` (FR-017):
+- [x] T041 [US5] Amend the constitution with `/speckit-constitution` (FR-017):
   - in `.specify/memory/constitution.md` Technology & Platform Constraints, change "**Database**: PostgreSQL 15 with the `vector` extension" to "PostgreSQL 18 with the `vector` extension";
   - bump the version from 2.1.0 to **2.2.0** (MINOR: platform constraint updated) and set Last Amended to the PR date;
   - remove the Sync Impact Report comment before committing.
-- [ ] T042 [US5] Finish PR 3:
+- [x] T042 [US5] Finish PR 3:
   - **Changelog** entry at the top of `docs/shared/changelog.md`, titled "PostgreSQL 18 and Redis 8": the images, the new volumes, the one-time seed-only reset, and constitution v2.2.0.
   - **Commit** with the preview-commit skill.
   - **PR** with the preview-pr skill, titled `chore(deploy): move to PostgreSQL 18 and Redis 8 images`.
@@ -356,7 +356,7 @@ five stories are done.
 
 **Purpose**: Consistency checks across the whole feature after PR 3.
 
-- [ ] T044 Search the current documents for stale versions and names:
+- [x] T044 Search the current documents for stale versions and names:
 
   ```bash
   git grep -nE "Django 4\.1|PostgreSQL 15|redis:7\.|0\.8\.2-pg15|\bpgdata\b|\bredisdata\b|library/requirements\.txt" -- ':!specs/001-*' ':!specs/002-*' ':!.specify/bridge-snapshots' ':!docs/shared/changelog.md'
