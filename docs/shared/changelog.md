@@ -1,4 +1,8 @@
 2026-10-20
+Django 5.2 LTS feature complete
+Recorded the Raspberry Pi measurements after the Django 5.2 upgrade and after the move to PostgreSQL 18 and Redis 8 in research.md: peak memory 2.669 GiB, search p95 243 ms and book save p95 173 ms, all within the 4 GB, 500 ms and 2 s targets. The one-time reset on the Pi is confirmed complete. The spec is marked Implemented, every task is done with the success criteria evidence recorded, and the Spec Kit bridge handoff is complete.
+
+2026-10-20
 PostgreSQL 18 and Redis 8
 Both Compose stacks now run pgvector/pgvector:0.8.7-pg18 (PostgreSQL 18) and redis:8.10.2-alpine on new volumes, pgdata18 mounted at /var/lib/postgresql and redisdata8. PostgreSQL 18 cannot read PostgreSQL 15 files and the server held only demo seed data, so the upgrade is a one-time reset: the stack starts empty and reseeds. The old volumes stay until the operator deletes them, so reverting brings the previous stack back. The operator guide has the steps, including the seed-only check before merging. A test keeps both stacks on the same exact images. The constitution is amended to v2.2.0 (PostgreSQL 18).
 
