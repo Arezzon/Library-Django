@@ -70,8 +70,9 @@ docker compose -f docker-compose-dev.yml exec -T web python manage.py shell -c \
 
 ## 4. CI gates (FR-001 – FR-004, FR-032)
 
-- **Open a pull request to `main`**: `lint` and both `smoke-test` legs (amd64 and arm64) run, and
-  no `publish`, `merge`, `promote` or `deploy` job runs.
+- **Open a pull request to `main`**: `lint` and every `smoke-test (<runner>)` leg (amd64 and
+  arm64) run, the combined `smoke-test` check passes, and no `publish`, `merge`, `promote` or
+  `deploy` job runs.
 - **Merge it**: `publish` (×2), then `merge`, `promote` and `deploy` run. Then check the image:
 
   ```bash

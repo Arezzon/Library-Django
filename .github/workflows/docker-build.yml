@@ -44,8 +44,10 @@ jobs:
   # Smoke test: build the image natively on amd64 and arm64, start the
   # development stack and verify the app on each architecture.
   # Runs on every trigger (including PRs) so broken images never get pushed.
+  # The `smoke-test` job below reports the combined result.
   # -------------------------------------------------------------------------
-  smoke-test:
+  smoke-test-matrix:
+    name: smoke-test (${{ matrix.runner }})
     # A cold run takes about 4 minutes; never let a hung leg hold a runner.
     timeout-minutes: 30
     strategy:
@@ -169,6 +171,28 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose -f docker-compose-dev.yml down -v
+
+  # -------------------------------------------------------------------------
+  # The check that branch protection requires. Matrix legs report as
+  # "smoke-test (<runner>)", so this job keeps one stable name whatever the
+  # runner list is. It must run and fail when a leg fails or is cancelled: a
+  # skipped required check counts as passed.
+  # -------------------------------------------------------------------------
+  smoke-test:
+    needs: smoke-test-matrix
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Require the smoke test to pass on every runner
+        env:
+          RESULT: ${{ needs.smoke-test-matrix.result }}
+        run: |
+          if [ "$RESULT" != success ]; then
+            echo "::error::The smoke test did not pass on every runner (result: ${RESULT})."
+            exit 1
+          fi
+          echo "The smoke test passed on every runner."
 
   # -------------------------------------------------------------------------
   # Publish: build each architecture on its own native runner and push it to

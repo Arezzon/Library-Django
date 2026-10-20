@@ -17,8 +17,9 @@ constitution's quality gates (v2.0.0, item 4).
 | Job | Runner(s) | Needs | Pass condition |
 |---|---|---|---|
 | `lint` | `ubuntu-latest` | none | `ruff check` and `black --check` are clean |
-| `smoke-test` | matrix: `ubuntu-24.04`, `ubuntu-24.04-arm` (native) | none | Every step in the next section passes on **both**, within the 30-minute job timeout |
-| `publish` | matrix: `ubuntu-24.04`, `ubuntu-24.04-arm` | `lint`, `smoke-test` | Each architecture's image is pushed by digest, with build argument `APP_COMMIT=${{ github.sha }}` |
+| `smoke-test-matrix` | matrix of native amd64 and arm64 runners (currently `ubuntu-latest`, `ubuntu-24.04`, `ubuntu-24.04-arm`, `ubuntu-26.04`, `ubuntu-26.04-arm`); each leg reports as `smoke-test (<runner>)` | none | Every step in the next section passes on **every** leg, within the 30-minute job timeout |
+| `smoke-test` | `ubuntu-latest`, `if: always()`, no permissions | `smoke-test-matrix` | `needs.smoke-test-matrix.result` is `success`. This is the check that the `main` ruleset requires, so its name never changes with the runner list. It fails, rather than being skipped, when a leg fails or is cancelled. |
+| `publish` | matrix: `ubuntu-26.04`, `ubuntu-26.04-arm` | `lint`, `smoke-test` | Each architecture's image is pushed by digest, with build argument `APP_COMMIT=${{ github.sha }}` |
 | `merge` | `ubuntu-latest` | `publish` | The multi-architecture manifest is created and tagged `sha-<short>` (plus the version for `v*`), and both architectures are verified |
 | `promote` | `ubuntu-latest` (checkout with `fetch-depth: 0`) | `merge` | `main` is moved following the rules below. It sets the output `deploy`. |
 | `deploy` | `ubuntu-latest`, `environment: production` | `promote` (`if: needs.promote.outputs.deploy == 'true'`) | The webhook returns 2xx and the redeploy is confirmed, or each is skipped with a visible annotation (see below) |
@@ -35,7 +36,7 @@ Concurrency (`cancel-in-progress: false` everywhere):
 - The `publish` matrix has no group: its legs push by digest only, and a shared group would
   serialize them and let newer pending jobs cancel older ones.
 
-## `smoke-test` steps (per architecture)
+## `smoke-test-matrix` steps (per runner)
 
 1. `node --test scripts/test_tracking_js.cjs`
 2. Server file validity: `docker compose -f docker-compose.yml config --quiet`, with placeholder
