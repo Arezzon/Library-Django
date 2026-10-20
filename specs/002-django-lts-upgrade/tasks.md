@@ -208,13 +208,13 @@ it (FR-015, FR-016).
 **Independent Test**: quickstart.md §2.7. `library/requirements.txt` is gone, `git grep` finds no
 current reference to it, and a fresh virtual environment installs from the root list in one step.
 
-- [ ] T020 [P] [US3] Delete the duplicate list with `git rm library/requirements.txt` (FR-015).
-- [ ] T021 [P] [US3] In `README.md`, make the local setup point to the root list (FR-016):
+- [x] T020 [P] [US3] Delete the duplicate list with `git rm library/requirements.txt` (FR-015).
+- [x] T021 [P] [US3] In `README.md`, make the local setup point to the root list (FR-016):
   - **line 154 (Windows)**: change `python -m pip install -r .\library\requirements.txt` to `python -m pip install -r .\requirements.txt`;
   - **line 164 (Linux/macOS)**: change `./library/requirements.txt` to `./requirements.txt`;
   - **after the two code blocks**: add one sentence: environments installed from the old `library/requirements.txt` should be reinstalled from `requirements.txt`;
   - **Project layout (line 489)**: change the `requirements.txt` comment to `# runtime dependencies: image build and local development`.
-- [ ] T022 [US3] Verify with quickstart.md §2.7:
+- [x] T022 [US3] Verify with quickstart.md §2.7:
   - `test ! -e library/requirements.txt`;
   - the `git grep -n "library/requirements.txt" -- ':!specs/001-*' ':!specs/002-*' ':!.specify/bridge-snapshots' ':!docs/shared/changelog.md'` finds nothing;
   - `AGENTS.md` and `.specify/memory/constitution.md` (v2.1.0) no longer require a second copy (US3 acceptance 3);
@@ -229,15 +229,15 @@ current reference to it, and a fresh virtual environment installs from the root 
 **Purpose**: The documentation, changelog, checks and pull request for PR 1 (FR-018), and the
 post-merge steps.
 
-- [ ] T023 In `README.md` line 5, change "built with **Django 4.1**" to "built with **Django 5.2 LTS**" (FR-018). Run this after T021, which edits the same file.
-- [ ] T024 [P] Add the PR 1 entry at the top of `docs/shared/changelog.md`, in the existing format (date line `2026-10-20` or the merge date, a title line, one paragraph). The title is "Django 5.2 LTS and current runtime dependencies (KAN-17)". The paragraph covers:
+- [x] T023 In `README.md` line 5, change "built with **Django 4.1**" to "built with **Django 5.2 LTS**" (FR-018). Run this after T021, which edits the same file.
+- [x] T024 [P] Add the PR 1 entry at the top of `docs/shared/changelog.md`, in the existing format (date line `2026-10-20` or the merge date, a title line, one paragraph). The title is "Django 5.2 LTS and current runtime dependencies (KAN-17)". The paragraph covers:
   - Django 4.1 → 5.2.x, with every runtime dependency at its latest compatible release (redis-py capped by kombu);
   - the complete pinned set in the single root `requirements.txt`, and `library/requirements.txt` removed;
   - `STORAGES` replacing the removed `STATICFILES_STORAGE`;
   - the two migrations that had never been generated (`role` label, `order.id` to `bigint`);
   - the deprecation baseline;
   - constitution v2.1.0 (Django 5.2 LTS line, single dependency list, patch releases routine).
-- [ ] T025 From the repository root, run `ruff check .` and `black --check .` with the `requirements-dev.txt` pins, and fix every finding.
+- [x] T025 From the repository root, run `ruff check .` and `black --check .` with the `requirements-dev.txt` pins, and fix every finding.
 - [ ] T026 Commit and open PR 1:
   - **Commit**: follow `.agents/skills/preview-commit/SKILL.md`.
   - **Push and PR**: follow `.agents/skills/preview-pr/SKILL.md`, with the title `chore(deps): upgrade Django to 5.2 LTS and refresh runtime dependencies`.
