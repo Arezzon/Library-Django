@@ -64,7 +64,7 @@ before using the `venv` setup.
 | API | CRUD endpoints under `/api/v1/` plus Swagger and ReDoc |
 | Embeddings | Multilingual 384-dimensional vectors generated with ONNX Runtime |
 | Analytics | Activity dashboard, filters, daily totals and per-user activity |
-| Deployment | Docker Compose and a Render Blueprint |
+| Deployment | Docker Compose and Raspberry Pi/Portainer |
 
 ## Architecture
 
@@ -422,7 +422,6 @@ node --test scripts/test_tracking_js.cjs
 ├── Dockerfile                 # production image
 ├── docker-compose.yml         # web, PostgreSQL, Redis and Celery
 ├── entrypoint.sh              # wait, migrate, seed, start
-├── render.yaml                # Render Blueprint
 ├── requirements.txt            # canonical container dependencies
 ├── .env.example               # safe configuration template
 ├── scripts/                   # smoke and deployment checks
@@ -438,11 +437,8 @@ node --test scripts/test_tracking_js.cjs
 
 ## Deployment
 
-The repository includes [render.yaml](render.yaml) for a Render Blueprint:
-web service, PostgreSQL and a Redis-compatible Key Value queue. Render runs the
-Docker image and wires `DB_*` and `CELERY_BROKER_URL` automatically.
-
-For any production deployment:
+The project is intended to run on Docker Compose, including on a Raspberry Pi
+managed through Portainer.
 
 ```text
 DEBUG=False

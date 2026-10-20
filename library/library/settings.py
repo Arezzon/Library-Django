@@ -35,16 +35,10 @@ BOOK_EMBEDDING_CACHE_DIR = Path(os.getenv(
     'BOOK_EMBEDDING_CACHE_DIR', str(BASE_DIR.parent / '.cache' / 'book-embeddings')
 ))
 
-# Always allow Render's *.onrender.com hosts; merge with any ALLOWED_HOSTS
-# provided via environment (comma-separated). Strip whitespace so a trailing
-# space in a Render env value can't cause Django to reject the host (HTTP 400).
+# Merge comma-separated hosts provided via environment.
 _allowed = os.getenv('ALLOWED_HOSTS', '')
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
-ALLOWED_HOSTS += ['.onrender.com', 'localhost', '127.0.0.1']
-
-# Render terminates TLS before forwarding requests to the container.
-if os.getenv('RENDER') == 'true':
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+ALLOWED_HOSTS += ['localhost', '127.0.0.1']
 
 # Application definition
 

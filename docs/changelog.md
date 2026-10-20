@@ -1,3 +1,7 @@
+2026-10-20
+Remove Render hosting integration
+Removed the Render Blueprint, launcher, Render-only scripts, CI checks, proxy settings and documentation references. Docker Compose remains the deployment path for Raspberry Pi and Portainer.
+
 2026-10-08
 README and mobile analytics navigation
 Reworked the README with Docker and venv quick starts, prerequisites, platform-specific commands, Memurai/Redis guidance, troubleshooting, API and analytics documentation. Added the mobile Analytics icon to match the other navigation items.

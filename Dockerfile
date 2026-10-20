@@ -39,6 +39,5 @@ RUN chmod +x /entrypoint.sh
 EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
-# Production server: gunicorn. The entrypoint binds to $PORT (default 8000),
-# so Render's injected PORT is honored automatically.
-CMD ["gunicorn", "library.wsgi:application", "--workers", "3", "--timeout", "60"]
+# Production server: gunicorn on the container's default port.
+CMD ["gunicorn", "library.wsgi:application", "--workers", "3", "--timeout", "60", "--bind", "0.0.0.0:8000"]
