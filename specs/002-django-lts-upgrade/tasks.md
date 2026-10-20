@@ -243,7 +243,7 @@ post-merge steps.
   - **Push and PR**: follow `.agents/skills/preview-pr/SKILL.md`, with the title `chore(deps): upgrade Django to 5.2 LTS and refresh runtime dependencies`.
   - **PR description**: follows `.github/PULL_REQUEST_TEMPLATE.md`. It includes the R1 version table, the allowed schema differences from T014, the `deprecations.md` summary, and a note that it supersedes Dependabot's `django-5.2.17` and `djangorestframework-3.17.2` pull requests.
   - **Merge gate**: wait for `lint`, `smoke-test` on both architectures, and CodeQL.
-- [ ] T027 After PR 1 merges and the Pi has redeployed (manual):
+- [x] T027 After PR 1 merges and the Pi has redeployed (manual):
   - run the operator guide's "Measure the stack on the Pi" (quickstart.md §2.9, SC-005) and append the JSON summary to a new "Measurements" section at the end of `specs/002-django-lts-upgrade/research.md`;
   - close the superseded Dependabot pull requests with `gh pr close` and a comment linking PR 1;
   - the assignee moves KAN-17 to Done.

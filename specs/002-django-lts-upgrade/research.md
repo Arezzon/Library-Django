@@ -307,3 +307,28 @@ seeds itself. The README tells them to remove the two old volumes.
 
   Each PR adds its own changelog entry (FR-018). After PR 1 merges, close Dependabot's
   `django-5.2.17` and `djangorestframework-3.17.2` branches.
+
+## Measurements
+
+### After PR 1 (Django 5.2.18, #30), Raspberry Pi 5
+
+Taken with the operator guide's "Measure the stack on the Pi", `scripts/smoke_stack_budget.py`
+(SC-005):
+
+```json
+{
+  "project": "library-django",
+  "containers": 4,
+  "peak_memory_gib": 2.645,
+  "search_ms": {"count": 60, "p50": 170.6, "p95": 219.4},
+  "save_ms": {"count": 5, "p50": 155.8, "p95": 171.2},
+  "vectors_current": "9/9",
+  "clients": 3,
+  "result": "PASS"
+}
+```
+
+All targets are met: 2.645 GiB of 4 GiB, search p95 219 ms against 500 ms, and book save p95
+171 ms against 2 s. The Django 4.1 stack measured 2.45 GiB, search p95 237 ms and save p95 199 ms
+(feature 001, R1), so memory rose slightly and latency improved. The superseded Dependabot pull
+requests are closed, and KAN-17 is Done.
