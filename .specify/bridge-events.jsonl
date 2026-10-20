@@ -30,3 +30,15 @@
 
 {"timestamp":"2026-10-20T09:12:20.2898750Z","action":"guard","status":"allow","feature_directory":"specs/001-rpi-portainer-deploy","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.clarify"}
 
+{"timestamp":"2026-10-20T09:42:43.3030854Z","action":"guard","status":"allow","feature_directory":"specs/001-rpi-portainer-deploy","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.plan"}
+
+{"timestamp":"2026-10-20T10:23:05.7068605Z","action":"guard","status":"allow","feature_directory":"specs/001-rpi-portainer-deploy","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.tasks"}
+
+{"timestamp":"2026-10-20T10:27:07.3481486Z","action":"handoff","status":"ready","feature_directory":"specs/001-rpi-portainer-deploy","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261020T1027073249784Z-ready"}
+
+{"timestamp":"2026-10-20T10:27:31.6655271Z","action":"handoff","status":"ready","feature_directory":"specs/002-django-lts-upgrade","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261020T1027316393256Z-ready"}
+
+{"timestamp":"2026-10-20T10:31:21.2417807Z","action":"handoff","status":"executing","feature_directory":"specs/002-django-lts-upgrade","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261020T1031211751966Z-executing"}
+
+{"timestamp":"2026-10-20T10:31:21.3332858Z","action":"guard","status":"allow","feature_directory":"specs/002-django-lts-upgrade","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
