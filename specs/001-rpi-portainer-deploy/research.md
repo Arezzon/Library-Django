@@ -9,6 +9,7 @@ technical decisions behind the plan, with the measurements FR-028 asks for.
 
 **Decision**: Use `BAAI/bge-m3` dense embeddings from `Xenova/bge-m3`, file
 `onnx/model_int8.onnx`, at revision `4de13258303883538bd53b696b452bf8099f0858`.
+
 - Pooling: CLS (first token), then L2 normalization.
 - Prefixes: none for queries or documents.
 - Input is truncated to 512 tokens.
@@ -17,31 +18,33 @@ technical decisions behind the plan, with the measurements FR-028 asks for.
 **Measurements** were taken on 2026-10-20 on the developer workstation: x86-64, 32 logical
 CPUs, ONNX Runtime 1.30.0, SentencePiece 0.2.1. Both models ran through the same code path the
 app uses (XLM-R SentencePiece IDs, one text per call).
+
 - The "seed" set is the 9-book seed catalog with 18 queries: 9 English, and 9 Ukrainian queries
   against English descriptions.
 - The "hard" set adds 15 near-duplicate distractor books, including Ukrainian-language ones,
   and 18 harder paraphrased queries.
 
-| Model (int8) | Set | Top-1 | Top-3 | MRR | Median margin (worst) |
-|---|---|---|---|---|---|
-| `multilingual-e5-small` (current) | seed, 9 books / 18 queries | 18 | 18 | 1.000 | 0.045 (0.002) |
-| `bge-m3` | seed, 9 books / 18 queries | 18 | 18 | 1.000 | 0.141 (0.057) |
-| `multilingual-e5-small` (current) | hard, 24 books / 36 queries | 24 | 32 | 0.789 | 0.023 (−0.049) |
-| `bge-m3` | hard, 24 books / 36 queries | 26 | 34 | 0.843 | 0.053 (−0.069) |
+| Model (int8)                      | Set                         | Top-1 | Top-3 | MRR   | Median margin (worst) |
+| --------------------------------- | --------------------------- | ----- | ----- | ----- | --------------------- |
+| `multilingual-e5-small` (current) | seed, 9 books / 18 queries  | 18    | 18    | 1.000 | 0.045 (0.002)         |
+| `bge-m3`                          | seed, 9 books / 18 queries  | 18    | 18    | 1.000 | 0.141 (0.057)         |
+| `multilingual-e5-small` (current) | hard, 24 books / 36 queries | 24    | 32    | 0.789 | 0.023 (−0.049)        |
+| `bge-m3`                          | hard, 24 books / 36 queries | 26    | 34    | 0.843 | 0.053 (−0.069)        |
 
 Margin is the cosine score of the expected book minus the best other book.
-- On the hard set, e5's worst misses ranked the expected book 9th and 21st (*"Big Brother is
-  watching you"* and the same query in Ukrainian).
+
+- On the hard set, e5's worst misses ranked the expected book 9th and 21st (_"Big Brother is
+  watching you"_ and the same query in Ukrainian).
 - `bge-m3`'s worst miss was 4th. Several of its misses are genuinely ambiguous, such as
-  *Philosopher's Stone* against *Chamber of Secrets*.
+  _Philosopher's Stone_ against _Chamber of Secrets_.
 
 | Model (int8) | Threads | Graph optimization | Memory after load | Query median / p95 | Document median |
-|---|---|---|---|---|---|
-| e5-small | 1 | off | 171 MB | 3.7 / 4.9 ms | 7.5 ms |
-| `bge-m3` | 1 | off | 608 MB | 25.1 / 30.0 ms | 53.7 ms |
-| `bge-m3` | 1 | all | 609 MB | 24.4 / 32.7 ms | 59.4 ms |
-| `bge-m3` | 2 | all | 609 MB | 16.5 / 20.7 ms | 34.6 ms |
-| `bge-m3` | 4 | all | 610 MB | 12.7 / 15.7 ms | 25.1 ms |
+| ------------ | ------- | ------------------ | ----------------- | ------------------ | --------------- |
+| e5-small     | 1       | off                | 171 MB            | 3.7 / 4.9 ms       | 7.5 ms          |
+| `bge-m3`     | 1       | off                | 608 MB            | 25.1 / 30.0 ms     | 53.7 ms         |
+| `bge-m3`     | 1       | all                | 609 MB            | 24.4 / 32.7 ms     | 59.4 ms         |
+| `bge-m3`     | 2       | all                | 609 MB            | 16.5 / 20.7 ms     | 34.6 ms         |
+| `bge-m3`     | 4       | all                | 610 MB            | 12.7 / 15.7 ms     | 25.1 ms         |
 
 **Raspberry Pi 5 estimate (not measured)**: int8 matrix work on a Cortex-A76 at 2.4 GHz is
 roughly 6–10× slower than on this workstation. That puts a query at about 100–250 ms with
@@ -51,7 +54,35 @@ hardware, so they can't confirm these numbers. They are confirmed on the Pi with
 check during the first deployment (R8, [quickstart.md](quickstart.md) §5), and the measured
 values are added to this section. If they miss, R14 applies.
 
+**Raspberry Pi 5 measurements**:
+
+- `WEB_CONCURRENCY`: 2
+- `BOOK_EMBEDDING_THREADS`: 2
+- Test result json:
+
+```json
+{
+  "project": "library-django",
+  "containers": 4,
+  "peak_memory_gib": 2.45,
+  "search_ms": {
+    "count": 60,
+    "p50": 174.9,
+    "p95": 237.0
+  },
+  "save_ms": {
+    "count": 5,
+    "p50": 161.6,
+    "p95": 198.8
+  },
+  "vectors_current": "9/9",
+  "clients": 3,
+  "result": "PASS"
+}
+```
+
 **Rationale**:
+
 - `bge-m3` matches the current model on the seed set and widens the separation 3×.
 - It degrades much more gracefully as the catalog grows.
 - It's MIT-licensed, so it can be redistributed in public images (FR-029).
@@ -61,6 +92,7 @@ values are added to this section. If they miss, R14 applies.
   That is the portable setting, unlike `*_avx2` or `*_avx512_vnni` files (FR-026).
 
 **Alternatives considered**:
+
 - `ibm-granite/granite-embedding-311m-multilingual-r2`: the earlier pick, replaced by the user's
   choice.
 - Full-precision `bge-m3` (2.27 GB): about 4× the memory, so 3 web workers wouldn't fit the
@@ -71,6 +103,7 @@ values are added to this section. If they miss, R14 applies.
 ## R2. One definition of the model (FR-030, FR-031, FR-033)
 
 **Decision**:
+
 - A stdlib-only module, `library/book/embedding_config.py`, is the single source. It holds one
   defaults dict and reads `BOOK_EMBEDDING_*` environment overrides for:
   - model (repository), revision, file and tokenizer file;
@@ -87,11 +120,13 @@ values are added to this section. If they miss, R14 applies.
 - At runtime, the encoder loads files from the manifest's local path only, with no hub call.
 
 **Rationale**:
+
 - Every other place imports the spec: runtime loading, the stored vector tag, search filters,
   the backfill command, tests and the fetch script. Nothing else names the model.
 - A rebuild with a different `--build-arg` changes the default image without code edits (FR-033).
 
 **Alternatives considered**:
+
 - A JSON blob in one variable: hard to edit, and error-prone in Portainer and CI.
 - Django settings as the source: the fetch script runs during the image build, before Django
   settings can be imported (`SECRET_KEY` is required).
@@ -101,6 +136,7 @@ values are added to this section. If they miss, R14 applies.
 
 **Decision**: a Django system check in the `book` app, `book.E001`. It compares the resolved
 spec's tag with the image's `manifest.json` and fails with an error naming both models.
+
 - `migrate` runs system checks, so the entrypoint fails before serving any traffic.
 - If no manifest exists, which happens in a local `venv` before fetching, the check emits a
   warning, `book.W001`, with the fetch command.
@@ -109,6 +145,7 @@ spec's tag with the image's `manifest.json` and fails with an error naming both 
 keeps default test runs free of the model as Principle III requires.
 
 **Alternatives considered**:
+
 - Checking inside `load_embedding_model`: the model loads lazily, so the check would only fire on
   the first search.
 - Silently downloading the requested model: forbidden by FR-033.
@@ -117,18 +154,21 @@ keeps default test runs free of the model as Principle III requires.
 
 **Decision**: migration `book/0004` changes `BookEmbedding.vector` from `VectorField(dimensions=384)`
 to `VectorField()`, an untyped pgvector `vector` column.
+
 - pgvector-python 0.5.0 supports `dimensions=None` and maps it to `vector`.
 - Existing rows are kept, but their tag no longer matches, so search excludes them until they
   are re-encoded.
 - Vector length is validated in code against `spec.dimensions` (`normalized_vector`).
 
 **Rationale**:
+
 - Model changes need no further migrations, so "storage adapts to the vector size" holds for any
   future model.
 - Retrieval is already an exact scan of up to about 1,000 books. A fixed-dimension HNSW or
   IVFFlat index isn't needed.
 
 **Alternatives considered**:
+
 - `vector(1024)` with a data-dropping migration: every future model change would need another
   migration, which conflicts with FR-030.
 - A dimension read from settings inside the migration: migrations must be static and
@@ -138,6 +178,7 @@ to `VectorField()`, an untyped pgvector `vector` column.
 
 **Decision**: `entrypoint.sh` (web only, since the worker overrides the entrypoint with `celery`)
 runs these steps, and any failure stops startup (`set -e`):
+
 1. Wait for the database.
 2. `migrate`, which also runs the system checks from R3.
 3. Seed, if `DJANGO_SEED=true`.
@@ -145,15 +186,18 @@ runs these steps, and any failure stops startup (`set -e`):
 
 The existing command already skips books whose vector matches the current model and text, and
 commits each book separately.
+
 - A startup without a model change embeds nothing.
 - A failed startup keeps its progress, and the next start resumes.
 
 **Rationale**:
+
 - This reuses the single implementation of "embedding refresh" (Principle I).
 - 1,000 books at about 0.3–0.6 s each on the Pi takes 5–10 minutes. Using all cores before
   traffic starts keeps that within SC-014.
 
 **Alternatives considered**:
+
 - Re-encoding in the background in the worker: rejected in clarification, because search would
   return a partial catalog.
 - A separate one-off container: Portainer stacks don't order one-shot jobs reliably.
@@ -161,6 +205,7 @@ commits each book separately.
 ## R6. Web process layout, threads and memory (SC-010 – SC-012)
 
 **Decision**:
+
 - Gunicorn reads `library/gunicorn.conf.py`:
   - sync workers, from `WEB_CONCURRENCY` (default 3);
   - `timeout 60`;
@@ -170,19 +215,20 @@ commits each book separately.
   optimization; the measurements show no memory cost for it.
 - Estimated stack memory:
 
-  | Part | Estimate |
-  |---|---|
-  | Web: 3 × (610 MB model + about 100 MB Django) | ≈ 2.1 GB |
-  | Gunicorn master | ≈ 0.06 GB |
-  | Celery worker (no model) | ≈ 0.25 GB |
-  | PostgreSQL | ≈ 0.2 GB |
-  | Redis | ≈ 0.03 GB |
-  | **Total** | **≈ 2.7 GB of the 4 GB budget** |
+  | Part                                          | Estimate                        |
+  | --------------------------------------------- | ------------------------------- |
+  | Web: 3 × (610 MB model + about 100 MB Django) | ≈ 2.1 GB                        |
+  | Gunicorn master                               | ≈ 0.06 GB                       |
+  | Celery worker (no model)                      | ≈ 0.25 GB                       |
+  | PostgreSQL                                    | ≈ 0.2 GB                        |
+  | Redis                                         | ≈ 0.03 GB                       |
+  | **Total**                                     | **≈ 2.7 GB of the 4 GB budget** |
 
 **Rationale**: three workers keep today's concurrency, and the budget still has about 1.3 GB of
 headroom. Both values can be tuned per server through Portainer variables, without a rebuild.
 
 **Alternatives considered**:
+
 - `--preload`, sharing one model copy through copy-on-write: ONNX Runtime sessions and their
   thread pools aren't safe to use across `fork`.
 - `gthread` with one process: one model copy, but a single process failure takes down the whole
@@ -191,6 +237,7 @@ headroom. Both values can be tuned per server through Portainer variables, witho
 ## R7. CI pipeline (FR-001 – FR-004, FR-015 – FR-020, FR-025, FR-036)
 
 **Decision**: rework `.github/workflows/docker-build.yml`.
+
 - **Triggers**: `push` to `main`, `push` of `v*` tags, and `pull_request` to `main`. `master` is
   dropped.
 - **`lint`**: unchanged.
@@ -210,6 +257,7 @@ headroom. Both values can be tuned per server through Portainer variables, witho
   11. Teardown.
 
   All Render steps are removed.
+
 - **`publish`** runs only for `push` events, `needs: [lint, smoke-test]`, as a matrix on the
   same two native runners. It runs `docker/build-push-action` with the per-architecture GHA cache,
   which makes it close to a no-op rebuild. It pushes by digest and uploads the digests as
@@ -237,11 +285,11 @@ headroom. Both values can be tuned per server through Portainer variables, witho
     GitHub's Deployments view.
   - If the secret is empty, it emits `::warning::` and exits 0 (FR-017).
   - Otherwise it calls `curl --silent --output /dev/null --write-out '%{http_code}' --max-time 300
-    --request POST "$PORTAINER_WEBHOOK_URL" 2>/dev/null`. TLS is verified because there is no
+--request POST "$PORTAINER_WEBHOOK_URL" 2>/dev/null`. TLS is verified because there is no
     `-k`, and stderr is suppressed so the host never appears in logs.
-  - Any status other than 2xx, or any curl exit code other than 0, fails the job with: *"Images
+  - Any status other than 2xx, or any curl exit code other than 0, fails the job with: _"Images
     `<tags>` were published, but the server was not redeployed (HTTP `<code>` / curl exit
-    `<n>`)."* (FR-018, FR-020)
+    `<n>`)."_ (FR-018, FR-020)
   - When `merge` sets `deploy=false`, the job is skipped and `merge` emits `::notice::` "A newer
     commit already moved `main`; this build was published as `sha-<short>` only."
 - **Confirming the redeploy (FR-036)**: a final step in `deploy` runs after a 2xx response.
@@ -250,18 +298,20 @@ headroom. Both values can be tuned per server through Portainer variables, witho
     verified (R13). It passes when the reported commit equals `$GITHUB_SHA`, or descends from it
     (`git merge-base --is-ancestor "$GITHUB_SHA" <reported>`). This handles a tag run on an older
     commit while the Pi follows a newer `main`.
-  - On timeout it fails with: *"Redeploy for `<tags>` was triggered but not confirmed: the site
-    reports `<commit or 'no response'>`. The stack may be pinned, unhealthy or still starting."*
+  - On timeout it fails with: _"Redeploy for `<tags>` was triggered but not confirmed: the site
+    reports `<commit or 'no response'>`. The stack may be pinned, unhealthy or still starting."_
 - **Concurrency**: `publish`, `merge` and `deploy` share
   `concurrency: { group: publish-${{ github.ref }}, cancel-in-progress: false }`.
 
 **Rationale**:
+
 - This is Docker's documented "distribute build across multiple runners" pattern, so there's no
   QEMU and every architecture is built on its own hardware.
 - The GHA cache means the publishing build reuses the layers the smoke test already built.
   Estimated time from merge to deploy is about 20–25 minutes, against the 30 minutes in SC-001.
 
 **Alternatives considered**:
+
 - One multi-platform build with QEMU: rejected in clarification, and far slower for the model
   layer.
 - Pushing the images the smoke test built: the user asked that publishing happen only after both
@@ -273,6 +323,7 @@ headroom. Both values can be tuned per server through Portainer variables, witho
 
 **Decision**: add `scripts/smoke_stack_budget.py`, which needs only the standard library and the
 Docker CLI.
+
 - It finds the stack's containers by Compose project label.
 - It warms up, then runs concurrent searches from N parallel clients (default
   `WEB_CONCURRENCY`) and a few book saves through `docker exec … manage.py shell`. The test
@@ -292,12 +343,14 @@ changes that add a model, dependency or background process. Memory doesn't depen
 the CI check guards it; latency is only meaningful on the Pi.
 
 **Alternatives considered**:
+
 - Keeping the 512 MiB Render check: the platform is retired.
 - `psutil` inside the container: it misses the database, broker and worker containers.
 
 ## R9. Evaluation set in CI (FR-032, SC-013)
 
 **Decision**:
+
 - Store the 18 seed-catalog queries from R1 as data in
   `library/book/search_evaluation.json`: English, and Ukrainian against English text.
 - A real-model test, gated by `RUN_BOOK_EMBEDDING_MODEL_TESTS=1`, seeds the catalog, runs every
@@ -316,6 +369,7 @@ research note instead.
 ## R10. Server stack, the Compose split and Portainer BE (FR-006 – FR-013, FR-021)
 
 **Decision**:
+
 - The current `docker-compose.yml` becomes `docker-compose-dev.yml`. It keeps `build:` and the
   source bind mounts, and adds `image: library-django:dev`, so CI can preload the image it built.
 - The new `docker-compose.yml` defines four services, `db`, `redis`, `web` and `worker`:
@@ -337,17 +391,20 @@ research note instead.
   - the webhook is called with `POST https://<portainer>/api/stacks/webhooks/<id>`.
 
 **Rationale**:
+
 - Force redeployment makes every webhook call redeploy, even a version-tag run where the Git
   commit hasn't changed.
 - Re-pull image fetches the moved `main` tag.
 
 **Alternatives considered**:
+
 - One Compose file with profiles or overrides: rejected in clarification in favor of two files.
 - Relative path volumes for configuration: unnecessary, and they would tie the stack to BE.
 
 ## R11. Hosts and HTTPS proxy without Render (FR-014, FR-023)
 
 **Decision**: in `settings.py`:
+
 - Drop the automatic `.onrender.com` host and the `RENDER` switch.
 - `ALLOWED_HOSTS` comes from the environment, plus `localhost` and `127.0.0.1`, which the
   healthcheck needs.
@@ -358,6 +415,7 @@ research note instead.
   `library/authentication/tests.py`.
 
 **Rationale**:
+
 - The site works directly over HTTP on the local network with nothing set.
 - Behind the operator's HTTPS proxy, one boolean makes Django see requests as secure, so CSRF
   checks on same-origin forms pass.
@@ -369,6 +427,7 @@ HTTPS, which isn't a safe default (Principle IV).
 ## R12. Removing Render and updating documents (FR-023, FR-024, US4)
 
 **Decision**:
+
 - Delete `render.yaml`, `scripts/render_start.py`, `scripts/test_render_start.py`,
   `scripts/check_render_config.py` and `scripts/smoke_render_free.py`.
 - In `entrypoint.sh`, drop the Render comments and the `LIBRARY_BOOTSTRAPPED` export, which
@@ -389,6 +448,7 @@ single-container mode and the e5 model, which conflicts with FR-027.
 ## R13. Reporting the running version (FR-035)
 
 **Decision**:
+
 - The Dockerfile declares `ARG APP_COMMIT=unknown` and mirrors it into `ENV APP_COMMIT`.
   - The declaration sits last in the file, so it never invalidates the dependency or model
     layers.
@@ -407,6 +467,7 @@ single-container mode and the e5 model, which conflicts with FR-027.
   - `unknown` being returned when the variable is unset.
 
 **Rationale**:
+
 - The repository is public, so the commit identifier isn't sensitive.
 - An anonymous endpoint that needs no database is the cheapest way for CI to confirm the
   redeploy (FR-036) and for the healthcheck to probe the app (R10).
@@ -414,6 +475,7 @@ single-container mode and the e5 model, which conflicts with FR-027.
   and II.
 
 **Alternatives considered**:
+
 - A response header on every page: harder to poll, and it leaks into every response.
 - Reading the image label through the Docker API from CI: the Pi's Docker isn't reachable from
   GitHub.
@@ -421,9 +483,10 @@ single-container mode and the e5 model, which conflicts with FR-027.
 ## R14. Pi measurement gate and what happens on a miss (FR-027, FR-028)
 
 **Decision**:
+
 - The plan records the workstation measurements from R1.
 - The first deployment runs `smoke_stack_budget.py` on the Pi with `--max-memory-gib 4
-  --max-search-p95-ms 500 --max-save-ms 2000`, as in [quickstart.md](quickstart.md) §5. The
+--max-search-p95-ms 500 --max-save-ms 2000`, as in [quickstart.md](quickstart.md) §5. The
   results, threads and workers go into R1.
 - The feature is complete only when those pass, or when targets have been relaxed. If they
   fail:
@@ -440,6 +503,7 @@ real hardware.
 
 **Decision**: the guide's rollback section adds a step for pinning an image built before this
 feature.
+
 - Those images are `linux/amd64` only: the GHCR manifest for `main` had no arm64 variant on
   2026-10-19. On the Pi, the oldest possible rollback target is therefore the first image of
   this feature. The step applies when the stack runs on an x86-64 host.

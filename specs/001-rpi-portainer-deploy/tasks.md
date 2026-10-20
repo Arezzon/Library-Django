@@ -442,7 +442,7 @@ steps, and the guide's Render shutdown section exists.
 - [x] T049 From the repository root, run `ruff check .` and `black --check .` with the versions pinned in `requirements-dev.txt`, and fix every finding.
 - [x] T050 Run the full suite in the dev stack: `docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events --verbosity 2`. Also run `node --test scripts/test_tracking_js.cjs` and `python scripts/smoke_tracking_recovery.py --compose-file docker-compose-dev.yml`.
 - [x] T051 Run [quickstart.md](quickstart.md) §1–§4 and fix any deviation.
-- [ ] T052 Operator rollout, outside the repository: follow [quickstart.md](quickstart.md) §5–§8 on the Pi, and record the `smoke_stack_budget.py` results, `WEB_CONCURRENCY` and `BOOK_EMBEDDING_THREADS` in `specs/001-rpi-portainer-deploy/research.md` §R1. This is the FR-028 completion gate. If the latency targets are relaxed under FR-027, update SC-010 and SC-011 in `spec.md`, with the user's sign-off.
+- [x] T052 Operator rollout, outside the repository: follow [quickstart.md](quickstart.md) §5–§8 on the Pi, and record the `smoke_stack_budget.py` results, `WEB_CONCURRENCY` and `BOOK_EMBEDDING_THREADS` in `specs/001-rpi-portainer-deploy/research.md` §R1. This is the FR-028 completion gate. If the latency targets are relaxed under FR-027, update SC-010 and SC-011 in `spec.md`, with the user's sign-off.
 
 ---
 
