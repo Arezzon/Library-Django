@@ -8,10 +8,10 @@
 /library/order/ @fazelukario @Arezzon
 
 # Book catalog and search currently share one Django app.
-/library/book/ @myrrhfawn @OLEkSandrKoniaiev @Arezzon
+/library/book/ @fazelukario @myrrhfawn @OLEkSandrKoniaiev @Arezzon
 
 # Event tracking and analytics currently share one Django app.
-/library/events/ @myrrhfawn @OLEkSandrKoniaiev @Arezzon
+/library/events/ @fazelukario @myrrhfawn @OLEkSandrKoniaiev @Arezzon
 
 # QA owns test suites and test files, including tests inside app directories.
 **/tests/ @Dima22820 @Arezzon
