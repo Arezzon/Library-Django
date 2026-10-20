@@ -61,7 +61,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        runner:
+          [
+            ubuntu-latest,
+            ubuntu-slim,
+            ubuntu-26.04,
+            ubuntu-26.04-arm,
+            ubuntu-24.04,
+            ubuntu-24.04-arm,
+          ]
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -176,7 +184,7 @@ jobs:
     if: github.event_name == 'push'
     strategy:
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        runner: [ubuntu-26.04, ubuntu-26.04-arm]
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
