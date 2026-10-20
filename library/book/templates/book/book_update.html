@@ -22,14 +22,18 @@
 
         <!-- Form Body -->
         <div class="card-body">
-            <form method="post" class="space-y-5">
+            <form id="book-update-form" method="post" class="space-y-5">
                 {% csrf_token %}
                 {% include 'includes/form_snippet.html' %}
-                <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
-                    <a href="{% url 'book_detail' book.id %}" class="btn-secondary w-full sm:w-auto justify-center">Cancel</a>
-                    <button type="submit" class="btn-primary w-full sm:w-auto justify-center">Update Book</button>
-                </div>
             </form>
+            <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                <form method="post" action="{% url 'book_delete' book.id %}" class="w-full sm:w-auto sm:mr-auto" onsubmit="return confirm('Delete this book permanently? This cannot be undone.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-logout h-10 px-4 sm:px-5 text-sm rounded-xl w-full sm:w-auto">Delete Book</button>
+                </form>
+                <a href="{% url 'book_detail' book.id %}" class="btn-secondary w-full sm:w-auto justify-center">Cancel</a>
+                <button type="submit" form="book-update-form" class="btn-primary w-full sm:w-auto justify-center">Update Book</button>
+            </div>
         </div>
     </div>
 </div>

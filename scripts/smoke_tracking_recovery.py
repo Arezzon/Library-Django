@@ -1,17 +1,18 @@
 """Disposable Compose-stack check: queued events survive worker/broker restart."""
+
 import argparse
 import subprocess
 import uuid
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--compose-file')
-parser.add_argument('--project-name')
+parser.add_argument("--compose-file")
+parser.add_argument("--project-name")
 args = parser.parse_args()
-compose = ['docker', 'compose']
+compose = ["docker", "compose"]
 if args.compose_file:
-    compose += ['-f', args.compose_file]
+    compose += ["-f", args.compose_file]
 if args.project_name:
-    compose += ['-p', args.project_name]
+    compose += ["-p", args.project_name]
 
 
 def run(*command):
@@ -19,11 +20,11 @@ def run(*command):
 
 
 def shell(code):
-    run('exec', '-T', 'web', 'python', 'manage.py', 'shell', '-c', code)
+    run("exec", "-T", "web", "python", "manage.py", "shell", "-c", code)
 
 
 identity = str(uuid.uuid4())
-run('stop', 'worker')
+run("stop", "worker")
 try:
     shell(f"""
 from django.utils import timezone
@@ -38,9 +39,9 @@ publish_event({{
 assert not UserEvent.objects.filter(pk={identity!r}).exists(), 'Worker must be the only event writer'
 print('PASS: queued while worker is stopped; not synchronously stored')
 """)
-    run('restart', 'redis')
+    run("restart", "redis")
 finally:
-    run('start', 'worker')
+    run("start", "worker")
 shell(f"""
 import time
 from events.models import UserEvent

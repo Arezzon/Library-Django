@@ -1,4 +1,5 @@
 from django.urls import path
+
 from .views import dashboard
 
-urlpatterns = [path('', dashboard, name='events_dashboard')]
+urlpatterns = [path("", dashboard, name="events_dashboard")]

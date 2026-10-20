@@ -2,7 +2,7 @@
 
 ![LibrarySys](/images/library-sys.png)
 
-**Library Django** is a library management system built with **Django 4.1**,
+**Library Django** is a library management system built with **Django 5.2 LTS**,
 Django REST Framework and PostgreSQL. It provides a server-rendered web UI,
 role-based access, borrowing workflows, an OpenAPI API, pgvector-backed book
 embeddings and asynchronous activity analytics.
@@ -25,7 +25,8 @@ embeddings and asynchronous activity analytics.
 ### Docker
 
 ```bash
-docker compose up --build
+cp .env.example .env    # then set SECRET_KEY and DB_PASSWORD
+docker compose -f docker-compose-dev.yml up --build
 ```
 
 Open <http://localhost:8000>.
@@ -51,7 +52,7 @@ before using the `venv` setup.
 | Windows `venv` | Python 3.12, PostgreSQL + pgvector, Redis or Memurai | WSL for Redis |
 | Linux/macOS `venv` | Python 3.12, PostgreSQL + pgvector, Redis | — |
 | Tests | Project dependencies and a test database | Node.js for JavaScript smoke tests |
-| Embeddings | PostgreSQL + pgvector and Python dependencies | Network access for the first model download |
+| Embeddings | PostgreSQL + pgvector and Python dependencies | Network access once, to fetch the model (`venv` only; images ship with it) |
 
 ## Features
 
@@ -62,9 +63,9 @@ before using the `venv` setup.
 | Accounts | Email-based users, profiles and visitor/librarian roles |
 | Administration | Django admin and librarian-only management screens |
 | API | CRUD endpoints under `/api/v1/` plus Swagger and ReDoc |
-| Embeddings | Multilingual 384-dimensional vectors generated with ONNX Runtime |
+| Embeddings | Multilingual 1024-dimensional `bge-m3` vectors generated with ONNX Runtime |
 | Analytics | Activity dashboard, filters, daily totals and per-user activity |
-| Deployment | Docker Compose and Raspberry Pi/Portainer |
+| Deployment | Docker Compose for development; a Raspberry Pi 5 Portainer stack from multi-architecture GHCR images |
 
 ## Architecture
 
@@ -98,14 +99,24 @@ the Redis broker is unavailable.
 
 ```bash
 cp .env.example .env
-docker compose up --build
 ```
 
 #### Windows PowerShell
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up --build
+```
+
+Fill in the required values in `.env`. The project ships no default secrets,
+so Compose refuses to start while they are blank:
+
+| Variable | Value |
+| --- | --- |
+| `SECRET_KEY` | Output of `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
+| `DB_PASSWORD` | A password of your choice; Compose creates the database with it |
+
+```bash
+docker compose -f docker-compose-dev.yml up --build
 ```
 
 Open <http://localhost:8000>. Compose starts:
@@ -113,8 +124,8 @@ Open <http://localhost:8000>. Compose starts:
 | Service | Purpose | Port |
 | --- | --- | --- |
 | `web` | Django application with Gunicorn | `8000` |
-| `db` | PostgreSQL 15 with pgvector | internal `5432` |
-| `redis` | Celery broker with persistent AOF storage | internal `6379` |
+| `db` | PostgreSQL 18 with pgvector | internal `5432` |
+| `redis` | Celery broker (Redis 8) with persistent AOF storage | internal `6379` |
 | `worker` | Persists activity events from the `events` queue | — |
 
 The first boot waits for PostgreSQL, applies migrations and seeds demo data
@@ -122,12 +133,17 @@ when `DJANGO_SEED=true`. Seeding is idempotent and becomes a quick no-op after
 users already exist.
 
 ```bash
-docker compose down       # stop the stack
-docker compose down -v    # stop and delete database/Redis volumes
+docker compose -f docker-compose-dev.yml down       # stop the stack
+docker compose -f docker-compose-dev.yml down -v    # stop and delete database/Redis volumes
 ```
 
-> **Tip:** `docker compose up --build -d` starts the stack in the background.
-> Use `docker compose logs -f web worker` to follow application and worker logs.
+The stack keeps its data in the `pgdata18` and `redisdata8` volumes. Stacks
+created before the move to PostgreSQL 18 and Redis 8 start freshly seeded on
+them; the old `<project>_pgdata` and `<project>_redisdata` volumes are no longer
+used and can be removed with `docker volume rm`.
+
+> **Tip:** `docker compose -f docker-compose-dev.yml up --build -d` starts the stack in the background.
+> Use `docker compose -f docker-compose-dev.yml logs -f web worker` to follow application and worker logs.
 
 ## Local development with `venv`
 
@@ -140,7 +156,7 @@ cd "D:\path\to\Library-Django"
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r .\library\requirements.txt
+python -m pip install -r .\requirements.txt
 ```
 
 ### Linux / macOS
@@ -150,27 +166,41 @@ cd /path/to/Library-Django
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r ./library/requirements.txt
+python -m pip install -r ./requirements.txt
 ```
 
-Create `.env` in the repository root:
+`requirements.txt` in the repository root is the only runtime dependency list; the
+image installs the same file.
+
+Create `.env` in the repository root from `.env.example`:
 
 ```dotenv
-SECRET_KEY=local-development-secret-key
+SECRET_KEY=<generated-secret-key>
 DEBUG=True
 ALLOWED_HOSTS=127.0.0.1,localhost
 
 DB_ENGINE=django.db.backends.postgresql_psycopg2
 DB_NAME=library_db
 DB_USER=postgres
-DB_PASSWORD=your-postgres-password
+DB_PASSWORD=<your-postgres-password>
 DB_HOST=localhost
 DB_PORT=5432
 
 CELERY_BROKER_URL=redis://localhost:6379/0
 ```
 
-Then apply migrations and start Django.
+Django refuses to start without `SECRET_KEY`; generate one with
+`python -c "import secrets; print(secrets.token_urlsafe(50))"`. Instead of the
+`DB_*` values you can set a single
+`DATABASE_URL=postgresql://user:password@localhost:5432/library_db`, which
+takes precedence.
+
+Fetch the embedding model once (about 0.6 GB, into `.cache/book-embeddings`),
+then apply migrations and start Django:
+
+```bash
+python scripts/fetch_embedding_model.py
+```
 
 #### Windows PowerShell
 
@@ -206,7 +236,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 If PostgreSQL is installed on Windows but pgvector is not, use the
 `pgvector/pgvector` Docker image for the database, or install a PostgreSQL 18
 compatible pgvector binary. The project does not support SQLite for migrations
-because `book.0003_bookembedding` creates a `vector(384)` column.
+because book embeddings are stored in a pgvector `vector` column.
 
 For activity tracking, a Redis-compatible broker must listen on
 `localhost:6379`. Windows users can choose either **Memurai** (native Windows
@@ -280,18 +310,33 @@ python seed_db.py
 ## Book embeddings
 
 Each book receives a multilingual embedding generated from its title and
-description. The implementation uses
-[intfloat/multilingual-e5-small](https://huggingface.co/intfloat/multilingual-e5-small)
-through ONNX Runtime and stores normalized 384-dimensional vectors in
-PostgreSQL with pgvector.
+description, used by [semantic search](docs/ba/semantic-search.md). The model is
+[BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) (dense vectors), run from the
+pinned int8 ONNX export in `Xenova/bge-m3` through ONNX Runtime on CPU. Vectors
+have 1024 dimensions and are stored normalized in PostgreSQL with pgvector. The
+same model runs on amd64 and arm64.
+
+The model is defined in one place, `library/book/embedding_config.py`, and every
+part of the system reads it from there.
+
+- **Docker images** ship with the model: the build runs
+  `scripts/fetch_embedding_model.py`, and containers never download it.
+- **A local `venv`** needs it fetched once: `python scripts/fetch_embedding_model.py`
+  from the repository root (it writes `.cache/book-embeddings/manifest.json`).
+- **Another model** is chosen at build time with `BOOK_EMBEDDING_*` build arguments,
+  for example
+  `docker build --build-arg BOOK_EMBEDDING_MODEL=<owner/name> --build-arg BOOK_EMBEDDING_MODEL_REVISION=<40-hex commit> ...`.
+  Empty values mean the defaults. Setting a different value only at runtime stops
+  startup with the `book.E001` check.
 
 ```bash
 # Docker
-docker compose exec web python manage.py generate_book_embeddings
+docker compose -f docker-compose-dev.yml exec web python manage.py generate_book_embeddings
 
-# One book, smaller batches, or a forced offline regeneration
-docker compose exec web python manage.py generate_book_embeddings --book-id 1 --batch-size 8
-docker compose exec web python manage.py generate_book_embeddings --force --offline
+# One book, smaller batches, more threads, or a forced regeneration
+docker compose -f docker-compose-dev.yml exec web python manage.py generate_book_embeddings --book-id 1 --batch-size 8
+docker compose -f docker-compose-dev.yml exec web python manage.py generate_book_embeddings --threads 4
+docker compose -f docker-compose-dev.yml exec web python manage.py generate_book_embeddings --force
 ```
 
 | Change | Result |
@@ -299,13 +344,19 @@ docker compose exec web python manage.py generate_book_embeddings --force --offl
 | New book | Embedding generated on save |
 | Title/description changed | Embedding regenerated |
 | Stock-only change | Current embedding reused |
-| Missing/stale vector | Repaired on save or backfill |
+| Missing/stale vector | Repaired on save, backfill or container startup |
+| Model changed (new image) | Every vector re-encoded on startup, before traffic |
 | Inference failure | Transaction rolls back the book change |
 
-The model revision is pinned for reproducibility. The first inference in each
-process initializes the model; subsequent saves reuse the cached session.
-Generation is synchronous for normal saves and asynchronous only for activity
-tracking.
+The web container runs `generate_book_embeddings` after migrations on every
+start. It skips books whose vectors already match the model, so a normal start
+runs no inference; after a model change it re-encodes the whole catalog before
+the site serves requests.
+
+Tuning: each Gunicorn worker loads one model copy (about 0.6 GB) before taking
+requests. `WEB_CONCURRENCY` (default 3) sets the number of workers and
+`BOOK_EMBEDDING_THREADS` (default 2) the inference threads per worker; lower the
+workers to save memory, raise the threads to cut latency.
 
 ## Activity Analytics
 
@@ -349,7 +400,9 @@ same UUID after temporary network failures.
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | `extension "vector" is not available` | pgvector is not installed in the PostgreSQL server | Use the pgvector Docker image or install a PostgreSQL-compatible pgvector extension, then run `python manage.py migrate` again |
-| `password authentication failed for user "postgres"` | Wrong PostgreSQL credentials | Set the actual `DB_PASSWORD` in `.env` and retry |
+| `ImproperlyConfigured: SECRET_KEY is not set` | `.env` or the service environment has no `SECRET_KEY` | Generate a key with `python -c "import secrets; print(secrets.token_urlsafe(50))"` and set it |
+| `required variable SECRET_KEY is missing a value` | Compose found no `.env` or blank required values | Copy `.env.example` to `.env` and fill in `SECRET_KEY` and `DB_PASSWORD` |
+| `password authentication failed for user "postgres"` | Wrong PostgreSQL credentials | Set the actual `DB_PASSWORD` in `.env` and retry. A Compose volume keeps the password it was created with (`postgres` for volumes created without `.env` by earlier versions); reuse it or recreate the volume with `docker compose -f docker-compose-dev.yml down -v` |
 | `503 /api/v1/events/` | Redis/Memurai is stopped or Celery cannot reach the broker | Start the broker on port `6379`, verify it responds to `PING`, then start the Celery worker |
 | Analytics page is empty | Events are queued but not consumed | Keep `celery -A library worker --queues=events` running and refresh the page |
 | `Missing staticfiles manifest entry` in tests | Static files were not collected | Run `python manage.py collectstatic --noinput` from `library/` |
@@ -378,21 +431,26 @@ OpenAPI schema:  http://localhost:8000/api/schema/
 
 ## Configuration
 
-| Variable | Local default | Purpose |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `DEBUG` | `True` | Django debug mode |
-| `SECRET_KEY` | — | Session and cryptographic signing |
+| `DEBUG` | `False` | Django debug mode; set `True` for local development only |
+| `SECRET_KEY` | — (required) | Session and cryptographic signing |
 | `ALLOWED_HOSTS` | `localhost,127.0.0.1` | Accepted HTTP hosts |
+| `TRUST_X_FORWARDED_PROTO` | `False` | Treat `X-Forwarded-Proto: https` as secure; set `True` only behind your HTTPS proxy, where it also makes session and CSRF cookies HTTPS-only; an unrecognized value stops startup |
+| `CSRF_TRUSTED_ORIGINS` | empty | Comma list of trusted origins for form posts, e.g. `https://library.example.com` |
+| `DATABASE_URL` | — | Full PostgreSQL URL; overrides the `DB_*` values |
 | `DB_NAME` | `library_db` | PostgreSQL database |
 | `DB_USER` | `postgres` | PostgreSQL user |
-| `DB_PASSWORD` | — | PostgreSQL password |
+| `DB_PASSWORD` | — (required by Compose) | PostgreSQL password |
 | `DB_HOST` | `localhost` | PostgreSQL host; Compose uses `db` |
 | `DB_PORT` | `5432` | PostgreSQL port |
 | `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Redis broker |
 | `DJANGO_SEED` | `false` locally | Seed on container startup |
 | `BOOK_EMBEDDING_CACHE_DIR` | `.cache/book-embeddings` | Model cache directory |
 
-`.env` is intentionally ignored by Git. Never commit real credentials.
+`.env` is ignored by Git and Docker builds, so local secrets reach neither
+commits nor images. `.env.example` holds placeholders only; never commit real
+credentials.
 
 ## Tests and checks
 
@@ -407,24 +465,40 @@ python manage.py check
 Docker smoke checks:
 
 ```bash
-docker compose exec -T web python manage.py test authentication author book order events --verbosity 2
-docker compose exec -T web python manage.py smoke_test_tracking
+docker compose -f docker-compose-dev.yml exec -T web python manage.py test authentication author book order events --verbosity 2
+docker compose -f docker-compose-dev.yml exec -T web python manage.py smoke_test_tracking
 node --test scripts/test_tracking_js.cjs
 ```
 
 > **Tip:** If tests fail with `Missing staticfiles manifest entry`, run
 > `python manage.py collectstatic --noinput` before the test command.
 
+Lint and format checks run from the repository root. CI runs the same commands
+in its `lint` job, and the image is published only when they pass:
+
+```bash
+python -m pip install -r requirements-dev.txt
+ruff check .
+black --check .
+```
+
+To fix findings, run `ruff check --fix .` (unused imports, import order) and
+then `black .`. Rule selection lives in `pyproject.toml`; Django migrations are
+excluded from both tools.
+
 ## Project layout
 
 ```text
 .
 ├── Dockerfile                 # production image
-├── docker-compose.yml         # web, PostgreSQL, Redis and Celery
-├── entrypoint.sh              # wait, migrate, seed, start
-├── requirements.txt            # canonical container dependencies
+├── docker-compose.yml         # server stack (Portainer on the Raspberry Pi), published images only
+├── docker-compose-dev.yml     # local development: web, PostgreSQL, Redis and Celery
+├── entrypoint.sh              # wait, migrate, seed, re-encode embeddings, start
+├── requirements.txt           # runtime dependencies: image build and local development
+├── requirements-dev.txt       # pinned lint and format tools
+├── pyproject.toml             # ruff and black settings
 ├── .env.example               # safe configuration template
-├── scripts/                   # smoke and deployment checks
+├── scripts/                   # model fetch, smoke and stack budget checks
 └── library/
     ├── manage.py
     ├── library/               # settings, URLs, WSGI/ASGI and Celery
@@ -437,14 +511,29 @@ node --test scripts/test_tracking_js.cjs
 
 ## Deployment
 
-The project is intended to run on Docker Compose, including on a Raspberry Pi
-managed through Portainer.
+### Raspberry Pi (Portainer)
+
+The site runs on a Raspberry Pi 5 as a Portainer Business Edition Git stack
+defined by [docker-compose.yml](docker-compose.yml). CI publishes
+multi-architecture images to GHCR on every merge into `main` and calls the
+stack webhook, so nothing is built on the Pi. The operator guide,
+[docs/deployment/raspberry-pi-portainer.md](docs/deployment/raspberry-pi-portainer.md),
+covers the one-time setup on the Pi, in Portainer and in GitHub.
+
+### Production checklist
+
+For any production deployment:
 
 ```text
 DEBUG=False
 SECRET_KEY=<long-random-secret>
 ALLOWED_HOSTS=<real-hostnames>
 ```
+
+Django refuses to start without `SECRET_KEY`, and `DEBUG` stays off unless it
+is set to `True`. Behind an HTTPS reverse proxy, also set
+`TRUST_X_FORWARDED_PROTO=True` and `CSRF_TRUSTED_ORIGINS`. Hosts that provide a single connection string can set `DATABASE_URL` instead
+of the `DB_*` values.
 
 Keep a continuously running Celery worker wherever activity analytics is
 enabled. A web process alone cannot consume queued events.

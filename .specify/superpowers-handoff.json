@@ -1,0 +1,36 @@
+﻿{
+    "schema_version":  1,
+    "updated_at":  "2026-10-20T12:43:02.1654673Z",
+    "feature_directory":  "specs/002-django-lts-upgrade",
+    "source_of_truth":  {
+                            "constitution":  ".specify/memory/constitution.md",
+                            "spec":  "specs/002-django-lts-upgrade/spec.md",
+                            "plan":  "specs/002-django-lts-upgrade/plan.md",
+                            "tasks":  "specs/002-django-lts-upgrade/tasks.md"
+                        },
+    "supersedes":  [
+                       "speckit.implement"
+                   ],
+    "executor":  "superpowers",
+    "capabilities":  [
+                         "executing-plans",
+                         "test-driven-development",
+                         "verification-before-completion",
+                         "requesting-code-review",
+                         "finishing-a-development-branch"
+                     ],
+    "status":  "complete",
+    "blocked_reason":  null,
+    "artifact_owner":  "claude",
+    "review_only_agents":  [
+
+                           ],
+    "notes":  null,
+    "last_snapshot_id":  "20261020T1243021570665Z-complete",
+    "instructions":  "Use /speckit-superpowers-bridge (Claude Code) or $speckit-superpowers-bridge (Codex). The bridge orchestrates native Superpowers skills against tasks.md; do not run speckit.implement and do not invoke superpowers:writing-plans / :brainstorming for an active Spec Kit feature.",
+    "artifacts_sha256":  {
+                             "spec.md":  "a874e6127d05772db5501218e1adeca994b9e88698dafc3f3b61fb63d2a0168b",
+                             "plan.md":  "79899051646cdc4e3b2d70b9ffa13d7c2b999e0adf842202ab52790892157ee2",
+                             "tasks.md":  "699b764d45cd5389ad70b7fef5c3caf85180a01b7b9da170e4f408f2496410f6"
+                         }
+}

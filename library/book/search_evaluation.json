@@ -1,0 +1,74 @@
+[
+  {
+    "query": "detective solving crimes with Watson",
+    "expected": "The Adventures of Sherlock Holmes"
+  },
+  {
+    "query": "writing maintainable software",
+    "expected": "Clean Code: A Handbook of Agile Software Craftsmanship"
+  },
+  {
+    "query": "boy wizard goes to a school of magic",
+    "expected": "Harry Potter and the Philosopher's Stone"
+  },
+  {
+    "query": "talking animals and a revolution",
+    "expected": "Animal Farm"
+  },
+  {
+    "query": "medieval mountain village fights invaders",
+    "expected": "Zakhar Berkut"
+  },
+  {
+    "query": "poems by Ukraine's national poet",
+    "expected": "Kobzar"
+  },
+  {
+    "query": "government spying on citizens",
+    "expected": "1984"
+  },
+  {
+    "query": "drama about forest spirits",
+    "expected": "Forest Song (Lisova Pisnya)"
+  },
+  {
+    "query": "funny supernatural tales from Ukrainian villages",
+    "expected": "Evenings on a Farm Near Dikanka"
+  },
+  {
+    "query": "тоталітарний нагляд за людьми",
+    "expected": "1984"
+  },
+  {
+    "query": "вірші Тараса Шевченка",
+    "expected": "Kobzar"
+  },
+  {
+    "query": "детектив розслідує злочини",
+    "expected": "The Adventures of Sherlock Holmes"
+  },
+  {
+    "query": "школа чарівників і магія",
+    "expected": "Harry Potter and the Philosopher's Stone"
+  },
+  {
+    "query": "як писати чистий код",
+    "expected": "Clean Code: A Handbook of Agile Software Craftsmanship"
+  },
+  {
+    "query": "боротьба карпатської громади з монголами",
+    "expected": "Zakhar Berkut"
+  },
+  {
+    "query": "драма про лісових духів",
+    "expected": "Forest Song (Lisova Pisnya)"
+  },
+  {
+    "query": "тварини на фермі повстають",
+    "expected": "Animal Farm"
+  },
+  {
+    "query": "українські повісті з гумором і нечистою силою",
+    "expected": "Evenings on a Farm Near Dikanka"
+  }
+]

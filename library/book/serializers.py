@@ -1,7 +1,9 @@
 from rest_framework import serializers
-from .models import Book
+
 from author.models import Author
+
 from .embeddings import EmbeddingGenerationError
+from .models import Book
 
 
 class BookSerializer(serializers.ModelSerializer):
@@ -9,21 +11,30 @@ class BookSerializer(serializers.ModelSerializer):
         try:
             return super().create(validated_data)
         except EmbeddingGenerationError as error:
-            raise serializers.ValidationError({'description': str(error)}) from error
+            raise serializers.ValidationError(
+                {"description": "Unable to process description at this time."}
+            ) from error
 
     def update(self, instance, validated_data):
         try:
             return super().update(instance, validated_data)
         except EmbeddingGenerationError as error:
-            raise serializers.ValidationError({'description': str(error)}) from error
+            raise serializers.ValidationError(
+                {"description": "Unable to process description at this time."}
+            ) from error
 
     available_count = serializers.IntegerField(read_only=True)
     authors = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=Author.objects.all(),
-        required=False
+        many=True, queryset=Author.objects.all(), required=False
     )
 
     class Meta:
         model = Book
-        fields = ['id', 'name', 'description', 'count', 'available_count', 'authors']
+        fields = ["id", "name", "description", "count", "available_count", "authors"]
+
+
+class BookSearchSerializer(BookSerializer):
+    similarity = serializers.FloatField(read_only=True)
+
+    class Meta(BookSerializer.Meta):
+        fields = BookSerializer.Meta.fields + ["similarity"]
