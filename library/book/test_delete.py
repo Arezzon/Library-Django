@@ -9,20 +9,20 @@ from django.utils import timezone
 from authentication.models import ROLE_LIBRARIAN, CustomUser
 from order.models import Order
 
-from .embeddings import DIMENSIONS
+from .embedding_config import resolve
 from .models import Book
 
 
 class BookDeletionViewTests(TestCase):
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
         patcher = patch("book.embeddings.load_embedding_model")
         model_loader = patcher.start()
         cls.addClassCleanup(patcher.stop)
         model_loader.return_value.embed.side_effect = lambda texts, **kwargs: [
-            [1.0] * DIMENSIONS for _ in texts
+            [1.0] * resolve().dimensions for _ in texts
         ]
+        super().setUpClass()
 
     @classmethod
     def setUpTestData(cls):

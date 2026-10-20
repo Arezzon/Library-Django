@@ -44,7 +44,9 @@ start is healthy within about a minute.
 | `BOOK_EMBEDDING_THREADS` | no | `2` | ONNX Runtime threads per worker |
 
 The `BOOK_EMBEDDING_*` model-identity variables MUST NOT be set here. The image already contains
-its model, and a different value stops `web` with `book.E001`, as described in
+its model, and the stack does not pass these variables to its containers, so a Portainer value
+has no effect. If a different value does reach `web` (for example through an edited Compose
+file), `web` stops with `book.E001`, as described in
 [embedding-model-setting.md](embedding-model-setting.md).
 
 ## Behavior guarantees

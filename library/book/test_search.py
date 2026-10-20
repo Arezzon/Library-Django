@@ -1,13 +1,15 @@
 """Semantic API and catalog regressions, including the real seeded catalog."""
 
+import json
 import os
+from pathlib import Path
 from unittest import skipUnless
 from unittest.mock import patch
 
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .embeddings import DIMENSIONS
+from .embedding_config import resolve
 from .models import Book, BookEmbedding
 from .search import search_books
 from .views import _filter_books
@@ -18,14 +20,20 @@ class SemanticSearchTests(TestCase):
         self.patcher = patch("book.embeddings.load_embedding_model")
         self.encoder = self.patcher.start().return_value
         self.addCleanup(self.patcher.stop)
+        self.spec = resolve()
+        dimensions = self.spec.dimensions
         self.encoder.embed.side_effect = lambda texts, **kwargs: [
-            [1.0] + [0.0] * (DIMENSIONS - 1) for _ in texts
+            [1.0] + [0.0] * (dimensions - 1) for _ in texts
         ]
         self.first = Book.objects.create(name="Different words", count=3)
         self.second = Book.objects.create(name="Second")
         BookEmbedding.objects.filter(book=self.second).update(
-            vector=[0.0, 1.0] + [0.0] * (DIMENSIONS - 2)
+            vector=[0.0, 1.0] + [0.0] * (dimensions - 2)
         )
+        for book in (self.first, self.second):
+            embedding = BookEmbedding.objects.get(book=book)
+            self.assertEqual(embedding.model, self.spec.repository)
+            self.assertEqual(embedding.model_revision, self.spec.tag)
         self.client = APIClient()
 
     def test_cosine_order_prefix_and_availability(self):
@@ -37,7 +45,9 @@ class SemanticSearchTests(TestCase):
         self.assertEqual(response.json()[0]["available_count"], 3)
         self.assertAlmostEqual(response.json()[0]["similarity"], 1)
         self.assertAlmostEqual(response.json()[1]["similarity"], 0)
-        self.encoder.embed.assert_called_with(["query: concept"], batch_size=1)
+        self.encoder.embed.assert_called_with(
+            [self.spec.query_prefix + "concept"], batch_size=1
+        )
         books = list(search_books(Book.objects.all(), "concept"))
         self.assertAlmostEqual(books[0].similarity, 1)
         self.assertAlmostEqual(books[1].similarity, 0)
@@ -105,31 +115,25 @@ class SemanticSearchTests(TestCase):
         self.assertEqual(_filter_books("", "").count(), 24)
 
 
+EVALUATION_SET = Path(__file__).with_name("search_evaluation.json")
+
+
 @skipUnless(
     os.getenv("RUN_BOOK_EMBEDDING_MODEL_TESTS") == "1",
     "Real model test enabled in Docker CI",
 )
-class SeededSemanticSearchTests(TestCase):
-    def test_real_seeded_books_rank_by_meaning_in_both_languages(self):
+class SearchEvaluationTests(TestCase):
+    """FR-032 / SC-013: English and Ukrainian queries rank the expected seed book first."""
+
+    def test_every_evaluation_query_ranks_its_expected_book_first(self):
         from seed_db import seed_data
 
-        from .embeddings import load_embedding_model
-
         seed_data()
-        model_loads = load_embedding_model.cache_info().misses
-        for query, expected in [
-            (
-                "detective solving crimes with Watson",
-                "The Adventures of Sherlock Holmes",
-            ),
-            ("тоталітарний нагляд за людьми", "1984"),
-            (
-                "writing maintainable software",
-                "Clean Code: A Handbook of Agile Software Craftsmanship",
-            ),
-        ]:
-            with self.subTest(query=query):
-                response = APIClient().get("/api/v1/books/search/", {"q": query})
+        cases = json.loads(EVALUATION_SET.read_text(encoding="utf-8"))
+        self.assertEqual(len(cases), 18)
+        client = APIClient()
+        for case in cases:
+            with self.subTest(query=case["query"]):
+                response = client.get("/api/v1/books/search/", {"q": case["query"]})
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.json()[0]["name"], expected)
-                self.assertEqual(load_embedding_model.cache_info().misses, model_loads)
+                self.assertEqual(response.json()[0]["name"], case["expected"])

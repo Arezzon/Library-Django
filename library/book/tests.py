@@ -1,7 +1,10 @@
+import json
 import math
 import os
+import tempfile
 from datetime import timedelta
 from io import StringIO
+from pathlib import Path
 from unittest import skipUnless
 from unittest.mock import MagicMock, patch
 
@@ -9,7 +12,7 @@ from django.contrib.messages import get_messages
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection, models
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -17,10 +20,9 @@ from authentication.models import ROLE_LIBRARIAN, CustomUser
 from author.models import Author
 from order.models import Order
 
+from . import embeddings
+from .embedding_config import resolve, threads
 from .embeddings import (
-    DIMENSIONS,
-    MODEL_NAME,
-    MODEL_REVISION,
     EmbeddingGenerationError,
     document_text,
     input_hash,
@@ -33,13 +35,13 @@ from .views import _filter_books
 class BookAvailabilityTests(TestCase):
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
         patcher = patch("book.embeddings.load_embedding_model")
         loader = patcher.start()
         cls.addClassCleanup(patcher.stop)
         loader.return_value.embed.side_effect = lambda texts, **kwargs: [
-            [1.0] * DIMENSIONS for _ in texts
+            [1.0] * resolve().dimensions for _ in texts
         ]
+        super().setUpClass()
 
     @classmethod
     def setUpTestData(cls):
@@ -169,7 +171,7 @@ class BookEmbeddingCommandTests(TestCase):
         self.output = StringIO()
         self.model = MagicMock()
         self.model.embed.side_effect = lambda texts, **kwargs: [
-            [1.0] * DIMENSIONS for _ in texts
+            [1.0] * resolve().dimensions for _ in texts
         ]
         self.loader = patch(
             "book.management.commands.generate_book_embeddings.load_embedding_model",
@@ -185,25 +187,28 @@ class BookEmbeddingCommandTests(TestCase):
     def test_generation_persists_normalized_vector_and_provenance(self):
         self.generate()
         embedding = BookEmbedding.objects.get(book=self.book)
-        self.assertEqual(len(embedding.vector), DIMENSIONS)
+        self.assertEqual(len(embedding.vector), resolve().dimensions)
         self.assertAlmostEqual(
             sum(float(x) ** 2 for x in embedding.vector), 1, places=5
         )
-        self.assertEqual(embedding.model, MODEL_NAME)
-        self.assertEqual(embedding.model_revision, MODEL_REVISION)
+        self.assertEqual(embedding.model, resolve().repository)
+        self.assertEqual(embedding.model_revision, resolve().tag)
         self.assertEqual(
             embedding.input_hash,
             input_hash(document_text(self.book.name, self.book.description)),
         )
         self.assertEqual(
             self.model.embed.call_args.args[0],
-            ["passage: Кобзар\nЗбірка української поезії."],
+            [resolve().document_prefix + "Кобзар\nЗбірка української поезії."],
         )
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT pg_typeof(vector)::text, vector_dims(vector) FROM book_bookembedding"
+                "SELECT format_type(atttypid, atttypmod), atttypmod FROM pg_attribute "
+                "WHERE attrelid = 'book_bookembedding'::regclass AND attname = 'vector'"
             )
-            self.assertEqual(cursor.fetchone(), ("vector", DIMENSIONS))
+            self.assertEqual(cursor.fetchone(), ("vector", -1))
+            cursor.execute("SELECT vector_dims(vector) FROM book_bookembedding")
+            self.assertEqual(cursor.fetchone(), (resolve().dimensions,))
 
     def test_unchanged_books_do_not_reload_model_or_update_record(self):
         self.generate()
@@ -236,14 +241,14 @@ class BookEmbeddingCommandTests(TestCase):
         self.generate()
         self.loader.assert_called_once()
         self.assertEqual(
-            BookEmbedding.objects.get(book=self.book).model_revision, MODEL_REVISION
+            BookEmbedding.objects.get(book=self.book).model_revision, resolve().tag
         )
 
     def test_force_regenerates_unchanged_embeddings(self):
         self.generate()
         self.loader.reset_mock()
         self.generate(force=True, offline=True)
-        self.loader.assert_called_once_with(offline=True)
+        self.loader.assert_called_once_with(offline=True, threads=threads())
         self.assertEqual(BookEmbedding.objects.count(), 1)
 
     def test_empty_descriptions_generate_title_embeddings(self):
@@ -254,7 +259,9 @@ class BookEmbeddingCommandTests(TestCase):
         self.loader.reset_mock()
         self.generate()
         self.loader.assert_called_once()
-        self.assertEqual(self.model.embed.call_args.args[0], ["passage: Кобзар"])
+        self.assertEqual(
+            self.model.embed.call_args.args[0], [resolve().document_prefix + "Кобзар"]
+        )
         self.assertTrue(BookEmbedding.objects.exists())
 
     def test_batch_size_and_book_selection(self):
@@ -273,8 +280,8 @@ class BookEmbeddingCommandTests(TestCase):
 
     def test_invalid_vectors_and_missing_output_are_not_saved(self):
         for output in (
-            [[0.0] * DIMENSIONS],
-            [[float("nan")] * DIMENSIONS],
+            [[0.0] * resolve().dimensions],
+            [[float("nan")] * resolve().dimensions],
             [[1.0] * 3],
             [],
         ):
@@ -306,7 +313,7 @@ class BookEmbeddingCommandTests(TestCase):
             models.QuerySet(model=Book, using="default").filter(pk=self.book.pk).update(
                 description="Changed during inference"
             )
-            return [[1.0] * DIMENSIONS]
+            return [[1.0] * resolve().dimensions]
 
         self.model.embed.side_effect = encode
         self.generate()
@@ -316,7 +323,7 @@ class BookEmbeddingCommandTests(TestCase):
     def test_deleted_book_is_not_recreated_during_inference(self):
         def encode(texts, **kwargs):
             self.book.delete()
-            return [[1.0] * DIMENSIONS]
+            return [[1.0] * resolve().dimensions]
 
         self.model.embed.side_effect = encode
         self.generate()
@@ -338,6 +345,220 @@ class BookEmbeddingCommandTests(TestCase):
             with self.assertRaisesMessage(CommandError, "require PostgreSQL"):
                 self.generate()
         self.loader.assert_not_called()
+
+
+class FakeSession:
+    """ONNX session stand-in: hidden state row i is [1, i, 0, ...]."""
+
+    def __init__(self, path, sess_options, providers):
+        self.path, self.options, self.providers = path, sess_options, providers
+        self.calls = []
+
+    def get_inputs(self):
+        inputs = [MagicMock(), MagicMock()]
+        inputs[0].name, inputs[1].name = "input_ids", "attention_mask"
+        return inputs
+
+    def run(self, outputs, inputs):
+        import numpy as np
+
+        self.calls.append(inputs)
+        length = inputs["input_ids"].shape[1]
+        hidden = np.zeros((1, length, resolve().dimensions), dtype=np.float32)
+        for i in range(length):
+            hidden[0, i, 0], hidden[0, i, 1] = 1, i
+        return [hidden]
+
+
+class FakeTokenizer:
+    def __init__(self, model_file):
+        self.model_file = model_file
+
+    def encode(self, text, out_type=int):
+        return list(range(1, len(text.split()) + 1))
+
+
+@patch.dict(os.environ, {"BOOK_EMBEDDING_DIMENSIONS": "4"})
+class OnnxEncoderTests(SimpleTestCase):
+    """The generic encoder follows the model setting: pooling, length, threads."""
+
+    def setUp(self):
+        for name in list(os.environ):
+            if (
+                name.startswith("BOOK_EMBEDDING_")
+                and name != "BOOK_EMBEDDING_DIMENSIONS"
+            ):
+                patcher = patch.dict(os.environ, {name: ""})
+                patcher.start()
+                self.addCleanup(patcher.stop)
+        for target, fake in (
+            ("onnxruntime.InferenceSession", FakeSession),
+            ("sentencepiece.SentencePieceProcessor", FakeTokenizer),
+        ):
+            patcher = patch(target, fake)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def encoder(self, threads=3):
+        return embeddings.OnnxEncoder(Path("/snapshot"), resolve(), threads)
+
+    def test_files_threads_and_optimization_come_from_the_setting(self):
+        import onnxruntime as ort
+
+        encoder = self.encoder(threads=3)
+        spec = resolve()
+        self.assertEqual(encoder.session.path, str(Path("/snapshot") / spec.model_file))
+        self.assertEqual(
+            encoder.tokenizer.model_file, str(Path("/snapshot") / spec.tokenizer_file)
+        )
+        self.assertEqual(encoder.session.options.intra_op_num_threads, 3)
+        self.assertEqual(
+            encoder.session.options.graph_optimization_level,
+            ort.GraphOptimizationLevel.ORT_ENABLE_ALL,
+        )
+
+    def test_cls_pooling_uses_the_first_token(self):
+        with patch.dict(os.environ, {"BOOK_EMBEDDING_POOLING": "cls"}):
+            [vector] = self.encoder().embed(["two words"])
+        # Row 0 is [1, 0, 0, 0].
+        self.assertEqual(vector, [1.0, 0.0, 0.0, 0.0])
+
+    def test_mean_pooling_averages_every_token(self):
+        with patch.dict(os.environ, {"BOOK_EMBEDDING_POOLING": "mean"}):
+            [vector] = self.encoder().embed(["two words"])
+        # Four tokens (BOS, 2 pieces, EOS): the mean row is [1, 1.5, 0, 0].
+        self.assertAlmostEqual(vector[0], 1 / math.sqrt(3.25))
+        self.assertAlmostEqual(vector[1], 1.5 / math.sqrt(3.25))
+
+    def test_documents_are_truncated_to_max_tokens(self):
+        with patch.dict(os.environ, {"BOOK_EMBEDDING_MAX_TOKENS": "8"}):
+            encoder = self.encoder()
+            list(encoder.embed(["word " * 50]))
+        ids = encoder.session.calls[0]["input_ids"][0].tolist()
+        self.assertEqual(len(ids), 8)
+        # XLM-R offsets: BOS=0, piece+1, EOS=2.
+        self.assertEqual(ids, [0, 2, 3, 4, 5, 6, 7, 2])
+
+
+class EmbeddingModelLoadingTests(SimpleTestCase):
+    def setUp(self):
+        embeddings._load_encoder.cache_clear()
+        self.addCleanup(embeddings._load_encoder.cache_clear)
+        self.directory = tempfile.mkdtemp()
+        self.settings_patch = override_settings(
+            BOOK_EMBEDDING_CACHE_DIR=Path(self.directory)
+        )
+        self.settings_patch.enable()
+        self.addCleanup(self.settings_patch.disable)
+        patcher = patch.object(embeddings, "OnnxEncoder")
+        self.encoder_class = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def write_manifest(self):
+        spec = resolve()
+        manifest = {"spec": {}, "tag": spec.tag, "snapshot_path": self.directory}
+        (Path(self.directory) / "manifest.json").write_text(json.dumps(manifest))
+
+    def test_missing_manifest_names_the_fetch_script(self):
+        with self.assertRaisesRegex(RuntimeError, "scripts/fetch_embedding_model.py"):
+            embeddings.load_embedding_model()
+        self.encoder_class.assert_not_called()
+
+    def test_model_loads_from_the_manifest_snapshot_without_the_hub(self):
+        self.write_manifest()
+        with patch("huggingface_hub.snapshot_download") as download:
+            embeddings.load_embedding_model(offline=False, threads=3)
+        download.assert_not_called()
+        self.encoder_class.assert_called_once_with(Path(self.directory), resolve(), 3)
+
+    def test_callers_share_one_model_copy_per_thread_count(self):
+        self.write_manifest()
+        first = embeddings.load_embedding_model()
+        self.assertIs(embeddings.load_embedding_model(offline=False), first)
+        self.assertIs(embeddings.load_embedding_model(offline=True), first)
+        self.assertEqual(self.encoder_class.call_count, 1)
+        embeddings.load_embedding_model(threads=threads() + 1)
+        self.assertEqual(self.encoder_class.call_count, 2)
+
+
+@skipUnless(connection.vendor == "postgresql", "pgvector requires PostgreSQL")
+class StartupReencodeTests(TestCase):
+    """The entrypoint's `generate_book_embeddings --offline --threads N` run."""
+
+    def setUp(self):
+        self.books = [
+            Book(name=f"Book {i}", description="A shelf of stories") for i in range(4)
+        ]
+        models.QuerySet(model=Book, using="default").bulk_create(self.books)
+        self.model = MagicMock()
+        self.model.embed.side_effect = lambda texts, **kwargs: [
+            [1.0] + [0.0] * (resolve().dimensions - 1) for _ in texts
+        ]
+        self.loader = patch(
+            "book.management.commands.generate_book_embeddings.load_embedding_model",
+            return_value=self.model,
+        ).start()
+        self.addCleanup(patch.stopall)
+
+    def reencode(self):
+        output = StringIO()
+        call_command(
+            "generate_book_embeddings",
+            offline=True,
+            threads=2,
+            stdout=output,
+            stderr=StringIO(),
+        )
+        return output.getvalue()
+
+    def test_stale_missing_and_changed_books_are_reencoded(self):
+        self.reencode()
+        self.loader.assert_called_once_with(offline=True, threads=2)
+        stale, missing, changed, current = self.books
+        BookEmbedding.objects.filter(book=stale).update(
+            model="old/model", model_revision="0" * 40
+        )
+        BookEmbedding.objects.filter(book=missing).delete()
+        models.QuerySet(model=Book, using="default").filter(pk=changed.pk).update(
+            description="A different shelf"
+        )
+        before = BookEmbedding.objects.get(book=current).updated_at
+        self.model.embed.reset_mock()
+        self.assertIn("Generated: 3; unchanged: 1", self.reencode())
+        self.assertEqual(self.model.embed.call_count, 3)
+        spec = resolve()
+        for embedding in BookEmbedding.objects.all():
+            self.assertEqual(embedding.model, spec.repository)
+            self.assertEqual(embedding.model_revision, spec.tag)
+            self.assertEqual(len(embedding.vector), spec.dimensions)
+        self.assertEqual(BookEmbedding.objects.get(book=current).updated_at, before)
+
+    def test_matching_books_are_skipped_on_the_next_start(self):
+        self.assertIn("Generated: 4; unchanged: 0", self.reencode())
+        self.loader.reset_mock()
+        self.assertIn("Generated: 0; unchanged: 4", self.reencode())
+        self.loader.assert_not_called()
+
+    def test_failure_keeps_finished_books_and_stops_startup(self):
+        calls = []
+
+        def encode(texts, **kwargs):
+            calls.append(texts)
+            if len(calls) == 2:
+                raise RuntimeError("Inference failed")
+            return [[1.0] + [0.0] * (resolve().dimensions - 1) for _ in texts]
+
+        self.model.embed.side_effect = encode
+        with self.assertRaises(CommandError):
+            self.reencode()
+        self.assertEqual(
+            list(BookEmbedding.objects.values_list("book_id", flat=True)),
+            [self.books[0].pk],
+        )
+        self.assertEqual(
+            BookEmbedding.objects.get(book=self.books[0]).model_revision,
+            resolve().tag,
+        )
 
 
 @skipUnless(
@@ -371,17 +592,18 @@ class RealBookEmbeddingTests(TestCase):
         from .embeddings import load_embedding_model, normalized_vector
 
         model = load_embedding_model(offline=True)
+        prefix = resolve().document_prefix
         texts = [
-            "passage: Книга про історію України",
-            "passage: A book about the history of Ukraine",
-            "passage: " + "довгий текст " * 600,
+            prefix + "Книга про історію України",
+            prefix + "A book about the history of Ukraine",
+            prefix + "довгий текст " * 600,
         ]
         vectors = list(model.embed(texts, batch_size=3))
         self.assertEqual(len(vectors), 3)
         for vector in vectors:
-            self.assertEqual(len(vector), DIMENSIONS)
+            self.assertEqual(len(vector), resolve().dimensions)
             self.assertAlmostEqual(sum(value * value for value in vector), 1, places=5)
-            self.assertEqual(len(normalized_vector(vector)), DIMENSIONS)
+            self.assertEqual(len(normalized_vector(vector)), resolve().dimensions)
         self.assertNotEqual(vectors[0], vectors[1])
 
     def test_real_multilingual_model_and_pgvector_distance_query(self):
@@ -403,7 +625,7 @@ class RealBookEmbeddingTests(TestCase):
         embeddings = list(BookEmbedding.objects.order_by("book_id"))
         self.assertEqual(len(embeddings), 2)
         for embedding in embeddings:
-            self.assertEqual(len(embedding.vector), DIMENSIONS)
+            self.assertEqual(len(embedding.vector), resolve().dimensions)
             self.assertTrue(all(math.isfinite(float(x)) for x in embedding.vector))
             self.assertAlmostEqual(
                 sum(float(x) ** 2 for x in embedding.vector), 1, places=4
@@ -424,7 +646,8 @@ class AutomaticBookEmbeddingTests(TestCase):
     def setUp(self):
         self.model = MagicMock()
         self.model.embed.side_effect = lambda texts, **kwargs: [
-            [1.0, float(sum(map(ord, text)) % 1000 + 1)] + [0.0] * (DIMENSIONS - 2)
+            [1.0, float(sum(map(ord, text)) % 1000 + 1)]
+            + [0.0] * (resolve().dimensions - 2)
             for text in texts
         ]
         patcher = patch("book.embeddings.load_embedding_model", return_value=self.model)
@@ -453,7 +676,7 @@ class AutomaticBookEmbeddingTests(TestCase):
         self.assertEqual(
             embedding.input_hash, input_hash(document_text(book.name, book.description))
         )
-        self.assertEqual(len(embedding.vector), DIMENSIONS)
+        self.assertEqual(len(embedding.vector), resolve().dimensions)
         return embedding
 
     def test_creation_and_text_changes_generate_without_command(self):
@@ -499,7 +722,9 @@ class AutomaticBookEmbeddingTests(TestCase):
         book.save(update_fields=["description"])
         self.loader.assert_called_once()
         self.assert_current(book)
-        self.assertEqual(self.model.embed.call_args.args[0], ["passage: Кобзар"])
+        self.assertEqual(
+            self.model.embed.call_args.args[0], [resolve().document_prefix + "Кобзар"]
+        )
         book.description = "Оновлена анотація"
         book.save(update_fields=["description"])
         self.assert_current(book)
@@ -520,7 +745,7 @@ class AutomaticBookEmbeddingTests(TestCase):
 
     def test_invalid_model_output_rolls_back_the_book(self):
         self.model.embed.side_effect = lambda *args, **kwargs: [
-            [float("nan")] * DIMENSIONS
+            [float("nan")] * resolve().dimensions
         ]
         with self.assertRaises(EmbeddingGenerationError):
             self.create_book()
@@ -661,7 +886,10 @@ class AutomaticBookEmbeddingTests(TestCase):
     def test_creation_without_description_generates_title_vector(self):
         book = Book.objects.create(name="Title only")
         self.assert_current(book)
-        self.assertEqual(self.model.embed.call_args.args[0], ["passage: Title only"])
+        self.assertEqual(
+            self.model.embed.call_args.args[0],
+            [resolve().document_prefix + "Title only"],
+        )
 
     def test_save_repairs_missing_stale_hash_and_model_metadata(self):
         book = self.create_book()
@@ -680,8 +908,8 @@ class AutomaticBookEmbeddingTests(TestCase):
                 book.save(update_fields=["count"])
                 self.loader.assert_called_once()
                 embedding = self.assert_current(book)
-                self.assertEqual(embedding.model, MODEL_NAME)
-                self.assertEqual(embedding.model_revision, MODEL_REVISION)
+                self.assertEqual(embedding.model, resolve().repository)
+                self.assertEqual(embedding.model_revision, resolve().tag)
 
     def test_bulk_text_writes_are_rejected_without_changes(self):
         book = self.create_book()
@@ -722,7 +950,7 @@ class SeedEmbeddingTests(TestCase):
         model = self.loader.return_value
         self.command_loader.return_value = model
         model.embed.side_effect = lambda texts, **kwargs: iter(
-            [[1.0] + [0.0] * (DIMENSIONS - 1) for _ in texts]
+            [[1.0] + [0.0] * (resolve().dimensions - 1) for _ in texts]
         )
 
     def test_fresh_seed_creates_embeddings_and_repeat_keeps_timestamps(self):

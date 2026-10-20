@@ -1,4 +1,7 @@
-"""Render HTTPS forwarding must permit same-origin forms and retain CSRF checks."""
+"""Project-wide settings and wiring: proxy and host settings, environment-driven
+configuration, the version endpoint and the Gunicorn config.
+
+Behind an HTTPS proxy, same-origin forms must work and CSRF checks must remain."""
 
 import json
 import os
@@ -11,25 +14,6 @@ from django.urls import path
 
 from .models import CustomUser
 
-
-class RenderSettingsTests(SimpleTestCase):
-    def test_proxy_header_is_enabled_only_on_render(self):
-        for render, expected in [
-            ("true", "('HTTP_X_FORWARDED_PROTO', 'https')"),
-            ("false", "None"),
-        ]:
-            result = subprocess.check_output(
-                [
-                    sys.executable,
-                    "-c",
-                    'import library.settings as s; print(getattr(s, "SECURE_PROXY_SSL_HEADER", None))',
-                ],
-                env=dict(os.environ, RENDER=render),
-                text=True,
-            )
-            self.assertEqual(result.strip(), expected)
-
-
 # Settings inputs; a developer's .env must not leak into the checks below.
 SETTINGS_ENV = (
     "SECRET_KEY",
@@ -41,6 +25,10 @@ SETTINGS_ENV = (
     "DB_PASSWORD",
     "DB_HOST",
     "DB_PORT",
+    "TRUST_X_FORWARDED_PROTO",
+    "CSRF_TRUSTED_ORIGINS",
+    "ALLOWED_HOSTS",
+    "RENDER",
 )
 
 
@@ -144,6 +132,37 @@ class EnvironmentSettingsTests(SimpleTestCase):
                     DB_PORT="1",
                 )
 
+    def test_forwarded_https_is_trusted_only_when_enabled(self):
+        expression = 'getattr(s, "SECURE_PROXY_SSL_HEADER", None)'
+        self.assertSetting(
+            expression,
+            ["HTTP_X_FORWARDED_PROTO", "https"],
+            TRUST_X_FORWARDED_PROTO="True",
+        )
+        for value in (None, "", "False", "true"):
+            with self.subTest(trust=value):
+                self.assertSetting(expression, None, TRUST_X_FORWARDED_PROTO=value)
+
+    def test_allowed_hosts_are_platform_neutral(self):
+        self.assertSetting(
+            "s.ALLOWED_HOSTS",
+            ["library.example.com", "other.example", "localhost", "127.0.0.1"],
+            ALLOWED_HOSTS="library.example.com, other.example",
+        )
+
+    def test_render_no_longer_enables_the_proxy_header(self):
+        self.assertSetting(
+            'getattr(s, "SECURE_PROXY_SSL_HEADER", None)', None, RENDER="true"
+        )
+
+    def test_csrf_trusted_origins_come_from_a_comma_list(self):
+        self.assertSetting("s.CSRF_TRUSTED_ORIGINS", [])
+        self.assertSetting(
+            "s.CSRF_TRUSTED_ORIGINS",
+            ["https://a.example", "https://b.example"],
+            CSRF_TRUSTED_ORIGINS=" https://a.example ,https://b.example,",
+        )
+
     def test_database_url_must_point_to_postgresql(self):
         self.assertStartupFails(
             "DATABASE_URL", DATABASE_URL="mysql://reader:secret@db.example.com/catalog"
@@ -151,12 +170,12 @@ class EnvironmentSettingsTests(SimpleTestCase):
 
 
 @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO", "https"))
-class RenderLoginTests(TestCase):
+class ProxyLoginTests(TestCase):
     def setUp(self):
         self.user = CustomUser.objects.create_user(
-            email="render@example.com",
-            password="render-password",
-            first_name="Render",
+            email="proxy@example.com",
+            password="proxy-password",
+            first_name="Proxy",
             middle_name="",
             last_name="Test",
             is_active=True,
@@ -165,7 +184,7 @@ class RenderLoginTests(TestCase):
         self.client.get("/authentication/login/")
         self.payload = {
             "email": self.user.email,
-            "password": "render-password",
+            "password": "proxy-password",
             "csrfmiddlewaretoken": self.client.cookies["csrftoken"].value,
         }
 
@@ -192,8 +211,76 @@ class RenderLoginTests(TestCase):
         self.assertNotIn("_auth_user_id", self.client.session)
 
 
+class VersionEndpointTests(SimpleTestCase):
+    """GET /api/v1/version/: anonymous, read-only, commit only, no database."""
+
+    url = "/api/v1/version/"
+
+    def get(self, **env):
+        from unittest.mock import patch
+
+        environment = {k: v for k, v in os.environ.items() if k != "APP_COMMIT"}
+        environment.update(env)
+        with patch.dict(os.environ, environment, clear=True):
+            return Client().get(self.url)
+
+    def test_anonymous_get_returns_only_the_commit(self):
+        response = self.get(APP_COMMIT="0123456789abcdef0123456789abcdef01234567")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"commit": "0123456789abcdef0123456789abcdef01234567"}
+        )
+        self.assertEqual(response["Cache-Control"], "no-store")
+
+    def test_unset_or_empty_commit_is_unknown(self):
+        self.assertEqual(self.get().json(), {"commit": "unknown"})
+        self.assertEqual(self.get(APP_COMMIT="").json(), {"commit": "unknown"})
+
+    def test_other_methods_are_not_allowed(self):
+        for method in ("post", "put", "patch", "delete"):
+            with self.subTest(method=method):
+                self.assertEqual(getattr(Client(), method)(self.url).status_code, 405)
+
+    def test_endpoint_is_in_the_api_schema(self):
+        response = Client().get("/api/schema/")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            "/api/v1/version/:" in response.content.decode(),
+            "/api/v1/version/ is missing from /api/schema/",
+        )
+
+
+class GunicornConfigTests(SimpleTestCase):
+    """library/gunicorn.conf.py: worker count from the stack and a warm model."""
+
+    def load(self, **env):
+        import importlib.util
+        from unittest.mock import patch
+
+        path = settings.BASE_DIR / "gunicorn.conf.py"
+        spec = importlib.util.spec_from_file_location("gunicorn_conf", path)
+        module = importlib.util.module_from_spec(spec)
+        environment = {k: v for k, v in os.environ.items() if k != "WEB_CONCURRENCY"}
+        environment.update(env)
+        with patch.dict(os.environ, environment, clear=True):
+            spec.loader.exec_module(module)
+        return module
+
+    def test_workers_follow_web_concurrency_with_a_60s_timeout(self):
+        self.assertEqual(self.load().workers, 3)
+        self.assertEqual(self.load(WEB_CONCURRENCY="2").workers, 2)
+        self.assertEqual(self.load().timeout, 60)
+
+    def test_each_worker_loads_the_model_before_serving(self):
+        from unittest.mock import MagicMock, patch
+
+        with patch("book.embeddings.load_embedding_model") as load:
+            self.load().post_worker_init(MagicMock())
+        load.assert_called_once_with()
+
+
 def failing_view(request):
-    raise RuntimeError("render diagnostic regression")
+    raise RuntimeError("diagnostic regression")
 
 
 urlpatterns = [path("diagnostic-error/", failing_view)]
@@ -213,7 +300,5 @@ class ProductionErrorLoggingTests(SimpleTestCase):
             response = Client(raise_request_exception=False).get("/diagnostic-error/")
         self.assertEqual(response.status_code, 500)
         self.assertIn("Traceback (most recent call last)", stream.getvalue())
-        self.assertIn("RuntimeError: render diagnostic regression", stream.getvalue())
-        self.assertNotContains(
-            response, "render diagnostic regression", status_code=500
-        )
+        self.assertIn("RuntimeError: diagnostic regression", stream.getvalue())
+        self.assertNotContains(response, "diagnostic regression", status_code=500)

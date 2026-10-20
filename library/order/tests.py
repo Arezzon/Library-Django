@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 
 from authentication.models import ROLE_LIBRARIAN, CustomUser
 from book.models import Book
+from book.testing import FakeEncoderMixin
 
 from .models import BookUnavailableError, Order
 
@@ -28,7 +29,7 @@ def reader(email, role=0):
     )
 
 
-class AtomicIssuanceTests(TestCase):
+class AtomicIssuanceTests(FakeEncoderMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = reader("reader@example.com")
@@ -175,7 +176,7 @@ class AtomicIssuanceTests(TestCase):
 
 
 @skipUnlessDBFeature("has_select_for_update")
-class ConcurrentIssuanceTests(TransactionTestCase):
+class ConcurrentIssuanceTests(FakeEncoderMixin, TransactionTestCase):
     def setUp(self):
         self.book = Book.objects.create(name="Last copy", count=1)
         self.users = [reader(f"reader{i}@example.com") for i in range(2)]

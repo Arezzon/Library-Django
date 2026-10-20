@@ -22,8 +22,12 @@ constitution's quality gates (v2.0.0, item 4).
 | `merge` | `ubuntu-latest` (checkout with `fetch-depth: 0`) | `publish` | The multi-architecture manifest is created and tagged following the rules below. It sets the output `deploy`. |
 | `deploy` | `ubuntu-latest`, `environment: production` | `merge` (`if: needs.merge.outputs.deploy == 'true'`) | The webhook returns 2xx and the redeploy is confirmed, or each is skipped with a visible annotation (see below) |
 
-`publish`, `merge` and `deploy` share
-`concurrency: { group: publish-${{ github.ref }}, cancel-in-progress: false }`.
+Concurrency (`cancel-in-progress: false` everywhere):
+- `merge` runs in `publish-${{ github.ref }}`, so tag writes for one ref never interleave.
+- `deploy` runs in the single group `deploy-production`, because every ref redeploys the same
+  stack through the same webhook.
+- The `publish` matrix has no group: its legs push by digest only, and a shared group would
+  serialize them and let newer pending jobs cancel older ones.
 
 ## `smoke-test` steps (per architecture)
 

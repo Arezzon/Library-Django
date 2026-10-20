@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 
 from authentication.models import ROLE_LIBRARIAN, CustomUser
 from book.models import Book
+from book.testing import FakeEncoderMixin
 from order.models import BookUnavailableError, Order
 
 from .middleware import EventTrackingMiddleware
@@ -30,7 +31,7 @@ def account(email="events@example.com", role=0):
     )
 
 
-class EventTests(TestCase):
+class EventTests(FakeEncoderMixin, TestCase):
     def setUp(self):
         self.user = account()
         self.book = Book.objects.create(name="Tracked book", count=5)
@@ -262,7 +263,7 @@ class EventTests(TestCase):
         self.assertFalse(UserEvent.objects.exists())
 
 
-class ClientTrackingTests(TestCase):
+class ClientTrackingTests(FakeEncoderMixin, TestCase):
     def setUp(self):
         self.user = account()
         self.book = Book.objects.create(name="Tracked")
@@ -359,7 +360,7 @@ class ClientTrackingTests(TestCase):
         self.assertFalse(UserEvent.objects.exists())
 
 
-class AnalyticsTests(TestCase):
+class AnalyticsTests(FakeEncoderMixin, TestCase):
     def setUp(self):
         self.reader = account()
         self.librarian = account("analytics@example.com", ROLE_LIBRARIAN)
@@ -441,7 +442,7 @@ class AnalyticsTests(TestCase):
         self.assertContains(response, "Deleted user")
 
 
-class UserProfileActivityTests(TestCase):
+class UserProfileActivityTests(FakeEncoderMixin, TestCase):
     def setUp(self):
         self.user = account("profile@example.com")
         self.other = account("other-profile@example.com")

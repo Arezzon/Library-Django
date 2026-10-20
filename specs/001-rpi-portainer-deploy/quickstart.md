@@ -41,11 +41,13 @@ python scripts/fetch_embedding_model.py --print
 - The only match in code or build files is `library/book/embedding_config.py`.
 - `--print` outputs the spec and its 40-hex tag.
 
-**Mismatch check**: start `web` with a runtime override that differs from the image.
+**Mismatch check**: start `web` with a runtime override that differs from the image. Compose
+passes only the variables listed under `environment:`, so give the override to the container
+directly:
 
 ```bash
-BOOK_EMBEDDING_MODEL_REVISION=0000000000000000000000000000000000000000 \
-  docker compose -f docker-compose-dev.yml up web
+docker compose -f docker-compose-dev.yml run --rm --no-deps \
+  -e BOOK_EMBEDDING_MODEL_REVISION=0000000000000000000000000000000000000000 web
 ```
 
 **Expected**: `web` exits during `migrate` with `book.E001`, naming both revisions.
