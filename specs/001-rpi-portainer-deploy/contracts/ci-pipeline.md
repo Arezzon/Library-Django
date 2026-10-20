@@ -8,7 +8,7 @@ constitution's quality gates (v2.0.0, item 4).
 | Event | `lint` | `smoke-test` | `publish` → `merge` → `promote` → `deploy` |
 |---|---|---|---|
 | `push` to `main` | ✔ | ✔ (amd64 and arm64) | ✔ after both gates pass |
-| `push` of tag `v*` | ✔ | ✔ (amd64 and arm64) | ✔ after both gates pass |
+| `push` of tag `v*` | ✔ | ✔ (amd64 and arm64) | `publish`, `merge` and `promote` after both gates pass; `deploy` never runs |
 | `pull_request` to `main` | ✔ | ✔ (amd64 and arm64) | ✘ |
 | Any other push | ✘ | ✘ | ✘ |
 
@@ -71,7 +71,7 @@ carries the `org.opencontainers.image.revision` label, set by `docker/metadata-a
 | `main` push, and no `main` tag exists yet | `main`, `sha-<short>` | `true` | never |
 | `main` push, and the current `main` revision is an ancestor of `github.sha` (or equal to it) | `main`, `sha-<short>` | `true` | never |
 | `main` push, and the current `main` revision is **not** an ancestor (a newer build already moved it) | `sha-<short>` only; `::notice::` | `false` | never |
-| `v1.2.3` tag | `1.2.3`, `sha-<short>` (`main` is never touched) | `true` | never |
+| `v1.2.3` tag | `1.2.3`, `sha-<short>` (`main` is never touched); `::notice::` "Version tags only publish images; the server was not redeployed. To run this version, set IMAGE_TAG=1.2.3 in Portainer." | `false` | never |
 
 **Rule**: `main` only moves forward in `main`'s history. A newer commit whose pipeline failed
 published nothing, so it can't block the last good build (FR-002, FR-019).
@@ -80,7 +80,7 @@ Every tag resolves to a manifest list with `linux/amd64` and `linux/arm64`.
 
 ## `deploy` behavior
 
-The `production` environment allows only `main` and `v*`. It provides the secret
+The `production` environment allows only `main`, the only ref that deploys. It provides the secret
 `PORTAINER_WEBHOOK_URL` and the optional variable `SITE_URL`.
 
 | Step | Condition | Result | Log text (never a URL or host) |
@@ -106,7 +106,7 @@ The `production` environment allows only `main` and `v*`. It provides the secret
 ## Required repository settings
 
 These are done by an admin and documented in the guide:
-- Environment `production`, with deployment branches and tags limited to `main` and `v*`.
+- Environment `production`, with deployment branches limited to `main`.
 - Environment secret `PORTAINER_WEBHOOK_URL`.
 - Optional environment variable `SITE_URL`.
 - Workflow permissions: `packages: write` for `publish`, `merge` and `promote`, `contents: read` for all

@@ -22,3 +22,9 @@
 
 {"event":"artifact_drift_detected","timestamp":"2026-10-20T06:08:17.4482351Z","actor":"claude","feature_directory":"specs/001-rpi-portainer-deploy","drifted_artifacts":[{"path":"tasks.md","old_sha256":"d848ce8618bd33c40ded4757db9e8abcf66c771ffdcbf2c00c86d65a5a4bd1f4","new_sha256":"1c1298319a020c600286c822b99f7c9489bd83b8e4a34562ab816eb5077ddb75"}]}
 
+{"timestamp":"2026-10-20T06:31:31.9320955Z","action":"guard","status":"allow","feature_directory":"specs/001-rpi-portainer-deploy","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.clarify"}
+
+{"timestamp":"2026-10-20T06:44:13.6375730Z","action":"guard","status":"allow","feature_directory":"specs/001-rpi-portainer-deploy","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.clarify"}
+
+{"timestamp":"2026-10-20T07:40:48.6719171Z","action":"guard","status":"allow","feature_directory":"specs/001-rpi-portainer-deploy","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.clarify"}
+

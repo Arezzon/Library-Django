@@ -86,7 +86,7 @@ never committed to the repository or baked into the images.
 | `DB_PASSWORD` | **yes** | none | PostgreSQL password. See the warning below. |
 | `ALLOWED_HOSTS` | no | `localhost,127.0.0.1` | Comma list of the hostnames the site answers to, for example `library.example.com,192.168.1.50`. `localhost` and `127.0.0.1` are always allowed for the health check. |
 | `CSRF_TRUSTED_ORIGINS` | no | empty | Comma list of public origins that submit forms, for example `https://library.example.com`. Needed behind a proxy that serves HTTPS. |
-| `TRUST_X_FORWARDED_PROTO` | no | `False` | Set `True` only when the site is behind your own HTTPS reverse proxy or tunnel that sets `X-Forwarded-Proto`. Leave it `False` when clients reach the Pi directly. Any case works, as do `1`/`0`, `yes`/`no` and `on`/`off`; any other value stops the app at startup with an error naming this setting. |
+| `TRUST_X_FORWARDED_PROTO` | no | `False` | Set `True` only when the site is behind your own HTTPS reverse proxy or tunnel that sets `X-Forwarded-Proto`. Leave it `False` when clients reach the Pi directly. When `True`, sign-in and form cookies are sent over HTTPS only, so sign in through the HTTPS address, not `http://<pi address>`. Any case works, as do `1`/`0`, `yes`/`no` and `on`/`off`; any other value stops the app at startup with an error naming this setting. |
 | `WEB_PORT` | no | `8000` | Host port the site listens on. |
 | `IMAGE_TAG` | no | `main` | `main` follows the newest build. Set `sha-<short commit>` or a version such as `1.2.3` to pin one. |
 | `IMAGE_REPOSITORY` | no | `ghcr.io/arezzon/library-django` | Only for forks that publish their own images. |
@@ -110,6 +110,10 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 > **Warning: `DJANGO_SEED=true` creates demo accounts whose passwords are published in the
 > README**, including a librarian account. Use it only for a demo, and never on a site that
 > holds real data. Seeding does nothing once users exist, so redeploys don't duplicate data.
+> **Before the site is reachable from the internet**, change or delete those accounts'
+> passwords. For each seeded email, run
+> `docker exec -it library-web-1 python manage.py changepassword <email>`
+> (replace `library` with your stack name).
 
 Don't set any `BOOK_EMBEDDING_MODEL*` variable here: the search model ships inside the image,
 and the stack doesn't pass these variables to the containers, so they have no effect. Choosing
@@ -157,6 +161,17 @@ images download and the search vectors are built.
    `{"commit": "4f2c…"}`.
 5. **Data survives restarts**: signed in as the librarian, create a book, then redeploy the stack and reboot the Pi. The book
    is still there and all four containers come back on their own.
+6. **Portainer behaves as this setup expects.** Check this once automatic updates are on
+   ([Turn on automatic updates](#turn-on-automatic-updates)), and again after upgrading
+   Portainer:
+   - the webhook accepts a `POST`: `curl -fsS -o /dev/null -w '%{http_code}
+' -X POST <webhook URL>`
+     prints `204`, and the stack redeploys;
+   - with **Force redeployment** on, that call redeploys even though no new commit exists;
+   - with **Re-pull image** on, a redeploy after a merge runs the new `main` image
+     (`/api/v1/version/` reports the merged commit);
+   - a failed pull keeps the old containers: set `IMAGE_TAG` to a tag that doesn't exist,
+     redeploy, and check the site still answers; then remove `IMAGE_TAG` again.
 
 ## Viewing logs
 
@@ -199,7 +214,7 @@ Do this once the first deployment works.
    |---|---|
    | Mechanism | **Webhook** |
    | Re-pull image | **On**, so each redeploy pulls the newest image for `IMAGE_TAG` |
-   | Force redeployment | **On**, so a webhook redeploys even when the Git files did not change (for example after a version tag) |
+   | Force redeployment | **On**, so a webhook redeploys even when the Git files did not change (only the image moved) |
 
 3. Copy the **webhook URL** Portainer shows. It looks like
    `https://<portainer host>/api/stacks/webhooks/<id>`.
@@ -254,9 +269,9 @@ to one.
 
 1. In the repository, open **Settings → Environments → New environment**, name it
    `production`, and click **Configure environment**.
-2. Under **Deployment branches and tags**, choose **Selected branches and tags** and add:
-   - the branch `main`;
-   - the tag pattern `v*`.
+2. Under **Deployment branches and tags**, choose **Selected branches and tags** and add the
+   branch `main`. Version tags only publish images and never deploy, so no tag pattern is
+   needed. If an older setup added the tag pattern `v*`, remove it.
 3. Under **Environment secrets**, click **Add environment secret**: name
    `PORTAINER_WEBHOOK_URL`, value the webhook URL from Portainer.
 
@@ -349,6 +364,7 @@ for the first one.
 | Message | Meaning | What to do |
 |---|---|---|
 | *A newer commit already moved main; this build was published as sha-… only.* (notice, `promote`) | An older run finished after a newer one. Its image is published under `sha-…` but doesn't become `main`, and no redeploy runs. | Nothing. |
+| *Version tags only publish images; the server was not redeployed. To run this version, set IMAGE_TAG=… in Portainer.* (notice, `promote`) | A version tag published `X.Y.Z` and `sha-…` images. Tags never redeploy; the Pi keeps following `main`. | Nothing, or pin the version (see [Pin, roll back and unpin](#pin-roll-back-and-unpin)). |
 | *Images … published; server deployment skipped because PORTAINER_WEBHOOK_URL is not configured.* (warning) | The `production` environment has no webhook secret. Images were published. | Add the secret (see [Create the production GitHub environment](#create-the-production-github-environment)). |
 | *Redeploy triggered for … (HTTP 204).* | Portainer accepted the webhook. | Nothing. |
 | *Images … were published, but the server was not redeployed (HTTP … / curl exit …).* (error) | The webhook failed. HTTP 404 means a wrong or regenerated URL; `HTTP 000 / curl exit 6` or `7` means the address isn't reachable; `curl exit 60` means the certificate isn't publicly trusted; `curl exit 28` means the request didn't get through in time. | Fix the cause, then re-run the `deploy` job, or redeploy by hand in Portainer. |

@@ -153,6 +153,16 @@ class EnvironmentSettingsTests(SimpleTestCase):
                     "TRUST_X_FORWARDED_PROTO", TRUST_X_FORWARDED_PROTO=value
                 )
 
+    def test_cookies_are_https_only_when_forwarded_https_is_trusted(self):
+        expression = "[s.SESSION_COOKIE_SECURE, s.CSRF_COOKIE_SECURE]"
+        self.assertSetting(expression, [True, True], TRUST_X_FORWARDED_PROTO="True")
+        # Served directly over HTTP, cookies must keep working.
+        for value in (None, "False"):
+            with self.subTest(trust=value):
+                self.assertSetting(
+                    expression, [False, False], TRUST_X_FORWARDED_PROTO=value
+                )
+
     def test_allowed_hosts_are_platform_neutral(self):
         self.assertSetting(
             "s.ALLOWED_HOSTS",
