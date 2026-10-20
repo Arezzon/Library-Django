@@ -109,14 +109,14 @@ schema matches `main` under [contracts/api-compatibility.md](contracts/api-compa
 
 ### Tests for User Story 1 (write first) ⚠️
 
-- [ ] T007 [P] [US1] In `library/authentication/tests.py`, add `StaticFilesStorageTests(SimpleTestCase)` (FR-008, FR-011). It asserts:
+- [x] T007 [P] [US1] In `library/authentication/tests.py`, add `StaticFilesStorageTests(SimpleTestCase)` (FR-008, FR-011). It asserts:
   - `settings.STORAGES["staticfiles"]["BACKEND"] == "whitenoise.storage.CompressedManifestStaticFilesStorage"`;
   - `settings.STORAGES["default"]["BACKEND"] == "django.core.files.storage.FileSystemStorage"`;
   - `django.core.files.storage.storages["staticfiles"]` is an instance of `whitenoise.storage.CompressedManifestStaticFilesStorage`.
 
   Run it with `$DC exec -T web python manage.py test authentication.tests.StaticFilesStorageTests`. It must **fail** on the new pins before T010, because Django 5.2 ignores `STATICFILES_STORAGE`.
-- [ ] T008 [P] [US1] In `library/authentication/tests.py`, add `MigrationStateTests(TestCase)` (FR-009). It calls `django.core.management.call_command("makemigrations", check=True, dry_run=True, stdout=io.StringIO())`. A `SystemExit` means a missing migration: catch it and fail with the captured output. It must be a `TestCase`, not a `SimpleTestCase`, because `makemigrations` reads the database's migration history. It must **fail** before T011, which reports `authentication 0003` and `order 0003` as missing.
-- [ ] T009 [P] [US1] In `library/authentication/tests.py`, add `PasswordHashUpgradeTests(TestCase)` (FR-007, SC-003). It:
+- [x] T008 [P] [US1] In `library/authentication/tests.py`, add `MigrationStateTests(TestCase)` (FR-009). It calls `django.core.management.call_command("makemigrations", check=True, dry_run=True, stdout=io.StringIO())`. A `SystemExit` means a missing migration: catch it and fail with the captured output. It must be a `TestCase`, not a `SimpleTestCase`, because `makemigrations` reads the database's migration history. It must **fail** before T011, which reports `authentication 0003` and `order 0003` as missing.
+- [x] T009 [P] [US1] In `library/authentication/tests.py`, add `PasswordHashUpgradeTests(TestCase)` (FR-007, SC-003). It:
   1. creates a user with `CustomUser.objects.create_user(email="old-hash@example.com", password="unused", first_name="Old", middle_name="", last_name="Hash", is_active=True)`. `is_active` defaults to `False`, and an inactive user cannot sign in. The call matches `ProxyLoginTests.setUp` in the same file;
   2. replaces `user.password` with `PBKDF2PasswordHasher().encode("old-hash-pass-123", PBKDF2PasswordHasher().salt(), iterations=390000)` and saves (390,000 is the Django 4.1 default);
   3. asserts `self.client.login(email=user.email, password="old-hash-pass-123")` is `True`;
@@ -126,7 +126,7 @@ schema matches `main` under [contracts/api-compatibility.md](contracts/api-compa
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] In `library/library/settings.py` (FR-008, FR-011):
+- [x] T010 [US1] In `library/library/settings.py` (FR-008, FR-011):
   1. Replace `STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"` with:
 
      ```python
@@ -141,26 +141,26 @@ schema matches `main` under [contracts/api-compatibility.md](contracts/api-compa
   3. Change every `https://docs.djangoproject.com/en/3.1/` link in the file to `/en/5.2/`.
 
   Leave the `DB_ENGINE` default `django.db.backends.postgresql_psycopg2` unchanged: research R3 confirms Django 5.2 still maps it. T007 must now pass.
-- [ ] T011 [US1] Generate the two migrations that predate the upgrade (FR-009; research R4; data-model §2). Run `$DC exec -T web python manage.py makemigrations authentication order` and commit the two files unedited:
+- [x] T011 [US1] Generate the two migrations that predate the upgrade (FR-009; research R4; data-model §2). Run `$DC exec -T web python manage.py makemigrations authentication order` and commit the two files unedited:
   - `library/authentication/migrations/0003_alter_customuser_role.py`, holding `AlterField role: IntegerField(choices=[(0, 'visitor'), (1, 'librarian')], default=0)`;
   - `library/order/migrations/0003_alter_order_id.py`, holding `AlterField id: BigAutoField`.
 
   Do not touch `0001`/`0002`. Migrations are excluded from ruff and black. T008 must now pass.
-- [ ] T012 [P] [US1] Update the framework doc links in the module docstrings, from `https://docs.djangoproject.com/en/4.0/` to `/en/5.2/`. The files are `library/library/urls.py`, `library/library/wsgi.py` and `library/library/asgi.py`. Comment-only change.
-- [ ] T013 [US1] Upgrade in place over the T003 baseline volumes and verify, per quickstart.md §2.2 (FR-006, FR-007, SC-003):
+- [x] T012 [P] [US1] Update the framework doc links in the module docstrings, from `https://docs.djangoproject.com/en/4.0/` to `/en/5.2/`. The files are `library/library/urls.py`, `library/library/wsgi.py` and `library/library/asgi.py`. Comment-only change.
+- [x] T013 [US1] Upgrade in place over the T003 baseline volumes and verify, per quickstart.md §2.2 (FR-006, FR-007, SC-003):
   - `$DC up --build -d --wait` with no `down -v`;
   - the `web` log shows `Applying authentication.0003…` and `Applying order.0003…`;
   - the six counts `diff` cleanly against `counts-main.txt`;
   - the shell check prints `True 1000000`.
-- [ ] T014 [US1] Compare the API schema, per quickstart.md §2.3 and [contracts/api-compatibility.md](contracts/api-compatibility.md) (FR-005, SC-004):
+- [x] T014 [US1] Compare the API schema, per quickstart.md §2.3 and [contracts/api-compatibility.md](contracts/api-compatibility.md) (FR-005, SC-004):
   - save `schema-branch.yaml` and `diff -u` it against `schema-main.yaml`;
   - fix every difference the contract calls breaking in the owning app's serializer or view, never by editing tests;
   - list each allowed difference, one line with its reason, in a scratch note for the PR description (T026).
-- [ ] T015 [US1] Run the full suite as CI does, per quickstart.md §2.4, with `RUN_BOOK_EMBEDDING_MODEL_TESTS=1 CELERY_TASK_ALWAYS_EAGER=True` (FR-004, SC-001):
+- [x] T015 [US1] Run the full suite as CI does, per quickstart.md §2.4, with `RUN_BOOK_EMBEDDING_MODEL_TESTS=1 CELERY_TASK_ALWAYS_EAGER=True` (FR-004, SC-001):
   - every test passes, including T007–T009 and the 18-query evaluation set;
   - fix failures in application code; tests change only where a framework API they call changed, and they still verify the same behavior (FR-004);
   - if the evaluation set fails on onnxruntime 1.31.0, step down to the highest onnxruntime release that passes and record why in research R1 and R9 (FR-003).
-- [ ] T016 [US1] Run quickstart.md §2.6 (FR-008, FR-009):
+- [x] T016 [US1] Run quickstart.md §2.6 (FR-008, FR-009):
   - `staticfiles/staticfiles.json` exists after `collectstatic`;
   - `makemigrations --check --dry-run` prints "No changes detected";
   - `check --deploy --fail-level ERROR` passes.
