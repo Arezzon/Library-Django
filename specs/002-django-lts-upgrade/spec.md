@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-20
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Complete https://arsensworkspace-47040086.atlassian.net/browse/KAN-17 task from Jira. Also get rid of duplicated `requirements.txt` in `./library`"
 
