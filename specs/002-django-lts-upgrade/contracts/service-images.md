@@ -38,24 +38,28 @@ This is the required content for the operator guide section, which also links to
 
    If another user exists, or the counts differ, real data may be present. **Do not continue**;
    ask the maintainers for a way to carry the data over.
-2. **Before the merge**, set `DJANGO_SEED=true` in the stack's environment variables and save
-   without redeploying. On the current database this does nothing, because seeding skips once
-   users exist.
-3. **Merge PR 3.** The webhook redeploys the stack:
+2. **Before the merge**, set `DJANGO_SEED=true` in the stack's environment variables and save.
+   A redeploy on save is harmless: on the current database seeding does nothing, because it
+   skips once users exist.
+3. **Take the site off the internet** (pause the proxy route or the port forward). Seeding
+   recreates the demo accounts with their published passwords, and FR-023 requires them to be
+   replaced before the site is reachable.
+4. **Merge PR 3.** The webhook redeploys the stack:
    - `db` starts PostgreSQL 18 on the empty `pgdata18`, and `redis` starts on the empty
      `redisdata8`;
    - `web` runs the migrations, seeds, re-encodes every book with the current model, then serves.
 
-   Confirm the new commit as the guide's "Confirm deployments" section describes.
-4. **Replace the demo passwords** as the guide's seeding warning describes. Then set
-   `DJANGO_SEED=false` and save.
-5. **Verify (SC-009)**:
+   Confirm the new commit from the local network, as the guide's "Confirm deployments" section
+   describes.
+5. **Replace the demo passwords** as the guide's seeding warning describes. Set
+   `DJANGO_SEED=false`, save, then make the site reachable again.
+6. **Verify (SC-009)**:
    - the step 1 queries now return the fresh-seed values;
    - `select count(*) from book_book b left join book_bookembedding e on e.book_id = b.id
-     where e.id is null` returns `0`;
+     where e.book_id is null` returns `0`;
    - a search finds each seeded book;
    - `scripts/smoke_stack_budget.py` passes, as in "Measure the stack on the Pi".
-6. **Delete the old volumes** in Portainer (**Volumes**): `library_pgdata` and
+7. **Delete the old volumes** in Portainer (**Volumes**): `library_pgdata` and
    `library_redisdata`. Until then, reverting PR 3 on `main` brings the previous stack back with
    its data. Afterwards, a rollback needs another reset.
 

@@ -125,7 +125,7 @@ single model definition keep local, CI and server builds identical.
 ## Technology & Platform Constraints
 
 - **Runtime**: Python 3.12, Django 5.2 LTS, Django REST Framework, drf-spectacular.
-- **Database**: PostgreSQL 15 with the `vector` extension in both Compose stacks; book
+- **Database**: PostgreSQL 18 with the `vector` extension in both Compose stacks; book
   embeddings are pgvector columns whose dimension follows the configured embedding model.
 - **Background work**: Celery on a Redis-compatible broker, JSON serialization only, `events`
   queue. The web process MUST keep serving pages while the broker is unavailable.
@@ -202,4 +202,4 @@ single model definition keep local, CI and server builds identical.
   or a component in Technology & Platform Constraints changes, so the rules match what is
   actually enforced.
 
-**Version**: 2.1.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-20
+**Version**: 2.2.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-20

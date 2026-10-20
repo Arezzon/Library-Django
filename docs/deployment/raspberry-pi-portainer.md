@@ -26,6 +26,7 @@ need to read any application code.
 - [First deployment checklist](#first-deployment-checklist)
 - [Viewing logs](#viewing-logs)
 - [Backup and restore](#backup-and-restore)
+- [Upgrade to PostgreSQL 18 and Redis 8 (one-time reset)](#upgrade-to-postgresql-18-and-redis-8-one-time-reset)
 - [Turn on automatic updates](#turn-on-automatic-updates)
 - [Make the webhook reachable](#make-the-webhook-reachable)
 - [Create the production GitHub environment](#create-the-production-github-environment)
@@ -104,7 +105,7 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 
 > **Warning: `DB_PASSWORD` is fixed when the database volume is first created.** Changing the
 > variable later does not change the password inside the existing database; the site would
-> fail to connect. To change it, change it in PostgreSQL first, or remove the `pgdata` volume
+> fail to connect. To change it, change it in PostgreSQL first, or remove the `pgdata18` volume
 > (which deletes all data).
 
 > **Warning: `DJANGO_SEED=true` creates demo accounts whose passwords are published in the
@@ -190,8 +191,9 @@ images download and the search vectors are built.
 
 ## Backup and restore
 
-The database lives in the `pgdata` volume and the event queue in `redisdata`. Both survive
-redeploys and reboots. Back up the database regularly:
+The database lives in the `pgdata18` volume and the event queue in `redisdata8`. Both survive
+redeploys and reboots. PostgreSQL 18 keeps its files under `/var/lib/postgresql/18/docker`
+inside that volume. Back up the database regularly:
 
 ```bash
 # Back up (run on the Pi; use your stack's db container name and DB_USER/DB_NAME).
@@ -202,6 +204,57 @@ docker exec -i library-db-1 psql -U postgres -d library_db < library-2026-10-20.
 ```
 
 After a restore, restart `web`: it re-encodes any book vectors that don't match its model.
+
+## Upgrade to PostgreSQL 18 and Redis 8 (one-time reset)
+
+The stack moved from PostgreSQL 15 and Redis 7.4 to PostgreSQL 18 (`pgvector/pgvector:0.8.7-pg18`)
+and Redis 8 (`redis:8.10.2-alpine`). PostgreSQL 18 cannot read PostgreSQL 15 data files, so the
+upgraded services use new, empty volumes (`pgdata18`, `redisdata8`). The site's data is **not
+moved**: it was demo seed data only, so it is dropped and seeded again. The old `pgdata` and
+`redisdata` volumes stay untouched until step 7, so until then reverting the change on `main`
+brings the previous stack back exactly as it was.
+
+The commands assume the stack is called `library`; replace it with your stack name.
+
+1. **Check that the server holds only seed data.** Stop here if it does not.
+
+   ```bash
+   docker exec library-db-1 psql -U postgres -d library_db -At \
+     -c "select email from authentication_customuser order by email"
+   # expect exactly: alice@library.com, bob@library.com, librarian@library.com, reader@library.com
+   docker exec library-db-1 psql -U postgres -d library_db -At \
+     -c "select (select count(*) from author_author), (select count(*) from book_book), (select count(*) from order_order)"
+   # expect: 8|9|3
+   ```
+
+   If another user exists or the counts differ, real data may be present. **Do not continue**;
+   ask the maintainers for a way to carry the data over.
+2. **Before the change is merged**, set `DJANGO_SEED=true` in the stack's environment variables
+   and save. If Portainer redeploys the stack on save, that is harmless: on the current database
+   seeding does nothing, because it skips once users exist.
+3. **Take the site off the internet**, for example by pausing the reverse proxy route or the
+   port forward. Seeding recreates the demo accounts with the passwords published in the
+   README, including a librarian, and they must be replaced before the site is reachable again.
+4. **Merge the change.** The webhook redeploys the stack: `db` starts PostgreSQL 18 on the empty
+   `pgdata18` and `redis` starts on the empty `redisdata8`; `web` runs the migrations, seeds,
+   encodes every book with the current model, then serves. Confirm the new commit as
+   [Confirm deployments](#confirm-deployments) describes, from the local network.
+5. **Replace the demo passwords** as the `DJANGO_SEED` warning in
+   [Environment variables](#environment-variables) describes, set `DJANGO_SEED=false` and save,
+   then make the site reachable again.
+6. **Verify**:
+   - the step 1 queries return the same four emails and `8|9|3`;
+   - this returns `0` (no book without a vector):
+
+     ```bash
+     docker exec library-db-1 psql -U postgres -d library_db -At \
+       -c "select count(*) from book_book b left join book_bookembedding e on e.book_id = b.id where e.book_id is null"
+     ```
+
+   - a search finds the seeded books;
+   - [Measure the stack on the Pi](#measure-the-stack-on-the-pi) passes.
+7. **Delete the old volumes** in Portainer (**Volumes**): `library_pgdata` and
+   `library_redisdata`. After this, rolling back means another reset on the previous images.
 
 ## Turn on automatic updates
 

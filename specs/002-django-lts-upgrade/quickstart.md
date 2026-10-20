@@ -185,7 +185,7 @@ python scripts/smoke_stack_budget.py --compose-file docker-compose-dev.yml --max
 
 ### 4.4 On the Pi (manual, SC-009)
 
-Follow the reset in [contracts/service-images.md](contracts/service-images.md) §Reset, steps 1–6.
+Follow the reset in [contracts/service-images.md](contracts/service-images.md) §Reset, steps 1–7.
 
 **Expected**:
 - the counts equal the §4.1 reference;

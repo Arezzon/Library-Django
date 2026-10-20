@@ -124,8 +124,8 @@ Open <http://localhost:8000>. Compose starts:
 | Service | Purpose | Port |
 | --- | --- | --- |
 | `web` | Django application with Gunicorn | `8000` |
-| `db` | PostgreSQL 15 with pgvector | internal `5432` |
-| `redis` | Celery broker with persistent AOF storage | internal `6379` |
+| `db` | PostgreSQL 18 with pgvector | internal `5432` |
+| `redis` | Celery broker (Redis 8) with persistent AOF storage | internal `6379` |
 | `worker` | Persists activity events from the `events` queue | — |
 
 The first boot waits for PostgreSQL, applies migrations and seeds demo data
@@ -136,6 +136,11 @@ users already exist.
 docker compose -f docker-compose-dev.yml down       # stop the stack
 docker compose -f docker-compose-dev.yml down -v    # stop and delete database/Redis volumes
 ```
+
+The stack keeps its data in the `pgdata18` and `redisdata8` volumes. Stacks
+created before the move to PostgreSQL 18 and Redis 8 start freshly seeded on
+them; the old `<project>_pgdata` and `<project>_redisdata` volumes are no longer
+used and can be removed with `docker volume rm`.
 
 > **Tip:** `docker compose -f docker-compose-dev.yml up --build -d` starts the stack in the background.
 > Use `docker compose -f docker-compose-dev.yml logs -f web worker` to follow application and worker logs.

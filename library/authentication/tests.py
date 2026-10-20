@@ -393,6 +393,51 @@ class PasswordHashUpgradeTests(TestCase):
         )
 
 
+class ComposeServiceImagesTests(SimpleTestCase):
+    """Both stacks run the same exact database and broker releases. PostgreSQL 18
+    images keep their data under /var/lib/postgresql, and the new volumes start the
+    upgraded services on empty data (see the operator guide's one-time reset)."""
+
+    def load(self, name):
+        import yaml
+
+        with open(settings.BASE_DIR.parent / name, encoding="utf-8") as stream:
+            return yaml.safe_load(stream)
+
+    def setUp(self):
+        self.stacks = {
+            name: self.load(name)
+            for name in ("docker-compose.yml", "docker-compose-dev.yml")
+        }
+
+    def test_both_stacks_use_the_same_exact_service_images(self):
+        server, dev = self.stacks.values()
+        for service in ("db", "redis"):
+            self.assertEqual(
+                server["services"][service]["image"],
+                dev["services"][service]["image"],
+            )
+        self.assertRegex(
+            server["services"]["db"]["image"],
+            r"^pgvector/pgvector:\d+\.\d+\.\d+-pg\d+$",
+        )
+        self.assertRegex(
+            server["services"]["redis"]["image"], r"^redis:\d+\.\d+\.\d+-alpine$"
+        )
+
+    def test_services_use_the_new_volumes(self):
+        for name, stack in self.stacks.items():
+            with self.subTest(stack=name):
+                self.assertIn(
+                    "pgdata18:/var/lib/postgresql", stack["services"]["db"]["volumes"]
+                )
+                self.assertIn("redisdata8:/data", stack["services"]["redis"]["volumes"])
+                self.assertIn("pgdata18", stack["volumes"])
+                self.assertIn("redisdata8", stack["volumes"])
+                self.assertNotIn("pgdata", stack["volumes"])
+                self.assertNotIn("redisdata", stack["volumes"])
+
+
 def failing_view(request):
     raise RuntimeError("diagnostic regression")
 
