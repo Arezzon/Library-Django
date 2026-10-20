@@ -64,7 +64,6 @@ jobs:
         runner:
           [
             ubuntu-latest,
-            ubuntu-slim,
             ubuntu-26.04,
             ubuntu-26.04-arm,
             ubuntu-24.04,
