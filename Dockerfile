@@ -68,5 +68,6 @@ ARG APP_COMMIT=unknown
 ENV APP_COMMIT=${APP_COMMIT}
 
 ENTRYPOINT ["/entrypoint.sh"]
-# Production server: gunicorn on the container's default port.
-CMD ["gunicorn", "library.wsgi:application", "--workers", "3", "--timeout", "60", "--bind", "0.0.0.0:8000"]
+# Production server: gunicorn, configured by library/gunicorn.conf.py (workers
+# from WEB_CONCURRENCY, each warmed up with the model).
+CMD ["gunicorn", "library.wsgi:application", "--bind", "0.0.0.0:8000"]
