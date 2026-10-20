@@ -81,8 +81,8 @@ docker compose -f docker-compose-dev.yml exec -T web python manage.py shell -c \
 
   **Expected**: the manifest list contains `linux/amd64` and `linux/arm64`, and a `sha-<short>`
   tag exists. There is no `latest`.
-- **Push a tag `v0.0.0-test`**: the `0.0.0-test` image is published, `main` doesn't move, and
-  `deploy` runs.
+- **Push a tag `v0.0.0-test`**: the `0.0.0-test` image is published, `main` doesn't move,
+  `promote` emits the "Version tags only publish images" notice, and `deploy` is skipped.
 - **Forward-only `main`** (FR-002, FR-019): merge two pull requests quickly, one after the other.
   Re-run the older commit's `promote` job after the newer one has finished. **Expected**: it
   leaves `main` alone (the older build keeps only `sha-<short>`), emits the "newer commit
@@ -128,7 +128,7 @@ sign-off.
 
 ## 6. Automatic redeploy (US2, SC-001, SC-009, FR-036)
 
-1. A repository admin creates the `production` environment, limited to `main` and `v*` tags.
+1. A repository admin creates the `production` environment, limited to the `main` branch.
 2. In that environment, they add the secret `PORTAINER_WEBHOOK_URL` and, if the site is public,
    the variable `SITE_URL`.
 3. Merge a visible text change into `main`.

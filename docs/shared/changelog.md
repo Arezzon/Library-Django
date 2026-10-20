@@ -1,4 +1,8 @@
 2026-10-20
+Deployment hardening follow-ups
+Behind the HTTPS proxy (TRUST_X_FORWARDED_PROTO), session and CSRF cookies are now sent over HTTPS only. Version tags only publish images and no longer redeploy the Raspberry Pi, so the production GitHub environment needs only the main branch. The operator guide adds a step to change seeded demo passwords before the site is reachable from the internet, and a first-deployment check that Portainer's webhook, forced redeploy, image re-pull and failed-pull behaviour work as the setup expects. The spec records the clarifications behind these changes.
+
+2026-10-20
 Raspberry Pi measurements recorded
 Recorded the stack budget check from the first Raspberry Pi 5 deployment in research.md §R1: peak memory 2.45 GiB, search p95 237 ms and book save p95 199 ms with two web workers and two inference threads, all within the 4 GB, 500 ms and 2 s targets. This closes the last task of the Raspberry Pi deployment feature, and the Spec Kit handoff is marked complete.
 

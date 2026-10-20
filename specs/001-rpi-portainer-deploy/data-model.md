@@ -110,7 +110,7 @@ pinned ──(operator clears IMAGE_TAG, redeploys)──▶ following-main
 
 | Attribute | Value |
 |---|---|
-| Environment | `production`. Its deployment rules allow only the `main` branch and `v*` tags; it is created by a repository admin. |
+| Environment | `production`. Its deployment rules allow only the `main` branch, the only ref that deploys; it is created by a repository admin. |
 | Secret `PORTAINER_WEBHOOK_URL` | `https://<public portainer host>/api/stacks/webhooks/<uuid>` (POST). Only the `deploy` job can read it; pull-request runs never can. It is never printed: curl stderr is suppressed, and GitHub masks the value. |
 | Variable `SITE_URL` (optional) | The site's public base URL, e.g. `https://library.example.com`. If set, `deploy` confirms the redeploy through `/api/v1/version/`; if empty, confirmation is skipped with a notice. |
 | Secret absent | The deploy step is skipped with a warning; publishing still succeeds. |

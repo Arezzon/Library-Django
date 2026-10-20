@@ -76,6 +76,10 @@ def env_flag(name, default=False):
 TRUST_X_FORWARDED_PROTO = env_flag("TRUST_X_FORWARDED_PROTO")
 if TRUST_X_FORWARDED_PROTO:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Behind the HTTPS proxy, session and CSRF cookies never travel over plain HTTP.
+# Served directly over HTTP they must stay usable. HSTS is the proxy's job.
+SESSION_COOKIE_SECURE = TRUST_X_FORWARDED_PROTO
+CSRF_COOKIE_SECURE = TRUST_X_FORWARDED_PROTO
 
 # Public origins allowed to submit forms, e.g. https://library.example.com.
 CSRF_TRUSTED_ORIGINS = [

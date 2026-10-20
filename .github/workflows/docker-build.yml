@@ -382,9 +382,11 @@ jobs:
         id: decide
         run: |
           if [ "$GITHUB_REF" != refs/heads/main ]; then
-            # Version tags never touch main; the redeploy keeps the Pi on its reference.
+            # Version tags never touch main and never redeploy: the Pi follows main,
+            # so a tag redeploy would only restart the site. Tags are for pinning.
+            echo "::notice::Version tags only publish images; the server was not redeployed. To run this version, set IMAGE_TAG=${GITHUB_REF_NAME#v} in Portainer."
             echo "move_main=false" >> "$GITHUB_OUTPUT"
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           current=$(docker buildx imagetools inspect "${IMAGE}:main" --format '{{json .Image}}' 2>/dev/null \
@@ -423,18 +425,19 @@ jobs:
 
   # -------------------------------------------------------------------------
   # Deploy: call the Portainer stack webhook so the server pulls the new
-  # images and redeploys. Runs in the `production` environment (main and v*
-  # only), the only place the webhook URL exists, so pull-request runs can
-  # never read it. The URL is never printed, and TLS is always verified.
+  # images and redeploys. Only main pushes deploy; version tags just publish.
+  # Runs in the `production` environment (main only), the only place the
+  # webhook URL exists, so pull-request runs can never read it. The URL is
+  # never printed, and TLS is always verified.
   # -------------------------------------------------------------------------
   deploy:
     needs: promote
     if: needs.promote.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: production
-    # One group for every ref: there is one server and one webhook, so a main
-    # push and a version tag on it must not redeploy the stack at the same
-    # time. A newer pending deploy may replace an older one: the webhook always
+    # One group: there is one server and one webhook, so overlapping main runs
+    # must not redeploy the stack at the same time. A newer pending deploy may
+    # replace an older one: the webhook always
     # redeploys whatever the stack follows, so the last one is enough.
     concurrency:
       group: deploy-production

@@ -71,6 +71,44 @@
   tuning, what should happen? → A: Keep `bge-m3`. First reduce web workers or threads within the
   4 GB budget. If latency still misses, record the measured values and relax SC-010 or SC-011 to
   them, with the user's sign-off.
+- Q: Behind the operator's HTTPS proxy, should the app also send its cookies only over HTTPS and
+  send HSTS? → A: Cookies yes, HSTS no. When proxy HTTPS is trusted, the session and CSRF
+  cookies are HTTPS-only. HSTS belongs to the proxy, which owns the domain, and is out of scope
+  for the app.
+- Q: Are supply-chain checks beyond the current ones required, such as image signing or model
+  checksums? → A: No, out of scope. The pinned model revision and the project's own registry
+  are enough.
+- Q: Should repeated webhook calls by someone holding the URL be limited? → A: No. The risk is
+  accepted, since a call causes only a short restart. The guide must cover rotating a leaked
+  URL.
+- Q: Should the background worker report health in Portainer like the web service? → A: No.
+  Crash restarts and durable queues are enough; worker health is a deliberate scope limit.
+- Q: How should database backups work on the Pi? → A: Manually, with the guide's commands. The
+  guide recommends a regular backup and one before merging a change that adds migrations.
+- Q: Should the operator be able to turn on debug mode on the Pi server? → A: Yes, but it is off
+  by default and on only for the exact value `True`; the guide warns never to enable it on a
+  public site.
+- Q: If demo seeding is on for an internet-facing site, what must happen to the seeded accounts?
+  → A: The guide must tell the operator to change or delete their passwords before the site is
+  reachable from the internet.
+- Q: How are "live on the Pi" (SC-001) and "site unavailable" (SC-009) measured? → A: Through
+  the version endpoint. Live means it reports the merged commit, timed from the merge.
+  Unavailability runs from the first failed request to the first successful one, polling every
+  5 seconds.
+- Q: Must the 2-second save limit (SC-011) hold under concurrent searches? → A: No, it is
+  measured on an otherwise idle stack; SC-012's memory check covers concurrency.
+- Q: How must the server stack pin its upstream database and Redis images? → A: Explicit version
+  tags, never `latest`. The database image pins its PostgreSQL major and pgvector versions
+  exactly; Redis may follow patch releases within its minor version.
+- Q: When a version tag is pushed, should the pipeline still redeploy the Pi? → A: No. Tags only
+  publish versioned images to pin to; redeploys come only from `main`, so the `production`
+  environment allows only `main`. This supersedes the earlier answers that ran deployment and
+  the `production` environment on version tags too.
+- Q: Who may change the search evaluation set, and within what limits? → A: Anyone, through normal
+  pull-request review with a stated reason. The set may grow but keeps at least 18 queries in
+  English and Ukrainian, and every query must still rank its expected book first.
+- Q: Should the Portainer behaviours the deployment depends on be listed as assumptions to
+  confirm? → A: Yes, as assumptions, and the guide's first-deployment checklist confirms them.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -141,8 +179,8 @@ triggered.
 3. **Given** a pull request to `main`, **When** its pipeline runs, **Then** lint and the smoke
    test run on both architectures, but no image is published and the Pi is not redeployed.
 4. **Given** a version tag is pushed, **When** lint and the smoke test pass on both
-   architectures, **Then** images are published under that version and the redeploy is triggered.
-   The Pi keeps following the reference it is set to, the newest `main` build unless pinned.
+   architectures, **Then** images are published under that version, and no redeploy is
+   triggered. The Pi keeps running what it runs, and the operator can pin the new version.
 5. **Given** a push to any branch other than `main`, without a pull request to `main`, **Then**
    no pipeline runs.
 6. **Given** two merges into `main` close together, **When** both pipelines finish, **Then** the
@@ -250,8 +288,7 @@ the model.
   "latest `main`" reference back. A newer commit whose pipeline fails doesn't stop the last
   successful build from being published and deployed (FR-002, FR-019).
 - **Version tag on an older commit**: the build publishes that version's reference only. The
-  "latest `main`" reference does not move back, and the redeploy it triggers leaves the Pi on the
-  reference it follows.
+  "latest `main`" reference does not move back, and no redeploy is triggered.
 - **Server-file mistake that passes the validity check**, such as a broken health check: CI
   smoke-tests only `docker-compose-dev.yml`, so the mistake surfaces on the Pi. The web service
   shows as unhealthy, and the operator rolls back by pinning (User Story 3).
@@ -303,9 +340,10 @@ the model.
   point to the newest successful `main` build, and it MUST only move forward in `main`'s history.
   A build may move it only if the commit currently under it is an ancestor of the build's commit.
   A version-tag build MUST NOT move it.
-- **FR-003**: The publishing image build, the push to the registry and the deployment trigger
-  MUST run only after lint and the smoke test pass on both architectures, and only for pushes to
-  `main` and version tags. Pull requests MUST NOT publish images or trigger deployment. The
+- **FR-003**: The publishing image build and the push to the registry MUST run only after lint
+  and the smoke test pass on both architectures, and only for pushes to `main` and version tags.
+  The deployment trigger MUST run only for pushes to `main`. Pull requests MUST NOT publish
+  images or trigger deployment. The
   publishing build MUST also run on native runners for each architecture.
 - **FR-004**: Lint and the full smoke test MUST run on pushes to `main`, on version tags and on
   pull requests to `main`. Pushes to other branches start no pipeline. The smoke test MUST run on
@@ -319,7 +357,9 @@ the model.
 
 - **FR-006**: `docker-compose.yml` at the repository root MUST be the server stack definition. It
   runs the web app, background worker, database and message broker from published or upstream
-  images only, with no build step and no source-code mounts. Local development moves to
+  images only, with no build step and no source-code mounts. Upstream images MUST use explicit
+  version tags, never `latest`: the database image pins its PostgreSQL major and pgvector
+  versions exactly, and the broker may follow patch releases within its minor version. Local development moves to
   `docker-compose-dev.yml` (FR-025).
 - **FR-007**: Portainer Business Edition MUST be able to deploy the stack definition as a Git
   repository stack on the Portainer host's local Docker environment (no Edge agent). The stack may
@@ -330,7 +370,8 @@ the model.
   hostnames, published port, demo seeding and image version. They also include optional settings:
   trusting the proxy's HTTPS header, trusted origins, web worker count, inference threads, and
   the image repository for forks. The definition MUST refuse to start when a required secret is
-  missing.
+  missing. Debug mode MUST be off unless the operator sets it to exactly `True`, and the guide
+  MUST warn never to enable it on a site reachable from the internet.
 - **FR-009**: Database and message broker data MUST persist across redeploys, image updates and
   host reboots.
 - **FR-010**: Every service MUST restart automatically after a crash or a host reboot.
@@ -338,24 +379,32 @@ the model.
   the newest `main` build. Pinning and unpinning MUST need only Portainer configuration, with no
   repository change.
 - **FR-012**: The web service MUST report itself healthy only once it serves requests, so a
-  failed redeploy is visible in Portainer.
+  failed redeploy is visible in Portainer. The background worker has no health check, by
+  design: it restarts after a crash (FR-010), and queued events wait until it processes them
+  (SC-004).
 - **FR-013**: Demo seeding MUST be off by default on the server stack and enabled only by the
   operator, because the seeded accounts, including a librarian, have publicly documented
-  passwords.
+  passwords. The guide MUST tell the operator to change or delete those accounts' passwords
+  before the site is reachable from the internet.
 - **FR-014**: Through configuration alone, the site MUST work both when served directly on the
   local network over HTTP and behind an operator-provided HTTPS reverse proxy or tunnel. Behind
-  a proxy it must treat forwarded HTTPS requests as secure and accept the configured hostnames.
-  This replaces the current Render-only proxy handling.
+  a proxy it must treat forwarded HTTPS requests as secure and accept the configured hostnames,
+  and its session and CSRF cookies MUST then be sent over HTTPS only. Served directly over HTTP,
+  cookies keep working. HSTS is left to the proxy and is out of scope for the app. This replaces
+  the current Render-only proxy handling.
 
 **Deployment trigger**
 
-- **FR-015**: After every architecture variant of a `main` or version-tag build is published
-  (which happens only once FR-004 passes), the pipeline MUST call the Portainer stack webhook so
-  that the server pulls the new images and redeploys.
+- **FR-015**: After every architecture variant of a `main` build is published (which happens
+  only once FR-004 passes), the pipeline MUST call the Portainer stack webhook so that the server
+  pulls the new images and redeploys. Version-tag builds MUST NOT call the webhook; they only
+  publish images the operator can pin to.
 - **FR-016**: The webhook address MUST be stored only as a secret of a GitHub Environment
-  (`production`) whose deployment rules allow only the `main` branch and `v*` tags. Only the
+  (`production`) whose deployment rules allow only the `main` branch. Only the
   deploy job may use that environment, so pull-request runs can't read the address. It MUST NOT
-  be committed or shown in logs, because anyone holding it can trigger a redeploy.
+  be committed or shown in logs, because anyone holding it can trigger a redeploy. Repeated calls
+  are not rate-limited: each one causes at most a short restart (SC-009), and that risk is
+  accepted. A leaked URL is handled by rotation (FR-021).
 - **FR-017**: If the webhook secret is not configured, the pipeline MUST skip the trigger with a
   visible warning and MUST still publish the images.
 - **FR-018**: If the webhook call fails because it is unreachable, times out or returns a
@@ -387,14 +436,18 @@ the model.
   their local filesystem path, if the stack uses them); every required and optional
   environment value and how to generate the secrets; enabling GitOps updates with the webhook
   mechanism, "Re-pull image" and "Force redeployment"; creating the `production` GitHub
-  Environment, restricted to `main` and `v*` tags, and saving the webhook URL as its secret and
+  Environment, restricted to the `main` branch, and saving the webhook URL as its secret and
   the optional public site address as its variable, including who needs which repository
   permission; checking from outside
   the local network that the webhook answers over HTTPS with a trusted certificate, and the
   recommendation to expose only the stack webhook path publicly while keeping the Portainer login
-  page off the internet; a first-deployment verification checklist; pinning, rollback
+  page off the internet; a first-deployment verification checklist, which also confirms the
+  Portainer behaviours listed under Assumptions; pinning, rollback
   and unpinning, including the backfill step after rolling back to an image built before this
-  feature; viewing logs; backing up and restoring the database; and decommissioning the
+  feature; rotating a leaked webhook URL by regenerating it in Portainer and replacing the
+  `production` secret; viewing logs; backing up and restoring the database by hand, with a
+  recommendation to back up regularly and before merging a change that adds migrations (there
+  is no automatic backup); and decommissioning the
   Render services after the Pi is verified.
 - **FR-022**: The guide MUST separate the steps the repository change already provides from the
   steps the operator performs on the Pi, in Portainer, in GitHub settings and in Render.
@@ -458,7 +511,9 @@ the model.
   also work outside the image build, for example to pre-fetch the model for local development.
 - **FR-032**: Search quality MUST be checked against a fixed evaluation set: English and Ukrainian
   queries, including cross-language ones, each with its expected books from the seed catalog. CI
-  MUST run the set with the real model on both architectures.
+  MUST run the set with the real model on both architectures. Changes to the set go through
+  normal pull-request review with a stated reason. The set may grow, but MUST keep at least 18
+  queries covering both languages, and every query MUST rank its expected book first.
 
 ### Key Entities
 
@@ -483,7 +538,8 @@ the model.
 ### Measurable Outcomes
 
 - **SC-001**: A change merged into `main` that passes the checks is live on the Pi within 30
-  minutes of the merge, with no manual action.
+  minutes of the merge, with no manual action. "Live" means the site's version response
+  (FR-035) reports the merged commit; the 30 minutes start when the merge lands on `main`.
 - **SC-002**: No redeploy builds an image on the Pi; every update uses published images.
 - **SC-003**: An operator who knows Docker and Portainer but not this project completes
   first-time setup from the guide in under 60 minutes without reading application code.
@@ -499,11 +555,12 @@ the model.
 - **SC-008**: No secret value or webhook address appears in the repository, the published images
   or the pipeline logs.
 - **SC-009**: During a routine automatic redeploy that does not change the embedding model, the
-  site is unavailable for less than 2 minutes.
+  site is unavailable for less than 2 minutes, measured by polling the version response
+  (FR-035) every 5 seconds from the first failed request to the first successful one.
 - **SC-010**: On the Raspberry Pi 5, 95% of semantic searches return results in under 500 ms on
   a catalog of up to 1,000 books.
 - **SC-011**: On the Raspberry Pi 5, saving a book, including generating its embedding, takes
-  under 2 seconds.
+  under 2 seconds, measured on an otherwise idle stack. Concurrent load is covered by SC-012.
 - **SC-012**: On the Raspberry Pi 5, the whole stack (web, background worker, database and
   broker) uses no more than 4 GB of memory in total. This includes peak load, with searches and
   book saves running in every web worker.
@@ -543,8 +600,15 @@ the model.
   adds the webhook secret to it. The guide names this step explicitly, because the operator may
   not be the repository owner.
 - Lint, and the full smoke test on both x86-64 and ARM64, are the gate for publishing.
+- The design relies on these Portainer Business Edition behaviours, confirmed by the guide's
+  first-deployment checklist: the stack webhook accepts a `POST`; with "Force redeployment" on,
+  a call redeploys even without a new commit; with "Re-pull image" on, it fetches the moved
+  `main` image; and a failed image pull leaves the previous containers running.
 - Cleaning up old images in the registry and on the Pi is out of scope. The guide may mention
   pruning.
+- Supply-chain checks beyond the current ones are out of scope: no image signing, digest pinning
+  on the Pi or model checksums. The model is pinned to an exact revision, which identifies its
+  files by content (FR-029), and images come only from the project's own registry, pushed by CI.
 - Constitution v1.0.0 required the Render deployment, and named the `multilingual-e5-small`
   model and 384-dimension vectors. It was amended to v2.0.0 on 2026-10-20 to describe the
   Raspberry Pi deployment, multi-architecture images and the single model setting, so this

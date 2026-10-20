@@ -12,66 +12,105 @@ contracts, before `/speckit-tasks`.
 
 ## Requirement Completeness
 
-- [ ] CHK001 - Is it specified what the pipeline reports when the webhook returns 2xx but the redeploy on the Pi then fails (image pull error, unhealthy web)? Without that, "trigger accepted" and "deployed" mean the same thing. [Gap, Spec §FR-018, §SC-006]
-- [ ] CHK002 - Is it specified how maintainers learn that an automatic redeploy left the Pi unhealthy, or is monitoring explicitly out of scope? [Gap, Spec §FR-012, §US3]
-- [ ] CHK003 - Are rotation steps for a leaked webhook URL specified, such as regenerating it in Portainer and replacing the repository secret? [Gap, Spec §FR-016, §FR-021]
-- [ ] CHK004 - Is it specified which workflow runs may read the webhook secret, for example only `main` and tag pushes and not pull-request runs from branches in the same repository? [Gap, Security, Spec §FR-016]
-- [ ] CHK005 - Are health requirements defined for the background worker, or is health for the web service only (FR-012) a deliberate scope limit? [Gap, Spec §FR-012]
-- [ ] CHK006 - Are backup expectations specified beyond "the guide covers backup and restore": when backups happen, how often, and whether they come before redeploys that run migrations? [Gap, Recovery, Spec §FR-021]
-- [ ] CHK007 - Does the spec say whether the upstream images (database, broker) must be pinned to exact versions, in line with the project's pinning rules? [Gap, Spec §FR-006, Constitution §VI]
-- [ ] CHK008 - Is it specified who owns the fixed evaluation set and how it may change: its size, its language split, and who may change expected results? [Completeness, Spec §FR-032]
-- [ ] CHK009 - Is a path defined for when `bge-m3` misses SC-010 to SC-012 even after the allowed tuning, now that the fallback model is gone? [Gap, Recovery, Spec §FR-027, §FR-028]
+- [x] CHK001 - Is it specified what the pipeline reports when the webhook returns 2xx but the redeploy on the Pi then fails (image pull error, unhealthy web)? Without that, "trigger accepted" and "deployed" mean the same thing. [Gap, Spec §FR-018, §SC-006]
+  - **Review (2026-10-20):** FR-036 and the edge case "Redeploy triggered but not confirmed": with `SITE_URL` the run fails after 15 minutes; without it, a visible notice.
+- [x] CHK002 - Is it specified how maintainers learn that an automatic redeploy left the Pi unhealthy, or is monitoring explicitly out of scope? [Gap, Spec §FR-012, §US3]
+  - **Review (2026-10-20):** FR-036 fails the run when the redeploy isn't confirmed, and US3-4 shows web as unhealthy in Portainer. Monitoring beyond that is not required.
+- [x] CHK003 - Are rotation steps for a leaked webhook URL specified, such as regenerating it in Portainer and replacing the repository secret? [Gap, Spec §FR-016, §FR-021]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): FR-021 now requires the guide to cover rotation: regenerate the webhook in Portainer, then replace the `production` secret.
+- [x] CHK004 - Is it specified which workflow runs may read the webhook secret, for example only `main` and tag pushes and not pull-request runs from branches in the same repository? [Gap, Security, Spec §FR-016]
+  - **Review (2026-10-20):** FR-016: only the deploy job, through the `production` environment limited to `main` and `v*`; pull-request runs can't read it.
+- [x] CHK005 - Are health requirements defined for the background worker, or is health for the web service only (FR-012) a deliberate scope limit? [Gap, Spec §FR-012]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): FR-012 states the worker has no health check by design; crash restarts (FR-010) and durable queues (SC-004) cover it.
+- [x] CHK006 - Are backup expectations specified beyond "the guide covers backup and restore": when backups happen, how often, and whether they come before redeploys that run migrations? [Gap, Recovery, Spec §FR-021]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): FR-021 now has manual backups, recommended regularly and before merging a change that adds migrations, with no automatic backup.
+- [x] CHK007 - Does the spec say whether the upstream images (database, broker) must be pinned to exact versions, in line with the project's pinning rules? [Gap, Spec §FR-006, Constitution §VI]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): FR-006 requires explicit version tags, never `latest`, with PostgreSQL major and pgvector pinned exactly and Redis allowed patch releases.
+- [x] CHK008 - Is it specified who owns the fixed evaluation set and how it may change: its size, its language split, and who may change expected results? [Completeness, Spec §FR-032]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): FR-032 requires pull-request review with a stated reason, at least 18 queries in both languages, and every query ranking its expected book first.
+- [x] CHK009 - Is a path defined for when `bge-m3` misses SC-010 to SC-012 even after the allowed tuning, now that the fallback model is gone? [Gap, Recovery, Spec §FR-027, §FR-028]
+  - **Review (2026-10-20):** FR-027's fallback path (reduce workers or threads, then relax SC-010/SC-011 with sign-off), confirmed in the 2026-10-20 clarification.
 
 ## Requirement Clarity
 
-- [ ] CHK010 - Is the purpose of redeploying on version-tag pushes stated? The Pi follows the `main` reference unless pinned, so a tag redeploy normally changes nothing. [Clarity, Spec §US2, §FR-015]
-- [ ] CHK011 - Is "nothing specific to one CPU architecture" defined with concrete criteria, such as file naming, quantization tuned for one instruction set, and dependencies available on only one platform? [Clarity, Spec §FR-026]
-- [ ] CHK012 - Is the scope of "No other code or build file may hard-code it" defined: do tests, Compose files, the CI workflow and documentation count? [Clarity, Spec §FR-030]
-- [ ] CHK013 - Does SC-001 define "live on the Pi" as an observable event, such as the new image running with web healthy, and define the start of the 30 minutes (merge time or pipeline start)? [Clarity, Spec §SC-001]
-- [ ] CHK014 - Does SC-010 say whether its 500 ms is measured on the server or end to end, whether the model is already loaded, and how many searches run at once? [Clarity, Spec §SC-010]
-- [ ] CHK015 - Does SC-011 say whether its 2-second save time applies to an idle stack or while searches run at the same time? [Clarity, Spec §SC-011]
-- [ ] CHK016 - Is SC-012's "every web worker" tied to a defined number of workers, given that the operator can change the count? [Clarity, Spec §SC-012, contracts/server-stack.md]
-- [ ] CHK017 - Is keeping the Portainer login page off the internet a requirement, or only a recommendation the operator may ignore? [Clarity, Spec §FR-020, §FR-021]
-- [ ] CHK018 - Is "treat forwarded HTTPS requests as secure" complete: are secure-cookie and HSTS expectations behind the HTTPS proxy specified or explicitly excluded? [Clarity, Gap, Spec §FR-014]
+- [x] CHK010 - Is the purpose of redeploying on version-tag pushes stated? The Pi follows the `main` reference unless pinned, so a tag redeploy normally changes nothing. [Clarity, Spec §US2, §FR-015]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): tag pushes no longer redeploy (FR-003, FR-015, US2-4); they only publish images to pin to.
+- [x] CHK011 - Is "nothing specific to one CPU architecture" defined with concrete criteria, such as file naming, quantization tuned for one instruction set, and dependencies available on only one platform? [Clarity, Spec §FR-026]
+  - **Review (2026-10-20):** FR-026 names instruction-set files (AVX2, AVX-512 VNNI), and the edge case also excludes dependencies tuned for one CPU family.
+- [x] CHK012 - Is the scope of "No other code or build file may hard-code it" defined: do tests, Compose files, the CI workflow and documentation count? [Clarity, Spec §FR-030]
+  - **Review (2026-10-20):** FR-030 lists the image build, runtime loading, vector tag, search checks, backfill command, CI and tests; documentation isn't a "code or build file".
+- [x] CHK013 - Does SC-001 define "live on the Pi" as an observable event, such as the new image running with web healthy, and define the start of the 30 minutes (merge time or pipeline start)? [Clarity, Spec §SC-001]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): SC-001 defines "live" as the version response (FR-035) reporting the merged commit, timed from the merge.
+- [x] CHK014 - Does SC-010 say whether its 500 ms is measured on the server or end to end, whether the model is already loaded, and how many searches run at once? [Clarity, Spec §SC-010]
+  - **Review (2026-10-20):** FR-028 requires the stack budget check, and R8 defines it: warm-up, then concurrent end-to-end searches from `WEB_CONCURRENCY` clients.
+- [x] CHK015 - Does SC-011 say whether its 2-second save time applies to an idle stack or while searches run at the same time? [Clarity, Spec §SC-011]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): SC-011 is measured on an otherwise idle stack, and SC-012 covers concurrent load.
+- [x] CHK016 - Is SC-012's "every web worker" tied to a defined number of workers, given that the operator can change the count? [Clarity, Spec §SC-012, contracts/server-stack.md]
+  - **Review (2026-10-20):** FR-028 records the worker count used, and the budget check's client count defaults to `WEB_CONCURRENCY`.
+- [x] CHK017 - Is keeping the Portainer login page off the internet a requirement, or only a recommendation the operator may ignore? [Clarity, Spec §FR-020, §FR-021]
+  - **Review (2026-10-20):** FR-021 calls it a recommendation, and the Assumptions make securing the address the operator's job.
+- [x] CHK018 - Is "treat forwarded HTTPS requests as secure" complete: are secure-cookie and HSTS expectations behind the HTTPS proxy specified or explicitly excluded? [Clarity, Gap, Spec §FR-014]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): FR-014 now requires HTTPS-only session and CSRF cookies behind the proxy; HSTS is left to the proxy and out of scope.
 
 ## Requirement Consistency
 
-- [ ] CHK019 - Do FR-002 ("newest successful `main` build") and FR-019 ("newest commit") agree when the newest commit's pipeline fails? Does the contract's check that the run's commit is still the head of `main` satisfy both, or does it leave `main` on an even older build? [Conflict, Spec §FR-002, §FR-019, contracts/ci-pipeline.md]
-- [ ] CHK020 - Is the model named consistently? The spec names `BAAI/bge-m3`, while the setting and the stored vector tag use the community repository that hosts the int8 file, `Xenova/bge-m3`. [Consistency, Spec §FR-027, data-model.md §2]
-- [ ] CHK021 - Does FR-008's list of Portainer settings match the server-stack contract? The contract adds `TRUST_X_FORWARDED_PROTO`, `CSRF_TRUSTED_ORIGINS`, `IMAGE_REPOSITORY`, `WEB_CONCURRENCY` and `BOOK_EMBEDDING_THREADS`. [Consistency, Spec §FR-008, contracts/server-stack.md]
-- [ ] CHK022 - Is the "Published image version" entity ("one `main` build") consistent with FR-002, which also publishes version-tag images? [Consistency, Spec §Key Entities, §FR-002]
-- [ ] CHK023 - Has the spec's assumption that retiring Render conflicts with the constitution been updated now that constitution v2.0.0 is ratified? [Consistency, Spec §Assumptions, Constitution v2.0.0]
-- [ ] CHK024 - Are SC-009's 2-minute limit and Force redeployment consistent, given that every webhook call restarts the stack, including tag runs where nothing changed? [Consistency, Spec §SC-009, §US2, contracts/server-stack.md]
-- [ ] CHK025 - Are the contract's 15-minute health start period and US3's "shows as unhealthy" consistent, and is a maximum time before a failed redeploy shows as unhealthy specified? [Consistency, Spec §US3, §SC-014, contracts/server-stack.md]
+- [x] CHK019 - Do FR-002 ("newest successful `main` build") and FR-019 ("newest commit") agree when the newest commit's pipeline fails? Does the contract's check that the run's commit is still the head of `main` satisfy both, or does it leave `main` on an even older build? [Conflict, Spec §FR-002, §FR-019, contracts/ci-pipeline.md]
+  - **Review (2026-10-20):** Resolved by the forward-only clarification: FR-002 and FR-019 both use the ancestor rule, and the contract implements it, not a head-of-`main` check.
+- [x] CHK020 - Is the model named consistently? The spec names `BAAI/bge-m3`, while the setting and the stored vector tag use the community repository that hosts the int8 file, `Xenova/bge-m3`. [Consistency, Spec §FR-027, data-model.md §2]
+  - **Review (2026-10-20):** FR-027 states that `BAAI/bge-m3` names the model, while the setting and stored tag name the `Xenova/bge-m3` repository.
+- [x] CHK021 - Does FR-008's list of Portainer settings match the server-stack contract? The contract adds `TRUST_X_FORWARDED_PROTO`, `CSRF_TRUSTED_ORIGINS`, `IMAGE_REPOSITORY`, `WEB_CONCURRENCY` and `BOOK_EMBEDDING_THREADS`. [Consistency, Spec §FR-008, contracts/server-stack.md]
+  - **Review (2026-10-20):** FR-008 now lists the proxy header, trusted origins, worker count, inference threads and image repository.
+- [x] CHK022 - Is the "Published image version" entity ("one `main` build") consistent with FR-002, which also publishes version-tag images? [Consistency, Spec §Key Entities, §FR-002]
+  - **Review (2026-10-20):** The entity now reads "one `main` or version-tag build".
+- [x] CHK023 - Has the spec's assumption that retiring Render conflicts with the constitution been updated now that constitution v2.0.0 is ratified? [Consistency, Spec §Assumptions, Constitution v2.0.0]
+  - **Review (2026-10-20):** The Assumptions record the amendment to constitution v2.0.0 on 2026-10-20.
+- [x] CHK024 - Are SC-009's 2-minute limit and Force redeployment consistent, given that every webhook call restarts the stack, including tag runs where nothing changed? [Consistency, Spec §SC-009, §US2, contracts/server-stack.md]
+  - **Review (2026-10-20):** SC-009 bounds every routine automatic redeploy, forced ones included, so a forced tag redeploy is held to the same 2 minutes.
+- [x] CHK025 - Are the contract's 15-minute health start period and US3's "shows as unhealthy" consistent, and is a maximum time before a failed redeploy shows as unhealthy specified? [Consistency, Spec §US3, §SC-014, contracts/server-stack.md]
+  - **Review (2026-10-20):** The server-stack contract: web turns unhealthy after the 15-minute start period plus 3 failed checks, which is the maximum.
 
 ## Acceptance Criteria Quality
 
-- [ ] CHK026 - Is SC-013's baseline fixed (the current model's 18/18 on the seed set), so the criterion stays measurable once the current model is removed from the project? [Measurability, Spec §SC-013, research.md §R1]
-- [ ] CHK027 - Can SC-007's "behaves as it did on Render" still be measured once Render is shut down, and does it allow for search results changing with the new model? [Measurability, Spec §SC-007]
-- [ ] CHK028 - Does SC-009 define the start and end of the unavailability window and how it is measured? [Measurability, Spec §SC-009]
-- [ ] CHK029 - Does FR-028's "measure on Pi 5-class hardware" have a point where it counts as met, given the plan records only estimates for the Pi and leaves confirmation to rollout? [Conflict, Spec §FR-028, research.md §R1]
+- [x] CHK026 - Is SC-013's baseline fixed (the current model's 18/18 on the seed set), so the criterion stays measurable once the current model is removed from the project? [Measurability, Spec §SC-013, research.md §R1]
+  - **Review (2026-10-20):** R1 and R9 record the current model's 18/18 on the seed set, and the CI test asserts 18/18.
+- [x] CHK027 - Can SC-007's "behaves as it did on Render" still be measured once Render is shut down, and does it allow for search results changing with the new model? [Measurability, Spec §SC-007]
+  - **Review (2026-10-20):** SC-007 lists concrete checks (home page, API docs, schema, search returning results) that don't need Render and allow different results.
+- [x] CHK028 - Does SC-009 define the start and end of the unavailability window and how it is measured? [Measurability, Spec §SC-009]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): SC-009 is measured by polling the version response every 5 seconds, from the first failed request to the first successful one.
+- [x] CHK029 - Does FR-028's "measure on Pi 5-class hardware" have a point where it counts as met, given the plan records only estimates for the Pi and leaves confirmation to rollout? [Conflict, Spec §FR-028, research.md §R1]
+  - **Review (2026-10-20):** FR-028: complete only when the Pi measurements meet SC-010 to SC-012 or the targets are relaxed. Met on 2026-10-20 (research §R1).
 
 ## Scenario Coverage
 
-- [ ] CHK030 - Are rollback requirements defined for rolling back to an image older than this feature? Such an image has no startup re-encoding, so its search would ignore every `bge-m3` vector. [Gap, Recovery, Spec §US3, §FR-034]
-- [ ] CHK031 - Are requirements defined for a webhook call that arrives while Portainer is still redeploying after an earlier call? [Gap, Exception Flow, Spec §FR-015, §FR-019]
-- [ ] CHK032 - Is it specified, outside the parenthetical in US2, that an automatic redeploy keeps a pinned stack pinned? [Coverage, Spec §FR-011, §US2, §US3]
+- [x] CHK030 - Are rollback requirements defined for rolling back to an image older than this feature? Such an image has no startup re-encoding, so its search would ignore every `bge-m3` vector. [Gap, Recovery, Spec §US3, §FR-034]
+  - **Review (2026-10-20):** Edge case "Rollback to an image built before this feature", the clarification, and FR-021's backfill step.
+- [x] CHK031 - Are requirements defined for a webhook call that arrives while Portainer is still redeploying after an earlier call? [Gap, Exception Flow, Spec §FR-015, §FR-019]
+  - **Review (2026-10-20):** The CI contract runs `deploy` in the single `deploy-production` concurrency group, so the pipeline never calls the webhook twice at once.
+- [x] CHK032 - Is it specified, outside the parenthetical in US2, that an automatic redeploy keeps a pinned stack pinned? [Coverage, Spec §FR-011, §US2, §US3]
+  - **Review (2026-10-20):** FR-011, US3-3, the tag edge case and FR-036 all keep a pinned stack pinned.
 
 ## Edge Case Coverage
 
-- [ ] CHK033 - Is the behavior defined for changing `DB_PASSWORD` in Portainer after the database volume already exists? [Edge Case, Gap, Spec §FR-008, contracts/server-stack.md]
-- [ ] CHK034 - Is the repeated-webhook case addressed, since anyone holding the URL can force restarts, either by rate limiting or by explicitly accepting the risk? [Edge Case, Security, Spec §FR-016, §FR-020]
-- [ ] CHK035 - Is the image build's behavior specified if the pinned model revision disappears from the hub, or if the community int8 export is withdrawn? [Edge Case, Dependency, Spec §Edge Cases, §FR-029]
+- [x] CHK033 - Is the behavior defined for changing `DB_PASSWORD` in Portainer after the database volume already exists? [Edge Case, Gap, Spec §FR-008, contracts/server-stack.md]
+  - **Review (2026-10-20):** The server-stack contract says `DB_PASSWORD` is set when the volume is first created, and the guide warns about changing it.
+- [x] CHK034 - Is the repeated-webhook case addressed, since anyone holding the URL can force restarts, either by rate limiting or by explicitly accepting the risk? [Edge Case, Security, Spec §FR-016, §FR-020]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): FR-016 accepts the risk explicitly, with no rate limiting, and relies on rotation (FR-021) for a leaked URL.
+- [x] CHK035 - Is the image build's behavior specified if the pinned model revision disappears from the hub, or if the community int8 export is withdrawn? [Edge Case, Dependency, Spec §Edge Cases, §FR-029]
+  - **Review (2026-10-20):** Edge case "Model download fails during the image build": the build fails and nothing is published.
 
 ## Non-Functional Requirements
 
-- [ ] CHK036 - For a server that deploys automatically, are supply-chain integrity requirements specified (pinning image digests or signing images, checksums for model files), or are they explicitly out of scope? [Gap, Security, Spec §FR-001, §FR-033]
-- [ ] CHK037 - When the operator turns on demo seeding for a public site, is anything required beyond a guide warning about the publicly known librarian login? [Coverage, Security, Spec §FR-013]
-- [ ] CHK038 - Is `DEBUG` on the server stack covered by a requirement, either fail-closed or rejected, rather than only a note in the contract? [Gap, Security, Spec §FR-008, contracts/server-stack.md]
+- [x] CHK036 - For a server that deploys automatically, are supply-chain integrity requirements specified (pinning image digests or signing images, checksums for model files), or are they explicitly out of scope? [Gap, Security, Spec §FR-001, §FR-033]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): the Assumptions declare image signing, digest pinning on the Pi and model checksums out of scope.
+- [x] CHK037 - When the operator turns on demo seeding for a public site, is anything required beyond a guide warning about the publicly known librarian login? [Coverage, Security, Spec §FR-013]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): FR-013 requires the guide to tell the operator to change or delete the seeded accounts' passwords before the site is reachable from the internet.
+- [x] CHK038 - Is `DEBUG` on the server stack covered by a requirement, either fail-closed or rejected, rather than only a note in the contract? [Gap, Security, Spec §FR-008, contracts/server-stack.md]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): FR-008 makes debug mode off unless set to exactly `True`, and requires a guide warning against enabling it on an internet-facing site.
 
 ## Dependencies & Assumptions
 
-- [ ] CHK039 - Are the Portainer behaviors the design depends on recorded as assumptions to confirm during setup? They include the webhook's HTTP method, Force redeployment, Re-pull image, and the previous containers staying up when an image pull fails. [Assumption, Spec §Edge Cases, research.md §R10]
+- [x] CHK039 - Are the Portainer behaviors the design depends on recorded as assumptions to confirm during setup? They include the webhook's HTTP method, Force redeployment, Re-pull image, and the previous containers staying up when an image pull fails. [Assumption, Spec §Edge Cases, research.md §R10]
+  - **Review (2026-10-20):** Resolved by clarification (2026-10-20): the Assumptions list the four Portainer behaviours, and FR-021's first-deployment checklist confirms them.
 
 ## Notes
 
