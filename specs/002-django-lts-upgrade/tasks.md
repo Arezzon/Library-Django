@@ -267,7 +267,7 @@ test assertion changed (SC-008).
   - **A finding that cannot be fixed without a behavior change**: suppress it at that line with `# noqa: <code>`, followed by the reason.
   - **`pyproject.toml`**: change it only if the tools warn about a renamed or removed setting or rule (FR-020).
 - [x] T031 [US4] Run the full suite as in quickstart.md §2.4. Every test passes with no test assertion changed (SC-008).
-- [x] T032 [US4] Finish PR 2:
+- [ ] T032 [US4] Finish PR 2:
   - add a changelog entry at the top of `docs/shared/changelog.md` ("Current lint and format tools": versions, plus "no code changes needed" or a summary of the fixes);
   - commit with the preview-commit skill;
   - open the PR with the preview-pr skill, titled `chore(ci): bump black and ruff to their latest releases`;
