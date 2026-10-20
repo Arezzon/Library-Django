@@ -1,17 +1,15 @@
-"""Local multilingual E5 encoding, shared by book saves and the backfill command."""
+"""Local ONNX encoding for the configured model, shared by book saves, search and
+the backfill command. The model itself is defined in embedding_config.py."""
 
 import hashlib
 import math
 from functools import lru_cache
+from pathlib import Path
 
 from django.conf import settings
 
-MODEL_NAME = "intfloat/multilingual-e5-small"
-SOURCE_REVISION = "614241f622f53c4eeff9890bdc4f31cfecc418b3"
-# Artifact-specific identity fits the existing 40-character database field.
-MODEL_REVISION = hashlib.sha1((SOURCE_REVISION + ":onnx-int8").encode()).hexdigest()
-MODEL_FILE = "onnx/model_qint8_avx512_vnni.onnx"
-DIMENSIONS = 384
+from . import embedding_config
+from .embedding_config import resolve
 
 
 class EmbeddingGenerationError(ValueError):
@@ -19,8 +17,8 @@ class EmbeddingGenerationError(ValueError):
 
 
 def document_text(name, description):
-    """E5 requires a passage prefix, including for non-English documents."""
-    return "passage: " + "\n".join(
+    """The model's document prefix, then the title and description."""
+    return resolve().document_prefix + "\n".join(
         part for part in (name.strip(), description.strip()) if part
     )
 
@@ -30,33 +28,36 @@ def input_hash(text):
 
 
 def normalized_vector(values):
+    dimensions = resolve().dimensions
     vector = [float(value) for value in values]
-    if len(vector) != DIMENSIONS or not all(math.isfinite(value) for value in vector):
-        raise ValueError(f"Expected {DIMENSIONS} finite embedding values.")
+    if len(vector) != dimensions or not all(math.isfinite(value) for value in vector):
+        raise ValueError(f"Expected {dimensions} finite embedding values.")
     norm = math.sqrt(sum(value * value for value in vector))
     if not math.isfinite(norm) or norm == 0:
         raise ValueError("Embedding must have a finite, nonzero norm.")
     return [value / norm for value in vector]
 
 
-class SmallE5Encoder:
-    """Pinned int8 E5, one document at a time, without the FastEmbed model registry."""
+class OnnxEncoder:
+    """One document at a time through ONNX Runtime on CPU, per the model spec."""
 
-    def __init__(self, snapshot):
+    def __init__(self, snapshot, spec, threads):
         import onnxruntime as ort
         from sentencepiece import SentencePieceProcessor
 
+        self.spec = spec
         self.tokenizer = SentencePieceProcessor(
-            model_file=str(snapshot / "onnx/sentencepiece.bpe.model")
+            model_file=str(snapshot / spec.tokenizer_file)
         )
         options = ort.SessionOptions()
-        options.intra_op_num_threads = 1
+        options.intra_op_num_threads = threads
         options.inter_op_num_threads = 1
+        # Arenas trade memory for speed; the server stack has a fixed budget.
         options.enable_cpu_mem_arena = False
         options.enable_mem_pattern = False
-        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         self.session = ort.InferenceSession(
-            str(snapshot / MODEL_FILE),
+            str(snapshot / spec.model_file),
             sess_options=options,
             providers=["CPUExecutionProvider"],
         )
@@ -66,7 +67,8 @@ class SmallE5Encoder:
 
         for text in texts:
             # XLM-R vocabulary offset: BOS=0, EOS=2, unknown=3.
-            pieces = self.tokenizer.encode(text, out_type=int)[:510]
+            pieces = self.tokenizer.encode(text, out_type=int)
+            pieces = pieces[: self.spec.max_tokens - 2]
             ids = [0] + [piece + 1 if piece else 3 for piece in pieces] + [2]
             inputs = {
                 "input_ids": np.asarray([ids], dtype=np.int64),
@@ -77,25 +79,40 @@ class SmallE5Encoder:
                 item.name: inputs[item.name] for item in self.session.get_inputs()
             }
             hidden = self.session.run(None, inputs)[0]
-            mask = np.asarray([1] * len(ids), dtype=np.float32)[None, :, None]
-            pooled = (hidden * mask).sum(axis=1) / mask.sum(axis=1)
-            yield normalized_vector(pooled[0])
+            if self.spec.pooling == "cls":
+                pooled = hidden[0, 0]
+            else:
+                mask = np.asarray([1] * len(ids), dtype=np.float32)[None, :, None]
+                pooled = ((hidden * mask).sum(axis=1) / mask.sum(axis=1))[0]
+            yield normalized_vector(pooled)
 
 
 @lru_cache(maxsize=2)
-def load_embedding_model(offline=False):
-    from pathlib import Path
+def _load_encoder(threads):
+    cache_dir = settings.BOOK_EMBEDDING_CACHE_DIR
+    manifest = embedding_config.read_manifest(cache_dir)
+    if manifest is None:
+        raise RuntimeError(
+            f"No embedding model found in {cache_dir}; "
+            "run python scripts/fetch_embedding_model.py."
+        )
+    spec = resolve()
+    if manifest["tag"] != spec.tag:
+        raise RuntimeError(
+            "The embedding model setting does not match the model in "
+            f"{cache_dir}; see the book.E001 system check."
+        )
+    return OnnxEncoder(Path(manifest["snapshot_path"]), spec, threads)
 
-    from huggingface_hub import snapshot_download
 
-    snapshot = snapshot_download(
-        repo_id=MODEL_NAME,
-        revision=SOURCE_REVISION,
-        cache_dir=str(settings.BOOK_EMBEDDING_CACHE_DIR),
-        local_files_only=offline,
-        allow_patterns=["onnx/sentencepiece.bpe.model", MODEL_FILE],
-    )
-    return SmallE5Encoder(Path(snapshot))
+def load_embedding_model(offline=True, threads=None):
+    """The process's model copy, loaded from the manifest's local snapshot.
+
+    Images ship with their model, so this never contacts the hub; ``offline``
+    is accepted for existing callers and has no effect. Callers share one copy
+    per thread count.
+    """
+    return _load_encoder(threads or embedding_config.threads())
 
 
 def regenerate_book_embedding(book, database):
@@ -106,9 +123,10 @@ def regenerate_book_embedding(book, database):
     """
     from .models import BookEmbedding
 
+    spec = resolve()
     text = document_text(book.name, book.description)
     try:
-        vectors = list(load_embedding_model(offline=False).embed([text], batch_size=1))
+        vectors = list(load_embedding_model().embed([text], batch_size=1))
         if len(vectors) != 1:
             raise ValueError("Expected one embedding.")
         vector = normalized_vector(vectors[0])
@@ -121,7 +139,7 @@ def regenerate_book_embedding(book, database):
         defaults={
             "vector": vector,
             "input_hash": input_hash(text),
-            "model": MODEL_NAME,
-            "model_revision": MODEL_REVISION,
+            "model": spec.repository,
+            "model_revision": spec.tag,
         },
     )

@@ -1,14 +1,10 @@
-"""Bounded semantic retrieval using the existing int8 E5 encoder and pgvector."""
+"""Bounded semantic retrieval with the configured embedding model and pgvector."""
 
 from pgvector.django import CosineDistance
 
 from . import embeddings
-from .embeddings import (
-    MODEL_NAME,
-    MODEL_REVISION,
-    EmbeddingGenerationError,
-    normalized_vector,
-)
+from .embedding_config import resolve
+from .embeddings import EmbeddingGenerationError, normalized_vector
 
 MAX_QUERY_LENGTH = 512
 RESULT_LIMIT = 20
@@ -23,12 +19,13 @@ def validate_query(value):
 
 def search_books(books, query):
     query = validate_query(query)
+    spec = resolve()
     try:
         vector = normalized_vector(
             next(
                 iter(
-                    embeddings.load_embedding_model(offline=False).embed(
-                        ["query: " + query], batch_size=1
+                    embeddings.load_embedding_model().embed(
+                        [spec.query_prefix + query], batch_size=1
                     )
                 )
             )
@@ -40,8 +37,8 @@ def search_books(books, query):
     # Rank in PostgreSQL; never load the catalog vectors into web-process memory.
     return (
         books.filter(
-            embedding__model=MODEL_NAME,
-            embedding__model_revision=MODEL_REVISION,
+            embedding__model=spec.repository,
+            embedding__model_revision=spec.tag,
         )
         .annotate(
             similarity=1.0 - CosineDistance("embedding__vector", vector),

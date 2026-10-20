@@ -45,10 +45,16 @@ if [ "${DJANGO_SEED}" = "true" ]; then
   python seed_db.py
 fi
 
+# Bring stored vectors in line with the image's model before serving traffic.
+# Books that already match are skipped, so a normal start runs no inference;
+# a failure stops startup (set -e) and the next start resumes where it ended.
+echo "Re-encoding stale book embeddings..."
+python manage.py generate_book_embeddings --offline --threads "$(python -c 'import os; print(min(os.cpu_count() or 1, 4))')"
+
 echo "Starting server..."
 
-# Honor Render's $PORT (and any platform that injects it). If the command is
-# gunicorn and no explicit --bind port was given, bind to $PORT (default 8000).
+# Honor $PORT on platforms that inject PORT. If the command is gunicorn and no
+# explicit --bind port was given, bind to $PORT (default 8000).
 PORT="${PORT:-8000}"
 if [ "$#" -gt 0 ] && [ "$(basename "$1")" = "gunicorn" ]; then
   # Only add --bind if not already present in the args.
@@ -57,6 +63,4 @@ if [ "$#" -gt 0 ] && [ "$(basename "$1")" = "gunicorn" ]; then
   fi
 fi
 
-# Tell the Render supervisor that database initialization already completed.
-export LIBRARY_BOOTSTRAPPED=1
 exec "$@"

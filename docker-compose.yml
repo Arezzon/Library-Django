@@ -1,11 +1,13 @@
-# Docker Compose for the Django Library app
-# Services: web (Django + gunicorn/runserver) and db (PostgreSQL)
-# Usage:
-#   cp .env.example .env               # then set SECRET_KEY and DB_PASSWORD
-#   docker compose up --build          # build & run
-#   docker compose up --build -d       # run detached
-#   docker compose down               # stop & remove
-#   docker compose down -v            # also remove the DB volume
+# Server stack for the Django Library app: deployed by Portainer Business
+# Edition as a Git repository stack (see docs/deployment/raspberry-pi-portainer.md).
+# Services: web (Django + gunicorn), worker (Celery), db (PostgreSQL), redis.
+#
+# It runs published multi-architecture images only (linux/amd64, linux/arm64):
+# nothing is built on the server and no source is mounted. Every setting comes
+# from the stack environment; local development uses docker-compose-dev.yml.
+#
+# Without Portainer, on any amd64 or arm64 host:
+#   SECRET_KEY=... DB_PASSWORD=... docker compose -f docker-compose.yml up -d
 
 services:
   db:
@@ -14,7 +16,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-library_db}
       POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env (see .env.example)}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the Portainer stack environment}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -22,38 +24,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    # The Django settings read these env vars directly. Secrets have no
-    # defaults: Compose stops with an error until .env provides them.
-    environment: &app_environment
-      CELERY_BROKER_URL: redis://redis:6379/0
-      DEBUG: ${DEBUG:-False}
-      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (see .env.example)}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
-      DB_ENGINE: django.db.backends.postgresql_psycopg2
-      DB_NAME: ${DB_NAME:-library_db}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env (see .env.example)}
-      DB_HOST: db
-      DB_PORT: 5432
-      DJANGO_SEED: ${DJANGO_SEED:-true}
-      BOOK_EMBEDDING_CACHE_DIR: /app/.cache/book-embeddings
-    ports:
-      - "8000:8000"
-    depends_on:
-      redis:
-        condition: service_healthy
-      db:
-        condition: service_healthy
-    volumes:
-      # Mount app source for live reload when using runserver.
-      # Comment out to use the code baked into the image.
-      - ./library:/app/library
 
   redis:
     image: redis:7.4-alpine
@@ -67,12 +37,52 @@ services:
       timeout: 3s
       retries: 10
 
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  web:
+    # IMAGE_TAG=main follows the newest main build; sha-<short> or <version> pins one.
+    image: ${IMAGE_REPOSITORY:-ghcr.io/arezzon/library-django}:${IMAGE_TAG:-main}
     restart: unless-stopped
-    # Web owns migrations/seeding; the worker executes only committed tasks.
+    # Secrets have no defaults: the deployment stops and names the missing one.
+    # The embedding model ships inside the image; never add BOOK_EMBEDDING_MODEL*
+    # here (a value that differs from the image stops web with the book.E001 check).
+    environment: &app_environment
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in the Portainer stack environment}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+      TRUST_X_FORWARDED_PROTO: ${TRUST_X_FORWARDED_PROTO:-False}
+      DB_ENGINE: django.db.backends.postgresql_psycopg2
+      DB_NAME: ${DB_NAME:-library_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the Portainer stack environment}
+      DB_HOST: db
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      # Demo data has publicly documented passwords; off unless the operator opts in.
+      DJANGO_SEED: ${DJANGO_SEED:-false}
+      # Gunicorn workers (each holds one model copy) and inference threads per worker.
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-3}
+      BOOK_EMBEDDING_THREADS: ${BOOK_EMBEDDING_THREADS:-2}
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Healthy only once Django serves requests; the start period covers
+    # re-encoding every book after an embedding model change.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/version/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15m
+      start_interval: 5s
+
+  worker:
+    image: ${IMAGE_REPOSITORY:-ghcr.io/arezzon/library-django}:${IMAGE_TAG:-main}
+    restart: unless-stopped
+    # Web owns migrations, seeding and re-encoding; the worker only runs queued events.
     entrypoint: ["celery"]
     command: ["-A", "library", "worker", "--loglevel=INFO", "--concurrency=2", "--queues=events"]
     environment: *app_environment
@@ -81,8 +91,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./library:/app/library
 
 volumes:
   pgdata:

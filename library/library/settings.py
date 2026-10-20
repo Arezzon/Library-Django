@@ -49,16 +49,40 @@ BOOK_EMBEDDING_CACHE_DIR = Path(
     )
 )
 
-# Always allow Render's *.onrender.com hosts; merge with any ALLOWED_HOSTS
-# provided via environment (comma-separated). Strip whitespace so a trailing
-# space in a Render env value can't cause Django to reject the host (HTTP 400).
+# Hosts from the environment (comma-separated). Strip whitespace so a trailing
+# space in a value can't make Django reject the host (HTTP 400). localhost and
+# 127.0.0.1 stay allowed for the container health check.
 _allowed = os.getenv("ALLOWED_HOSTS", "")
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip()]
-ALLOWED_HOSTS += [".onrender.com", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
 
-# Render terminates TLS before forwarding requests to the container.
-if os.getenv("RENDER") == "true":
+
+def env_flag(name, default=False):
+    """Read a true/false variable; refuse to start on a value that is neither."""
+    raw = os.getenv(name, "")
+    value = raw.strip().lower()
+    if not value:
+        return default
+    if value in ("true", "1", "yes", "on"):
+        return True
+    if value in ("false", "0", "no", "off"):
+        return False
+    raise ImproperlyConfigured(f"{name} must be True or False, not {raw!r}.")
+
+
+# Behind an HTTPS reverse proxy or tunnel that sets X-Forwarded-Proto, treat
+# forwarded HTTPS requests as secure. Off by default: without such a proxy a
+# client could spoof the header. A typo stops startup instead of leaving it off.
+TRUST_X_FORWARDED_PROTO = env_flag("TRUST_X_FORWARDED_PROTO")
+if TRUST_X_FORWARDED_PROTO:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Public origins allowed to submit forms, e.g. https://library.example.com.
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 # Application definition
 

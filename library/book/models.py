@@ -76,9 +76,8 @@ class Book(models.Model):
         Normal ORM saves, web forms, API and admin all use this path.
         Bulk creation and bulk text writes are rejected by the queryset.
         """
+        from .embedding_config import resolve
         from .embeddings import (
-            MODEL_NAME,
-            MODEL_REVISION,
             document_text,
             input_hash,
             regenerate_book_embedding,
@@ -115,8 +114,8 @@ class Book(models.Model):
             if existing is None or (
                 existing["input_hash"]
                 != input_hash(document_text(current.name, current.description))
-                or existing["model"] != MODEL_NAME
-                or existing["model_revision"] != MODEL_REVISION
+                or existing["model"] != resolve().repository
+                or existing["model_revision"] != resolve().tag
             ):
                 regenerate_book_embedding(current, database)
                 self._state.fields_cache.pop("embedding", None)
@@ -252,7 +251,8 @@ class BookEmbedding(models.Model):  # noqa: DJ008
         related_name="embedding",
         primary_key=True,
     )
-    vector = VectorField(dimensions=384)
+    # Untyped, so the vector size can follow the configured model.
+    vector = VectorField()
     input_hash = models.CharField(max_length=64)
     model = models.CharField(max_length=100)
     model_revision = models.CharField(max_length=40)

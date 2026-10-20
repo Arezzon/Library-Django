@@ -1,9 +1,8 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connections, transaction
 
+from book.embedding_config import resolve, threads
 from book.embeddings import (
-    MODEL_NAME,
-    MODEL_REVISION,
     document_text,
     input_hash,
     load_embedding_model,
@@ -13,7 +12,9 @@ from book.models import Book, BookEmbedding
 
 
 class Command(BaseCommand):
-    help = "Generate local multilingual E5 book embeddings and store them in pgvector."
+    help = (
+        "Generate book embeddings with the configured model and store them in pgvector."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("--book-id", type=int, action="append", dest="book_ids")
@@ -22,7 +23,15 @@ class Command(BaseCommand):
             "--force", action="store_true", help="Regenerate unchanged embeddings."
         )
         parser.add_argument(
-            "--offline", action="store_true", help="Use only cached model files."
+            "--offline",
+            action="store_true",
+            help="Accepted for compatibility; the model always loads from the image.",
+        )
+        parser.add_argument(
+            "--threads",
+            type=int,
+            default=None,
+            help="ONNX Runtime threads (default: BOOK_EMBEDDING_THREADS, or 2).",
         )
         parser.add_argument("--database", default="default")
 
@@ -36,6 +45,11 @@ class Command(BaseCommand):
             )
         if options["batch_size"] <= 0:
             raise CommandError("--batch-size must be positive.")
+        if options["threads"] is None:
+            options["threads"] = threads()
+        if options["threads"] <= 0:
+            raise CommandError("--threads must be positive.")
+        spec = resolve()
         books = Book.objects.using(database).order_by("pk")
         if options["book_ids"] is not None:
             missing = set(options["book_ids"]) - set(
@@ -61,7 +75,9 @@ class Command(BaseCommand):
             nonlocal model, generated, changed
             if model is None:
                 try:
-                    model = load_embedding_model(offline=options["offline"])
+                    model = load_embedding_model(
+                        offline=options["offline"], threads=options["threads"]
+                    )
                 except Exception as error:
                     raise CommandError(
                         f"Cannot load embedding model: {error}"
@@ -102,8 +118,8 @@ class Command(BaseCommand):
                         defaults={
                             "vector": vector,
                             "input_hash": digest,
-                            "model": MODEL_NAME,
-                            "model_revision": MODEL_REVISION,
+                            "model": spec.repository,
+                            "model_revision": spec.tag,
                         },
                     )
                     generated += 1
@@ -117,8 +133,8 @@ class Command(BaseCommand):
                 and existing is not None
                 and (
                     existing.input_hash == digest
-                    and existing.model == MODEL_NAME
-                    and existing.model_revision == MODEL_REVISION
+                    and existing.model == spec.repository
+                    and existing.model_revision == spec.tag
                 )
             ):
                 skipped += 1

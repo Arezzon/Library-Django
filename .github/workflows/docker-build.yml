@@ -2,14 +2,13 @@ name: Docker Build
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main"]
     tags: ["v*"]
   pull_request:
-    branches: ["main", "master"]
+    branches: ["main"]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   # -------------------------------------------------------------------------
@@ -23,7 +22,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -42,26 +41,49 @@ jobs:
         run: black --check --diff .
 
   # -------------------------------------------------------------------------
-  # Smoke test: build with docker compose and verify the app actually serves.
+  # Smoke test: build the image natively on amd64 and arm64, start the
+  # development stack and verify the app on each architecture.
   # Runs on every trigger (including PRs) so broken images never get pushed.
+  # The `smoke-test` job below reports the combined result.
   # -------------------------------------------------------------------------
-  smoke-test:
-    runs-on: ubuntu-latest
+  smoke-test-matrix:
+    name: smoke-test (${{ matrix.runner }})
+    # A cold run takes about 4 minutes; never let a hung leg hold a runner.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          [
+            ubuntu-latest,
+            ubuntu-26.04,
+            ubuntu-26.04-arm,
+            ubuntu-24.04,
+            ubuntu-24.04-arm,
+          ]
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       pull-requests: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Validate Render free deployment
-        run: |
-          python -m pip install PyYAML
-          python scripts/check_render_config.py
-          python -m unittest discover -s scripts -p "test_render_start.py" -v
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
 
       - name: Verify browser tracking logic
         run: node --test scripts/test_tracking_js.cjs
+
+      # The server stack is deployed by Portainer, not started here; check that
+      # it parses. Placeholders stand in for the secrets it requires.
+      - name: Validate the server stack definition
+        env:
+          SECRET_KEY: placeholder
+          DB_PASSWORD: placeholder
+        run: docker compose -f docker-compose.yml config --quiet
 
       # Compose has no default secrets; generate throwaway ones for this run.
       - name: Generate disposable stack secrets
@@ -72,26 +94,40 @@ jobs:
             echo "$name=$value" >> "$GITHUB_ENV"
           done
 
-      - name: Build images with docker compose
-        run: docker compose build
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
 
-      - name: Start stack (web + db) and wait for health
-        run: docker compose up -d --wait
+      - name: Build the image for this architecture
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: library-django:dev
+          build-args: APP_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.runner }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.runner }}
+
+      # Startup takes under 30 s in CI. The healthcheck's 15-minute start period
+      # is for slow hosts; here a stack that is not healthy in 5 minutes is broken.
+      - name: Start the development stack and wait for health
+        env:
+          DJANGO_SEED: "true"
+        run: docker compose -f docker-compose-dev.yml up -d --wait --wait-timeout 300 --no-build
 
       # Without a SECRET_KEY from the runtime environment Django must refuse
       # to start; this also fails if the image bakes in a default key.
       - name: Verify the image ships no default SECRET_KEY
         run: |
-          image=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q web)")
+          image=$(docker inspect --format '{{.Image}}' "$(docker compose -f docker-compose-dev.yml ps -q web)")
           docker run --rm --entrypoint python "$image" -c 'import library.settings' 2>&1 \
             | grep 'ImproperlyConfigured: SECRET_KEY'
 
       # The development source bind mount hides staticfiles collected in the image.
       - name: Collect static files for the mounted source
-        run: docker compose exec -T web python manage.py collectstatic --noinput
+        run: docker compose -f docker-compose-dev.yml exec -T web python manage.py collectstatic --noinput
 
       - name: Run Django regression tests against PostgreSQL
-        run: docker compose exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events --verbosity 2
+        run: docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events --verbosity 2
 
       - name: Wait for the web server to accept connections
         run: |
@@ -110,69 +146,375 @@ jobs:
           curl -fsS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8000/api/docs/
           echo "== /api/schema/ =="
           curl -fsS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8000/api/schema/
+          echo "== /api/v1/version/ (must report this commit) =="
+          curl -fsS http://localhost:8000/api/v1/version/ | grep "${{ github.sha }}"
           echo "== semantic search =="
           curl -fsS "http://localhost:8000/api/v1/books/search/?q=detective"
           echo "== /api/v1/ (API root) =="
           curl -fsS http://localhost:8000/api/v1/
 
       - name: Verify real asynchronous event tracking
-        run: docker compose exec -T web python manage.py smoke_test_tracking
+        run: docker compose -f docker-compose-dev.yml exec -T web python manage.py smoke_test_tracking
 
       - name: Verify event queue survives worker and broker restart
-        run: python scripts/smoke_tracking_recovery.py
+        run: python scripts/smoke_tracking_recovery.py --compose-file docker-compose-dev.yml
 
-      - name: Verify seeded Render service under 512 MiB
-        run: |
-          docker compose stop worker
-          python scripts/smoke_render_free.py
+      # The whole stack must fit the Raspberry Pi budget; memory does not depend
+      # on the CPU, so CI enforces it. Latency is measured on the Pi itself.
+      - name: Verify the stack stays within the 4 GiB memory budget
+        run: python scripts/smoke_stack_budget.py --compose-file docker-compose-dev.yml --max-memory-gib 4
+
+      - name: Show the stack logs
+        if: failure()
+        run: docker compose -f docker-compose-dev.yml logs --no-color --tail 200
 
       - name: Tear down
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose-dev.yml down -v
 
   # -------------------------------------------------------------------------
-  # Build & push the image to GitHub Container Registry.
-  # Only runs after lint and the smoke test pass, and never on pull requests.
+  # The check that branch protection requires. Matrix legs report as
+  # "smoke-test (<runner>)", so this job keeps one stable name whatever the
+  # runner list is. It must run and fail when a leg fails or is cancelled: a
+  # skipped required check counts as passed.
   # -------------------------------------------------------------------------
-  build:
-    needs: [lint, smoke-test]
-    if: github.event_name != 'pull_request'
+  smoke-test:
+    needs: smoke-test-matrix
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # needed to push to GHCR
+      pull-requests: write
+    steps:
+      - name: Require the smoke test to pass on every runner
+        env:
+          RESULT: ${{ needs.smoke-test-matrix.result }}
+        run: |
+          if [ "$RESULT" != success ]; then
+            echo "::error::The smoke test did not pass on every runner (result: ${RESULT})."
+            exit 1
+          fi
+          echo "The smoke test passed on every runner."
 
+  # -------------------------------------------------------------------------
+  # Publish: build each architecture on its own native runner and push it to
+  # GHCR by digest only (no tags yet). Only after lint and both smoke tests
+  # pass, and only for pushes to main and version tags (never pull requests).
+  # -------------------------------------------------------------------------
+  publish:
+    needs: [lint, smoke-test]
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        runner: [ubuntu-26.04, ubuntu-26.04-arm]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write # needed to push to GHCR
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      # GHCR image names must be lowercase; the repository name is not.
+      - name: Resolve the image name
+        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Extract metadata (labels)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=sha,prefix=sha-
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v7
         with:
           context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          build-args: APP_COMMIT=${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.runner }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.runner }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+
+      - name: Upload the digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ matrix.runner }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # -------------------------------------------------------------------------
+  # Merge: combine both digests into one multi-architecture manifest and tag
+  # it sha-<short> (plus the version for v* tags). Not serialized: these tags
+  # belong to this commit alone, and a queued job can be dropped by a newer
+  # run, which would leave this build without its sha- tag.
+  # -------------------------------------------------------------------------
+  merge:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # needed to push to GHCR
+    outputs:
+      tags: ${{ steps.summary.outputs.tags }}
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Resolve the image name
+        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+
+      - name: Create the multi-architecture manifest
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          tags=()
+          while read -r tag; do
+            [ -n "$tag" ] && tags+=(-t "$tag")
+          done <<< "${{ steps.meta.outputs.tags }}"
+          digests=()
+          for digest in *; do
+            digests+=("${IMAGE}@sha256:${digest}")
+          done
+          docker buildx imagetools create "${tags[@]}" "${digests[@]}"
+
+      - name: Verify both architectures are published
+        run: |
+          platforms=$(docker buildx imagetools inspect "${IMAGE}:sha-${GITHUB_SHA::7}" --format '{{json .Manifest}}' \
+            | jq -r '.manifests[].platform | "\(.os)/\(.architecture)"')
+          echo "$platforms"
+          grep -qx linux/amd64 <<< "$platforms"
+          grep -qx linux/arm64 <<< "$platforms"
+
+      - name: Summarize the published tags
+        id: summary
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          list=""
+          while read -r tag; do
+            [ -n "$tag" ] && list="${list:+$list, }${tag##*:}"
+          done <<< "$TAGS"
+          echo "tags=$list" >> "$GITHUB_OUTPUT"
+
+  # -------------------------------------------------------------------------
+  # Promote: point `main` at this build. `main` only moves forward in main's
+  # history: a build whose commit does not descend from the one under `main`
+  # (an older run finishing late) keeps its sha- tag only and does not deploy.
+  # Serialized per ref, so the check and the write never interleave. When
+  # several runs queue, GitHub keeps only the newest pending one; a dropped
+  # promote is harmless, because the newer run moves main further.
+  # -------------------------------------------------------------------------
+  promote:
+    needs: merge
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write # needed to push to GHCR
+    outputs:
+      deploy: ${{ steps.decide.outputs.deploy }}
+      tags: ${{ steps.summary.outputs.tags }}
+    steps:
+      # Full history, for the ancestor check below.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the image name
+        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decide whether main may move
+        id: decide
+        run: |
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            # Version tags never touch main; the redeploy keeps the Pi on its reference.
+            echo "move_main=false" >> "$GITHUB_OUTPUT"
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          current=$(docker buildx imagetools inspect "${IMAGE}:main" --format '{{json .Image}}' 2>/dev/null \
+            | jq -r '."linux/amd64".config.Labels["org.opencontainers.image.revision"] // empty' || true)
+          status=0
+          if [ -n "$current" ]; then
+            git merge-base --is-ancestor "$current" "$GITHUB_SHA" || status=$?
+          fi
+          if [ "$status" -eq 1 ]; then
+            echo "::notice::A newer commit already moved main; this build was published as sha-${GITHUB_SHA::7} only."
+            echo "move_main=false" >> "$GITHUB_OUTPUT"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$status" -ne 0 ]; then
+            # The commit under main is not in this history (for example after a force push).
+            echo "::warning::main pointed at ${current}, which is not in main's history; moving main to ${GITHUB_SHA}."
+          fi
+          echo "move_main=true" >> "$GITHUB_OUTPUT"
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+
+      - name: Move main to this build
+        if: steps.decide.outputs.move_main == 'true'
+        run: docker buildx imagetools create -t "${IMAGE}:main" "${IMAGE}:sha-${GITHUB_SHA::7}"
+
+      - name: Summarize the published tags
+        id: summary
+        env:
+          MOVED: ${{ steps.decide.outputs.move_main }}
+          TAGS: ${{ needs.merge.outputs.tags }}
+        run: |
+          if [ "$MOVED" = true ]; then
+            TAGS="main, ${TAGS}"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
+  # -------------------------------------------------------------------------
+  # Deploy: call the Portainer stack webhook so the server pulls the new
+  # images and redeploys. Runs in the `production` environment (main and v*
+  # only), the only place the webhook URL exists, so pull-request runs can
+  # never read it. The URL is never printed, and TLS is always verified.
+  # -------------------------------------------------------------------------
+  deploy:
+    needs: promote
+    if: needs.promote.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    # One group for every ref: there is one server and one webhook, so a main
+    # push and a version tag on it must not redeploy the stack at the same
+    # time. A newer pending deploy may replace an older one: the webhook always
+    # redeploys whatever the stack follows, so the last one is enough.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      # Full history, so the confirmation accepts a newer commit on main.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Trigger the Portainer redeploy
+        id: trigger
+        env:
+          PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+          TAGS: ${{ needs.promote.outputs.tags }}
+        run: |
+          if [ -z "$PORTAINER_WEBHOOK_URL" ]; then
+            echo "::warning::Images ${TAGS} published; server deployment skipped because PORTAINER_WEBHOOK_URL is not configured."
+            echo "triggered=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          limit=${WEBHOOK_TIMEOUT:-300}
+          status=0
+          result=$(curl --silent --output /dev/null --write-out '%{http_code} %{size_request}' \
+            --max-time "$limit" --request POST "$PORTAINER_WEBHOOK_URL" 2>/dev/null) || status=$?
+          read -r code sent <<< "$result"
+          if [ "$status" -eq 28 ] && [ "${sent:-0}" -gt 0 ]; then
+            # Portainer answers only after it has pulled the images, which can take
+            # longer than the limit the first time or after a model change. The
+            # request got through, so let the confirmation below decide.
+            echo "::warning::Portainer did not answer within ${limit} s; it may still be pulling the images for ${TAGS}. Waiting for the site to confirm the redeploy."
+            echo "triggered=true" >> "$GITHUB_OUTPUT"
+            echo "timed_out=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$code" in
+            2??)
+              echo "Redeploy triggered for ${TAGS} (HTTP ${code})."
+              echo "triggered=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Images ${TAGS} were published, but the server was not redeployed (HTTP ${code:-000} / curl exit ${status})."
+              exit 1
+              ;;
+          esac
+
+      # FR-036: a redeploy that fails after the trigger (pull error, unhealthy
+      # new version, pinned stack) must not stay silent. Wait up to 15 minutes
+      # for the site to report this commit or a newer one.
+      - name: Confirm the site runs the new version
+        id: confirm
+        if: steps.trigger.outputs.triggered == 'true'
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          TAGS: ${{ needs.promote.outputs.tags }}
+          TIMED_OUT: ${{ steps.trigger.outputs.timed_out }}
+        run: |
+          if [ -z "$SITE_URL" ]; then
+            if [ "$TIMED_OUT" = true ]; then
+              echo "::error::Portainer did not answer in time and SITE_URL is not configured, so the redeploy for ${TAGS} can't be confirmed. Check the stack in Portainer."
+              exit 1
+            fi
+            echo "::notice::Redeploy not confirmed: SITE_URL is not configured for the production environment."
+            exit 0
+          fi
+          deadline=$((SECONDS + ${CONFIRM_TIMEOUT:-900}))
+          reported=""
+          while :; do
+            body=$(curl --silent --max-time 10 "${SITE_URL%/}/api/v1/version/" 2>/dev/null || true)
+            reported=$(jq -r '.commit // empty' <<< "$body" 2>/dev/null || true)
+            if [ -n "$reported" ] && { [ "$reported" = "$GITHUB_SHA" ] \
+              || git merge-base --is-ancestor "$GITHUB_SHA" "$reported" 2>/dev/null; }; then
+              echo "Redeploy confirmed: the site runs ${reported}."
+              exit 0
+            fi
+            [ "$SECONDS" -ge "$deadline" ] && break
+            sleep "${CONFIRM_INTERVAL:-15}"
+          done
+          echo "::error::Redeploy for ${TAGS} was triggered but not confirmed: the site reports ${reported:-no response}. The stack may be pinned, unhealthy or still starting."
+          exit 1
