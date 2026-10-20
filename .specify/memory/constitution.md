@@ -1,23 +1,3 @@
-<!--
-Sync Impact Report (remove before committing)
-- Version change: 2.0.0 → 2.1.0 (MINOR: platform constraint updated, one rule in Principle VI
-  materially changed; no principle removed)
-- Modified principles:
-  - VI. Lean, Portable, Reproducible Deployment: runtime dependencies are pinned in the root
-    `requirements.txt` as the only runtime dependency list; the copy that had to be kept identical
-    in `library/requirements.txt` is dropped. Rationale updated to match.
-- Modified sections:
-  - Technology & Platform Constraints: Runtime moves from Django 4.1 to the Django 5.2 LTS line.
-- Added sections: none
-- Removed sections: none
-- Templates and guidance: plan, spec, tasks and checklist templates name no Django version or
-  dependency file, so none needs changes. AGENTS.md is consistent.
-- Follow-up TODOs (feature 002, runtime dependency pull request):
-  - Delete `library/requirements.txt` and point the README's local setup to the root list.
-  - Update the README's "built with Django 4.1" line.
-  - Add the changelog entry the amendment process requires in `docs/shared/changelog.md`.
-  - The Database line (PostgreSQL 15) changes later, in the service image pull request.
--->
 # Library Django Constitution
 
 ## Core Principles
@@ -163,7 +143,9 @@ single model definition keep local, CI and server builds identical.
   `py312`). Migrations are excluded from both and stay as Django generated them.
 - Each of these MUST be identified in the feature spec and justified in the plan under
   Principle VI: replacing any component above, changing the embedding model or its vector size,
-  upgrading Django or DRF, or adding a frontend toolchain.
+  moving Django to another release line or DRF to another minor release, or adding a frontend
+  toolchain. Patch releases within the pinned Django line and DRF minor release are routine
+  dependency updates and need no feature spec.
 
 ## Development Workflow & Quality Gates
 
