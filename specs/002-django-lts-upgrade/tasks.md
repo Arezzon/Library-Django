@@ -183,15 +183,15 @@ third-party warning is documented (FR-010–FR-012).
 **Independent Test**: quickstart.md §2.5 reports no warning from `/app/library` or
 `/app/scripts`, and every remaining warning appears in `deprecations.md`.
 
-- [ ] T017 [US2] Collect the warnings with quickstart.md §2.5 (`PYTHONWARNINGS=always::DeprecationWarning,always::PendingDeprecationWarning`) into a scratch `warnings.txt`. For every line whose path starts with `/app/library/` or `/app/scripts/`, fix the code at that file and line so the warning stops, without changing behavior (FR-010). Re-run until `grep -E "/app/(library|scripts)/" warnings.txt` prints nothing, then re-run T015.
-- [ ] T018 [US2] Confirm that no setting the framework removed is still set (FR-011, US2 acceptance 3). Run:
+- [x] T017 [US2] Collect the warnings with quickstart.md §2.5 (`PYTHONWARNINGS=always::DeprecationWarning,always::PendingDeprecationWarning`) into a scratch `warnings.txt`. For every line whose path starts with `/app/library/` or `/app/scripts/`, fix the code at that file and line so the warning stops, without changing behavior (FR-010). Re-run until `grep -E "/app/(library|scripts)/" warnings.txt` prints nothing, then re-run T015.
+- [x] T018 [US2] Confirm that no setting the framework removed is still set (FR-011, US2 acceptance 3). Run:
 
   ```bash
   git grep -nE "USE_L10N|STATICFILES_STORAGE|DEFAULT_FILE_STORAGE|USE_DEPRECATED_PYTZ|CSRF_COOKIE_MASKED|FORMS_URLFIELD_ASSUME_HTTPS" -- library/library/settings.py
   ```
 
   **Expected**: no matches.
-- [ ] T019 [US2] Create `specs/002-django-lts-upgrade/deprecations.md` (FR-012; data-model §5):
+- [x] T019 [US2] Create `specs/002-django-lts-upgrade/deprecations.md` (FR-012; data-model §5):
   - **Opening**: the date, the Django version and the exact command used in T017.
   - **Table**: one row per distinct remaining warning, with the columns `Warning | Raised by | Removed in | Expected resolution` ("Warning" is the category and message; "Raised by" is the package and module).
   - **If none remain**: state "No deprecation warnings remain" instead of the table.
