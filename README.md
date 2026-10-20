@@ -2,7 +2,7 @@
 
 ![LibrarySys](/images/library-sys.png)
 
-**Library Django** is a library management system built with **Django 4.1**,
+**Library Django** is a library management system built with **Django 5.2 LTS**,
 Django REST Framework and PostgreSQL. It provides a server-rendered web UI,
 role-based access, borrowing workflows, an OpenAPI API, pgvector-backed book
 embeddings and asynchronous activity analytics.
@@ -151,7 +151,7 @@ cd "D:\path\to\Library-Django"
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r .\library\requirements.txt
+python -m pip install -r .\requirements.txt
 ```
 
 ### Linux / macOS
@@ -161,8 +161,11 @@ cd /path/to/Library-Django
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r ./library/requirements.txt
+python -m pip install -r ./requirements.txt
 ```
+
+`requirements.txt` in the repository root is the only runtime dependency list; the
+image installs the same file.
 
 Create `.env` in the repository root from `.env.example`:
 
@@ -486,7 +489,7 @@ excluded from both tools.
 ├── docker-compose.yml         # server stack (Portainer on the Raspberry Pi), published images only
 ├── docker-compose-dev.yml     # local development: web, PostgreSQL, Redis and Celery
 ├── entrypoint.sh              # wait, migrate, seed, re-encode embeddings, start
-├── requirements.txt            # canonical container dependencies
+├── requirements.txt           # runtime dependencies: image build and local development
 ├── requirements-dev.txt       # pinned lint and format tools
 ├── pyproject.toml             # ruff and black settings
 ├── .env.example               # safe configuration template

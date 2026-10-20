@@ -1,4 +1,8 @@
 2026-10-20
+Django 5.2 LTS and current runtime dependencies (KAN-17)
+Upgraded Django from 4.1, which no longer receives security fixes, to 5.2.18 LTS, and moved every runtime dependency to its latest release compatible with it. The exception is redis-py, held at 6.4.0 by kombu. The root requirements.txt now pins the complete resolved set and is the only runtime dependency list; library/requirements.txt is removed. STORAGES replaces the removed STATICFILES_STORAGE setting, so WhiteNoise keeps serving compressed, hash-named static files, and USE_L10N is gone. Two migrations that had never been generated now ship: the role choice label and order.id as bigint. The API schema is unchanged, and no deprecation warnings remain. The constitution is amended to v2.1.0: the Django 5.2 LTS line, a single dependency list, and patch releases as routine updates.
+
+2026-10-20
 Deployment hardening follow-ups
 Behind the HTTPS proxy (TRUST_X_FORWARDED_PROTO), session and CSRF cookies are now sent over HTTPS only. Version tags only publish images and no longer redeploy the Raspberry Pi, so the production GitHub environment needs only the main branch. The operator guide adds a step to change seeded demo passwords before the site is reachable from the internet, and a first-deployment check that Portainer's webhook, forced redeploy, image re-pull and failed-pull behaviour work as the setup expects. The spec records the clarifications behind these changes.
 

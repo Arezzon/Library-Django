@@ -1,5 +1,6 @@
 """Project-wide settings and wiring: proxy and host settings, environment-driven
-configuration, the version endpoint and the Gunicorn config.
+configuration, the version endpoint, the Gunicorn config, static file storage, migration
+state and password re-hashing.
 
 Behind an HTTPS proxy, same-origin forms must work and CSRF checks must remain."""
 
@@ -297,6 +298,99 @@ class GunicornConfigTests(SimpleTestCase):
         with patch("book.embeddings.load_embedding_model") as load:
             self.load().post_worker_init(MagicMock())
         load.assert_called_once_with()
+
+
+class StaticFilesStorageTests(SimpleTestCase):
+    """WhiteNoise keeps serving compressed, hash-named static files. Django 5.1 removed
+    STATICFILES_STORAGE and silently ignores it, so the backend must come from STORAGES.
+    """
+
+    def test_static_files_use_whitenoise_manifest_storage(self):
+        from django.core.files.storage import storages
+        from whitenoise.storage import CompressedManifestStaticFilesStorage
+
+        self.assertEqual(
+            settings.STORAGES["staticfiles"]["BACKEND"],
+            "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        )
+        self.assertIsInstance(
+            storages["staticfiles"], CompressedManifestStaticFilesStorage
+        )
+
+    def test_other_files_use_the_file_system(self):
+        self.assertEqual(
+            settings.STORAGES["default"]["BACKEND"],
+            "django.core.files.storage.FileSystemStorage",
+        )
+
+
+class MigrationStateTests(TestCase):
+    """Every model change has a migration, so drift fails here instead of slipping into
+    whoever runs makemigrations next."""
+
+    def check_migrations(self):
+        import io
+
+        from django.core.management import call_command
+
+        output = io.StringIO()
+        try:
+            call_command(
+                "makemigrations",
+                check=True,
+                dry_run=True,
+                interactive=False,
+                stdout=output,
+            )
+        except SystemExit:
+            self.fail("Models have changes without a migration:\n" + output.getvalue())
+
+    def test_models_have_no_missing_migrations(self):
+        self.check_migrations()
+
+    def test_migration_check_never_prompts(self):
+        """A rename would make the interactive questioner wait for input, hanging a
+        local run and erroring under CI instead of failing with the message above."""
+        from unittest.mock import patch
+
+        with patch(
+            "django.core.management.commands.makemigrations."
+            "InteractiveMigrationQuestioner",
+            side_effect=AssertionError("makemigrations would prompt for input"),
+        ):
+            self.check_migrations()
+
+
+class PasswordHashUpgradeTests(TestCase):
+    """Accounts hashed with an older PBKDF2 iteration count still sign in and are
+    re-hashed with the current count. A regression guard for framework upgrades: it
+    passes before and after the Django 5.2 upgrade."""
+
+    def test_old_iteration_hash_signs_in_and_is_upgraded(self):
+        from django.contrib.auth.hashers import PBKDF2PasswordHasher
+
+        user = CustomUser.objects.create_user(
+            email="old-hash@example.com",
+            password="unused",
+            first_name="Old",
+            middle_name="",
+            last_name="Hash",
+            is_active=True,
+        )
+        hasher = PBKDF2PasswordHasher()
+        # 390,000 is the Django 4.1 default.
+        user.password = hasher.encode(
+            "old-hash-pass-123", hasher.salt(), iterations=390000
+        )
+        user.save()
+
+        self.assertTrue(
+            self.client.login(email=user.email, password="old-hash-pass-123")
+        )
+        user.refresh_from_db()
+        self.assertEqual(
+            user.password.split("$")[1], str(PBKDF2PasswordHasher.iterations)
+        )
 
 
 def failing_view(request):

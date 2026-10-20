@@ -93,9 +93,10 @@ results.
 
 ### VI. Lean, Portable, Reproducible Deployment
 
-- Runtime dependencies MUST be pinned to exact versions in `requirements.txt`, kept identical in
-  `library/requirements.txt`; lint and format tools are pinned in `requirements-dev.txt`. Model
-  revisions used for inference MUST be pinned.
+- Runtime dependencies MUST be pinned to exact versions in the root `requirements.txt`, the only
+  runtime dependency list, which both the image build and local development install from. Lint
+  and format tools are pinned in `requirements-dev.txt`. Model revisions used for inference MUST
+  be pinned.
 - The embedding model MUST be defined in exactly one place: a build-time setting read from an
   environment variable with a default. The setting covers the model's identity, its pinned
   revision and its model-specific details, such as vector size and text preparation. The image
@@ -118,12 +119,12 @@ results.
   same pull request.
 
 Rationale: the site runs on a shared Raspberry Pi 5 with a fixed memory budget, CI and the
-server run on different CPU architectures, and exact pins plus a single model definition keep
-local, CI and server builds identical.
+server run on different CPU architectures, and exact pins in a single dependency list plus a
+single model definition keep local, CI and server builds identical.
 
 ## Technology & Platform Constraints
 
-- **Runtime**: Python 3.12, Django 4.1, Django REST Framework, drf-spectacular.
+- **Runtime**: Python 3.12, Django 5.2 LTS, Django REST Framework, drf-spectacular.
 - **Database**: PostgreSQL 15 with the `vector` extension in both Compose stacks; book
   embeddings are pgvector columns whose dimension follows the configured embedding model.
 - **Background work**: Celery on a Redis-compatible broker, JSON serialization only, `events`
@@ -142,7 +143,9 @@ local, CI and server builds identical.
   `py312`). Migrations are excluded from both and stay as Django generated them.
 - Each of these MUST be identified in the feature spec and justified in the plan under
   Principle VI: replacing any component above, changing the embedding model or its vector size,
-  upgrading Django or DRF, or adding a frontend toolchain.
+  moving Django to another release line or DRF to another minor release, or adding a frontend
+  toolchain. Patch releases within the pinned Django line and DRF minor release are routine
+  dependency updates and need no feature spec.
 
 ## Development Workflow & Quality Gates
 
@@ -199,4 +202,4 @@ local, CI and server builds identical.
   or a component in Technology & Platform Constraints changes, so the rules match what is
   actually enforced.
 
-**Version**: 2.0.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-20
+**Version**: 2.1.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-20
