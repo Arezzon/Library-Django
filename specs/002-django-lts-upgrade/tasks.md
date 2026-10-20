@@ -334,7 +334,7 @@ Pi, SC-009 holds.
   - in `.specify/memory/constitution.md` Technology & Platform Constraints, change "**Database**: PostgreSQL 15 with the `vector` extension" to "PostgreSQL 18 with the `vector` extension";
   - bump the version from 2.1.0 to **2.2.0** (MINOR: platform constraint updated) and set Last Amended to the PR date;
   - remove the Sync Impact Report comment before committing.
-- [ ] T042 [US5] Finish PR 3:
+- [x] T042 [US5] Finish PR 3:
   - **Changelog** entry at the top of `docs/shared/changelog.md`, titled "PostgreSQL 18 and Redis 8": the images, the new volumes, the one-time seed-only reset, and constitution v2.2.0.
   - **Commit** with the preview-commit skill.
   - **PR** with the preview-pr skill, titled `chore(deploy): move to PostgreSQL 18 and Redis 8 images`.

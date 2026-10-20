@@ -332,3 +332,25 @@ All targets are met: 2.645 GiB of 4 GiB, search p95 219 ms against 500 ms, and b
 171 ms against 2 s. The Django 4.1 stack measured 2.45 GiB, search p95 237 ms and save p95 199 ms
 (feature 001, R1), so memory rose slightly and latency improved. The superseded Dependabot pull
 requests are closed, and KAN-17 is Done.
+
+### After PR 3 (PostgreSQL 18 and Redis 8, #32), Raspberry Pi 5
+
+The stack was measured after the one-time reset and reseed (SC-005, SC-009):
+
+```json
+{
+  "project": "library-django",
+  "containers": 4,
+  "peak_memory_gib": 2.669,
+  "search_ms": {"count": 60, "p50": 167.5, "p95": 242.6},
+  "save_ms": {"count": 5, "p50": 155.9, "p95": 173.3},
+  "vectors_current": "9/9",
+  "clients": 3,
+  "result": "PASS"
+}
+```
+
+All targets are met: 2.669 GiB of 4 GiB, search p95 243 ms against 500 ms, and book save p95
+173 ms against 2 s. Every seeded book has a vector from the current model. Compared with the
+PostgreSQL 15 and Redis 7.4 stack after PR 1 (2.645 GiB, 219 ms, 171 ms), memory and latency are
+practically unchanged.
