@@ -1,4 +1,8 @@
 2026-10-20
+Raspberry Pi measurements recorded
+Recorded the stack budget check from the first Raspberry Pi 5 deployment in research.md §R1: peak memory 2.45 GiB, search p95 237 ms and book save p95 199 ms with two web workers and two inference threads, all within the 4 GB, 500 ms and 2 s targets. This closes the last task of the Raspberry Pi deployment feature, and the Spec Kit handoff is marked complete.
+
+2026-10-20
 Raspberry Pi deployment and portable embeddings
 Moved hosting from Render to a Raspberry Pi 5: docker-compose.yml is now the server stack that Portainer Business Edition deploys from Git using multi-architecture GHCR images only, and local development moved to docker-compose-dev.yml. CI runs lint and the full smoke test on native amd64 and arm64 runners, publishes both architectures under one manifest, moves the main tag only forward in history, calls the Portainer webhook from the production environment, and confirms through the new /api/v1/version/ endpoint that the site runs the new commit; a webhook that times out during a large image pull falls back to that confirmation. TRUST_X_FORWARDED_PROTO accepts the usual true/false spellings and stops startup on any other value. Search now uses bge-m3 int8 (1024 dimensions), defined once in library/book/embedding_config.py and fetched by scripts/fetch_embedding_model.py; vectors live in an untyped column and are re-encoded on startup after a model change, an 18-query evaluation set runs on both architectures, and a stack budget check keeps the whole stack within 4 GiB. Render files, checks and settings were removed, docs/deployment/raspberry-pi-portainer.md guides the operator, and the constitution was amended to v2.0.0.
 
