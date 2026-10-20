@@ -1,4 +1,8 @@
 2026-10-20
+Remove Render hosting integration
+Removed the Render Blueprint, launcher, Render-only scripts, CI checks, proxy settings and documentation references. Docker Compose remains the deployment path for Raspberry Pi and Portainer.
+
+2026-10-20
 Django 5.2 LTS feature complete
 Recorded the Raspberry Pi measurements after the Django 5.2 upgrade and after the move to PostgreSQL 18 and Redis 8 in research.md: peak memory 2.669 GiB, search p95 243 ms and book save p95 173 ms, all within the 4 GB, 500 ms and 2 s targets. The one-time reset on the Pi is confirmed complete. The spec is marked Implemented, every task is done with the success criteria evidence recorded, and the Spec Kit bridge handoff is complete.
 

@@ -69,6 +69,5 @@ ENV APP_COMMIT=${APP_COMMIT}
 
 ENTRYPOINT ["/entrypoint.sh"]
 # Production server: gunicorn, configured by library/gunicorn.conf.py (workers
-# from WEB_CONCURRENCY, each warmed up with the model). The entrypoint binds to
-# $PORT (default 8000).
-CMD ["gunicorn", "library.wsgi:application"]
+# from WEB_CONCURRENCY, each warmed up with the model).
+CMD ["gunicorn", "library.wsgi:application", "--bind", "0.0.0.0:8000"]

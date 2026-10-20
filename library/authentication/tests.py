@@ -29,7 +29,6 @@ SETTINGS_ENV = (
     "TRUST_X_FORWARDED_PROTO",
     "CSRF_TRUSTED_ORIGINS",
     "ALLOWED_HOSTS",
-    "RENDER",
 )
 
 
@@ -169,11 +168,6 @@ class EnvironmentSettingsTests(SimpleTestCase):
             "s.ALLOWED_HOSTS",
             ["library.example.com", "other.example", "localhost", "127.0.0.1"],
             ALLOWED_HOSTS="library.example.com, other.example",
-        )
-
-    def test_render_no_longer_enables_the_proxy_header(self):
-        self.assertSetting(
-            'getattr(s, "SECURE_PROXY_SSL_HEADER", None)', None, RENDER="true"
         )
 
     def test_csrf_trusted_origins_come_from_a_comma_list(self):

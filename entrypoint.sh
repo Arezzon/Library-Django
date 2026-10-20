@@ -53,14 +53,4 @@ python manage.py generate_book_embeddings --offline --threads "$(python -c 'impo
 
 echo "Starting server..."
 
-# Honor $PORT on platforms that inject PORT. If the command is gunicorn and no
-# explicit --bind port was given, bind to $PORT (default 8000).
-PORT="${PORT:-8000}"
-if [ "$#" -gt 0 ] && [ "$(basename "$1")" = "gunicorn" ]; then
-  # Only add --bind if not already present in the args.
-  if ! printf '%s\n' "$@" | grep -q -- '--bind'; then
-    set -- "$@" --bind "0.0.0.0:${PORT}"
-  fi
-fi
-
 exec "$@"
