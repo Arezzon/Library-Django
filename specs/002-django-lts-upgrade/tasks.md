@@ -322,7 +322,7 @@ Pi, SC-009 holds.
 
   Then clean up the old local volumes.
 - [x] T039 [P] [US5] In `docs/deployment/raspberry-pi-portainer.md`:
-  - **New section** "Upgrade to PostgreSQL 18 and Redis 8 (one-time reset)", listed in the Contents. It contains [contracts/service-images.md](contracts/service-images.md) §Reset steps 1–6, with the commands verbatim and the step 1 expected counts filled in from T037. It must open with the step 1 check and its instruction to stop if the check fails (FR-024).
+  - **New section** "Upgrade to PostgreSQL 18 and Redis 8 (one-time reset)", listed in the Contents. It contains [contracts/service-images.md](contracts/service-images.md) §Reset steps 1–7, with the commands verbatim and the step 1 expected counts filled in from T037. It must open with the step 1 check and its instruction to stop if the check fails (FR-024).
   - **Line 107**: replace "remove the `pgdata` volume" with `pgdata18`.
   - **Line 193 ("Backup and restore")**: name `pgdata18` and `redisdata8`, and add one sentence on where PostgreSQL 18 keeps its data (`/var/lib/postgresql/18/docker`).
 - [x] T040 [P] [US5] In `README.md`:
@@ -338,8 +338,8 @@ Pi, SC-009 holds.
   - **Changelog** entry at the top of `docs/shared/changelog.md`, titled "PostgreSQL 18 and Redis 8": the images, the new volumes, the one-time seed-only reset, and constitution v2.2.0.
   - **Commit** with the preview-commit skill.
   - **PR** with the preview-pr skill, titled `chore(deploy): move to PostgreSQL 18 and Redis 8 images`.
-  - **PR description**: a "Before merging" checklist covering reset steps 1–2 (seed-only check passed, `DJANGO_SEED=true` saved in Portainer). Merge only after the operator confirms both.
-- [ ] T043 [US5] **(manual, operator)** After the merge, finish the reset on the Pi with steps 3–6 of the guide's new section (SC-009):
+  - **PR description**: a "Before merging" checklist covering reset steps 1–3 (seed-only check passed, `DJANGO_SEED=true` saved in Portainer, site taken off the internet). Merge only after the operator confirms both.
+- [ ] T043 [US5] **(manual, operator)** After the merge, finish the reset on the Pi with steps 4–7 of the guide's new section (SC-009):
   - confirm the redeploy;
   - replace the demo passwords and set `DJANGO_SEED=false`;
   - verify the counts, that no book lacks a vector, the searches, and `smoke_stack_budget.py`;
@@ -450,7 +450,7 @@ Task: "Update README service table and old-volume note"                         
    (T027).
 2. **PR 2** (US4): the lint tool pins, plus any fixes. It deploys with no operator step and changes
    no behavior.
-3. **PR 3** (US5): needs the operator's steps 1–2 before the merge and steps 3–6 after it. The old
+3. **PR 3** (US5): needs the operator's steps 1–3 before the merge and steps 4–7 after it. The old
    volumes stay until verification, so a revert restores the previous stack exactly.
 
 ---
