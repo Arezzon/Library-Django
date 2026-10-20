@@ -56,10 +56,24 @@ _allowed = os.getenv("ALLOWED_HOSTS", "")
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip()]
 ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
 
+
+def env_flag(name, default=False):
+    """Read a true/false variable; refuse to start on a value that is neither."""
+    raw = os.getenv(name, "")
+    value = raw.strip().lower()
+    if not value:
+        return default
+    if value in ("true", "1", "yes", "on"):
+        return True
+    if value in ("false", "0", "no", "off"):
+        return False
+    raise ImproperlyConfigured(f"{name} must be True or False, not {raw!r}.")
+
+
 # Behind an HTTPS reverse proxy or tunnel that sets X-Forwarded-Proto, treat
 # forwarded HTTPS requests as secure. Off by default: without such a proxy a
-# client could spoof the header.
-TRUST_X_FORWARDED_PROTO = os.getenv("TRUST_X_FORWARDED_PROTO", "False") == "True"
+# client could spoof the header. A typo stops startup instead of leaving it off.
+TRUST_X_FORWARDED_PROTO = env_flag("TRUST_X_FORWARDED_PROTO")
 if TRUST_X_FORWARDED_PROTO:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 

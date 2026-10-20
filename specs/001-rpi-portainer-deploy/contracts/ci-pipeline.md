@@ -5,7 +5,7 @@ constitution's quality gates (v2.0.0, item 4).
 
 ## Triggers
 
-| Event | `lint` | `smoke-test` | `publish` → `merge` → `deploy` |
+| Event | `lint` | `smoke-test` | `publish` → `merge` → `promote` → `deploy` |
 |---|---|---|---|
 | `push` to `main` | ✔ | ✔ (amd64 and arm64) | ✔ after both gates pass |
 | `push` of tag `v*` | ✔ | ✔ (amd64 and arm64) | ✔ after both gates pass |
@@ -17,13 +17,19 @@ constitution's quality gates (v2.0.0, item 4).
 | Job | Runner(s) | Needs | Pass condition |
 |---|---|---|---|
 | `lint` | `ubuntu-latest` | none | `ruff check` and `black --check` are clean |
-| `smoke-test` | matrix: `ubuntu-24.04`, `ubuntu-24.04-arm` (native) | none | Every step in the next section passes on **both** |
+| `smoke-test` | matrix: `ubuntu-24.04`, `ubuntu-24.04-arm` (native) | none | Every step in the next section passes on **both**, within the 30-minute job timeout |
 | `publish` | matrix: `ubuntu-24.04`, `ubuntu-24.04-arm` | `lint`, `smoke-test` | Each architecture's image is pushed by digest, with build argument `APP_COMMIT=${{ github.sha }}` |
-| `merge` | `ubuntu-latest` (checkout with `fetch-depth: 0`) | `publish` | The multi-architecture manifest is created and tagged following the rules below. It sets the output `deploy`. |
-| `deploy` | `ubuntu-latest`, `environment: production` | `merge` (`if: needs.merge.outputs.deploy == 'true'`) | The webhook returns 2xx and the redeploy is confirmed, or each is skipped with a visible annotation (see below) |
+| `merge` | `ubuntu-latest` | `publish` | The multi-architecture manifest is created and tagged `sha-<short>` (plus the version for `v*`), and both architectures are verified |
+| `promote` | `ubuntu-latest` (checkout with `fetch-depth: 0`) | `merge` | `main` is moved following the rules below. It sets the output `deploy`. |
+| `deploy` | `ubuntu-latest`, `environment: production` | `promote` (`if: needs.promote.outputs.deploy == 'true'`) | The webhook returns 2xx and the redeploy is confirmed, or each is skipped with a visible annotation (see below) |
 
 Concurrency (`cancel-in-progress: false` everywhere):
-- `merge` runs in `publish-${{ github.ref }}`, so tag writes for one ref never interleave.
+- `promote` runs in `publish-${{ github.ref }}`, so the forward-only check and the `main` write
+  for one ref never interleave. GitHub keeps only the newest pending job in a group, so when
+  three or more runs overlap, a middle run's `promote` can be cancelled. That is harmless: the
+  newer run moves `main` further and deploys.
+- `merge` has no group. Its tags belong to one commit, and a cancelled pending `merge` would leave
+  that build without its `sha-` tag.
 - `deploy` runs in the single group `deploy-production`, because every ref redeploys the same
   stack through the same webhook.
 - The `publish` matrix has no group: its legs push by digest only, and a shared group would
@@ -37,7 +43,8 @@ Concurrency (`cancel-in-progress: false` everywhere):
 3. Generate disposable secrets and mask them.
 4. Build the app image with the per-architecture GHA cache and `APP_COMMIT=${{ github.sha }}`,
    and load it as `library-django:dev`.
-5. `docker compose -f docker-compose-dev.yml up -d --wait --no-build`, with `DJANGO_SEED=true`.
+5. `docker compose -f docker-compose-dev.yml up -d --wait --wait-timeout 300 --no-build`, with
+   `DJANGO_SEED=true`.
 6. Check the image refuses to start without `SECRET_KEY`.
 7. Collect static files for the mounted source.
 8. `manage.py test authentication author book order events`, with
@@ -49,7 +56,7 @@ Concurrency (`cancel-in-progress: false` everywhere):
 10. `manage.py smoke_test_tracking`
 11. `python scripts/smoke_tracking_recovery.py --compose-file docker-compose-dev.yml`
 12. `python scripts/smoke_stack_budget.py --compose-file docker-compose-dev.yml --max-memory-gib 4`
-13. Teardown (`always()`).
+13. Stack logs (`failure()`), then teardown (`always()`).
 
 No Render step remains.
 
@@ -79,14 +86,17 @@ The `production` environment allows only `main` and `v*`. It provides the secret
 |---|---|---|---|
 | Trigger | `PORTAINER_WEBHOOK_URL` is empty | Job succeeds; confirmation is skipped | `::warning::` "Images <tags> published; server deployment skipped because PORTAINER_WEBHOOK_URL is not configured." |
 | Trigger | POST returns 2xx | Continue to confirmation | "Redeploy triggered for <tags> (HTTP <code>)." |
-| Trigger | Non-2xx, timeout (300 s), DNS failure or TLS failure | **Job fails** | `::error::` "Images <tags> were published, but the server was not redeployed (HTTP <code> / curl exit <n>)." |
+| Trigger | No answer within 300 s, but the request was sent (`size_request` > 0) | Continue to confirmation | `::warning::` "Portainer did not answer within 300 s; it may still be pulling the images for <tags>. Waiting for the site to confirm the redeploy." |
+| Trigger | Non-2xx, timeout before the request was sent, DNS failure or TLS failure | **Job fails** | `::error::` "Images <tags> were published, but the server was not redeployed (HTTP <code> / curl exit <n>)." |
+| Confirm | `SITE_URL` is empty after a trigger timeout | **Job fails** | `::error::` "Portainer did not answer in time and SITE_URL is not configured, so the redeploy for <tags> can't be confirmed. Check the stack in Portainer." |
 | Confirm | `SITE_URL` is empty | Job succeeds | `::notice::` "Redeploy not confirmed: SITE_URL is not configured for the production environment." |
 | Confirm | Within 15 min, `/api/v1/version/` reports `github.sha` or a descendant of it | Job succeeds | "Redeploy confirmed: the site runs <commit>." |
 | Confirm | 15 min pass without that | **Job fails** | `::error::` "Redeploy for <tags> was triggered but not confirmed: the site reports <commit / no response>. The stack may be pinned, unhealthy or still starting." |
 
 **Call details**:
-- The trigger is `curl --silent --output /dev/null --write-out '%{http_code}' --max-time 300
-  --request POST "$PORTAINER_WEBHOOK_URL" 2>/dev/null`.
+- The trigger is `curl --silent --output /dev/null --write-out '%{http_code} %{size_request}'
+  --max-time 300 --request POST "$PORTAINER_WEBHOOK_URL" 2>/dev/null`. Portainer answers only
+  after pulling the images, so a timeout after the request was sent is handed to confirmation.
 - Confirmation polls every 15 s with `curl --silent --max-time 10 "$SITE_URL/api/v1/version/"`.
 - TLS verification is always on; `-k` is never used (FR-020).
 - The secret is passed through `env:` only, never as a command-line argument or in workflow
@@ -98,6 +108,6 @@ These are done by an admin and documented in the guide:
 - Environment `production`, with deployment branches and tags limited to `main` and `v*`.
 - Environment secret `PORTAINER_WEBHOOK_URL`.
 - Optional environment variable `SITE_URL`.
-- Workflow permissions: `packages: write` for `publish` and `merge`, `contents: read` for all
+- Workflow permissions: `packages: write` for `publish`, `merge` and `promote`, `contents: read` for all
   jobs.
 - GHCR package visibility: public, as it is today.

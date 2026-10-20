@@ -86,7 +86,7 @@ never committed to the repository or baked into the images.
 | `DB_PASSWORD` | **yes** | none | PostgreSQL password. See the warning below. |
 | `ALLOWED_HOSTS` | no | `localhost,127.0.0.1` | Comma list of the hostnames the site answers to, for example `library.example.com,192.168.1.50`. `localhost` and `127.0.0.1` are always allowed for the health check. |
 | `CSRF_TRUSTED_ORIGINS` | no | empty | Comma list of public origins that submit forms, for example `https://library.example.com`. Needed behind a proxy that serves HTTPS. |
-| `TRUST_X_FORWARDED_PROTO` | no | `False` | Set `True` only when the site is behind your own HTTPS reverse proxy or tunnel that sets `X-Forwarded-Proto`. Leave it `False` when clients reach the Pi directly. |
+| `TRUST_X_FORWARDED_PROTO` | no | `False` | Set `True` only when the site is behind your own HTTPS reverse proxy or tunnel that sets `X-Forwarded-Proto`. Leave it `False` when clients reach the Pi directly. Any case works, as do `1`/`0`, `yes`/`no` and `on`/`off`; any other value stops the app at startup with an error naming this setting. |
 | `WEB_PORT` | no | `8000` | Host port the site listens on. |
 | `IMAGE_TAG` | no | `main` | `main` follows the newest build. Set `sha-<short commit>` or a version such as `1.2.3` to pin one. |
 | `IMAGE_REPOSITORY` | no | `ghcr.io/arezzon/library-django` | Only for forks that publish their own images. |
@@ -336,17 +336,24 @@ actually serves the new version, add the site's public address:
 Without `SITE_URL`, the check is skipped with a notice. The address is a variable, not a
 secret, but the pipeline doesn't print it.
 
+Portainer answers the webhook only after it has pulled the new images. The first deployment and
+a model change pull large images, which can take longer than the pipeline's 5-minute limit.
+With `SITE_URL` set, the `deploy` job then waits for the site instead of failing. Without it,
+nothing can confirm the redeploy, so the job fails and asks you to check Portainer.
+
 ## What the pipeline messages mean
 
-These appear on the `deploy` job of the **Docker Build** workflow run, and on the `merge` job
+These appear on the `deploy` job of the **Docker Build** workflow run, and on the `promote` job
 for the first one.
 
 | Message | Meaning | What to do |
 |---|---|---|
-| *A newer commit already moved main; this build was published as sha-… only.* (notice, `merge`) | An older run finished after a newer one. Its image is published under `sha-…` but doesn't become `main`, and no redeploy runs. | Nothing. |
+| *A newer commit already moved main; this build was published as sha-… only.* (notice, `promote`) | An older run finished after a newer one. Its image is published under `sha-…` but doesn't become `main`, and no redeploy runs. | Nothing. |
 | *Images … published; server deployment skipped because PORTAINER_WEBHOOK_URL is not configured.* (warning) | The `production` environment has no webhook secret. Images were published. | Add the secret (see [Create the production GitHub environment](#create-the-production-github-environment)). |
 | *Redeploy triggered for … (HTTP 204).* | Portainer accepted the webhook. | Nothing. |
-| *Images … were published, but the server was not redeployed (HTTP … / curl exit …).* (error) | The webhook failed. HTTP 404 means a wrong or regenerated URL; `HTTP 000 / curl exit 6` or `7` means the address isn't reachable; `curl exit 60` means the certificate isn't publicly trusted; `curl exit 28` means a timeout. | Fix the cause, then re-run the `deploy` job, or redeploy by hand in Portainer. |
+| *Images … were published, but the server was not redeployed (HTTP … / curl exit …).* (error) | The webhook failed. HTTP 404 means a wrong or regenerated URL; `HTTP 000 / curl exit 6` or `7` means the address isn't reachable; `curl exit 60` means the certificate isn't publicly trusted; `curl exit 28` means the request didn't get through in time. | Fix the cause, then re-run the `deploy` job, or redeploy by hand in Portainer. |
+| *Portainer did not answer within 300 s; it may still be pulling the images for …. Waiting for the site to confirm the redeploy.* (warning) | Portainer received the webhook but was still pulling images when the limit ran out. | Nothing if the job then confirms the redeploy. Otherwise follow the message that comes next. |
+| *Portainer did not answer in time and SITE_URL is not configured, so the redeploy for … can't be confirmed. Check the stack in Portainer.* (error) | As above, but there's no `SITE_URL` to check the result. | In Portainer, check that the stack finished updating and `web` is healthy. Add `SITE_URL` to avoid this next time. |
 | *Redeploy not confirmed: SITE_URL is not configured for the production environment.* (notice) | The redeploy was triggered, and confirmation is off. | Optional: add `SITE_URL` (see [Confirm deployments](#confirm-deployments)). |
 | *Redeploy confirmed: the site runs ….* | The Pi serves this commit or a newer one. | Nothing. |
 | *Redeploy for … was triggered but not confirmed: the site reports …. The stack may be pinned, unhealthy or still starting.* (error) | Within 15 minutes the site never reported this commit. It is pinned to another version, the new version failed to start, the image pull failed, or startup is still running (for example re-encoding after a model change). | Check the stack in Portainer: is `IMAGE_TAG` set, and is `web` healthy? Read the `web` logs. Re-run `deploy` once fixed. |

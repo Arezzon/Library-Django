@@ -71,8 +71,8 @@ docker compose -f docker-compose-dev.yml exec -T web python manage.py shell -c \
 ## 4. CI gates (FR-001 – FR-004, FR-032)
 
 - **Open a pull request to `main`**: `lint` and both `smoke-test` legs (amd64 and arm64) run, and
-  no `publish`, `merge` or `deploy` job runs.
-- **Merge it**: `publish` (×2), then `merge`, then `deploy` run. Then check the image:
+  no `publish`, `merge`, `promote` or `deploy` job runs.
+- **Merge it**: `publish` (×2), then `merge`, `promote` and `deploy` run. Then check the image:
 
   ```bash
   docker buildx imagetools inspect ghcr.io/arezzon/library-django:main
@@ -83,8 +83,9 @@ docker compose -f docker-compose-dev.yml exec -T web python manage.py shell -c \
 - **Push a tag `v0.0.0-test`**: the `0.0.0-test` image is published, `main` doesn't move, and
   `deploy` runs.
 - **Forward-only `main`** (FR-002, FR-019): merge two pull requests quickly, one after the other.
-  Re-run the older commit's `merge` job after the newer one has finished. **Expected**: it pushes
-  only `sha-<short>`, emits the "newer commit already moved `main`" notice, and skips `deploy`.
+  Re-run the older commit's `promote` job after the newer one has finished. **Expected**: it
+  leaves `main` alone (the older build keeps only `sha-<short>`), emits the "newer commit
+  already moved `main`" notice, and skips `deploy`.
 - **Secret scope** (FR-016): in a pull-request run, the `deploy` job doesn't exist, and the
   `production` environment shows no deployment for it.
 - **Webhook visibility** (US3):

@@ -33,7 +33,7 @@ start is healthy within about a minute.
 | `DB_PASSWORD` | **yes** | none (`${DB_PASSWORD:?…}`) | PostgreSQL password; set when the volume is first created |
 | `ALLOWED_HOSTS` | no | `localhost,127.0.0.1` | Comma list of public hostnames |
 | `CSRF_TRUSTED_ORIGINS` | no | empty | Comma list such as `https://library.example.com`, for proxies that rewrite the host |
-| `TRUST_X_FORWARDED_PROTO` | no | `False` | Set `True` only behind the operator's HTTPS proxy |
+| `TRUST_X_FORWARDED_PROTO` | no | `False` | Set `True` only behind the operator's HTTPS proxy. Case-insensitive `true`/`false`, `1`/`0`, `yes`/`no`, `on`/`off`; any other value stops startup |
 | `WEB_PORT` | no | `8000` | Host port for `web` |
 | `IMAGE_REPOSITORY` | no | `ghcr.io/arezzon/library-django` | Override for forks |
 | `IMAGE_TAG` | no | `main` | `main` follows the latest build; `sha-<short>` or `<semver>` pins one |

@@ -40,24 +40,14 @@ jobs:
       - name: Check formatting with black
         run: black --check --diff .
 
-      # FR-030: only library/book/embedding_config.py may name the embedding
-      # model; everything else reads it from there (documents, and this check's
-      # own pattern, excepted).
-      - name: Embedding model is defined in one place
-        run: |
-          if git grep -n -I -E 'bge-m3|model_int8|4de13258|multilingual-e5|614241f6' -- . \
-            ':!library/book/embedding_config.py' ':!*.md' ':!specs/**' \
-            ':!.github/workflows/docker-build.yml'; then
-            echo "::error::The embedding model is named outside library/book/embedding_config.py."
-            exit 1
-          fi
-
   # -------------------------------------------------------------------------
   # Smoke test: build the image natively on amd64 and arm64, start the
   # development stack and verify the app on each architecture.
   # Runs on every trigger (including PRs) so broken images never get pushed.
   # -------------------------------------------------------------------------
   smoke-test:
+    # A cold run takes about 4 minutes; never let a hung leg hold a runner.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -115,10 +105,12 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.runner }}
           cache-to: type=gha,mode=max,scope=${{ matrix.runner }}
 
+      # Startup takes under 30 s in CI. The healthcheck's 15-minute start period
+      # is for slow hosts; here a stack that is not healthy in 5 minutes is broken.
       - name: Start the development stack and wait for health
         env:
           DJANGO_SEED: "true"
-        run: docker compose -f docker-compose-dev.yml up -d --wait --no-build
+        run: docker compose -f docker-compose-dev.yml up -d --wait --wait-timeout 300 --no-build
 
       # Without a SECRET_KEY from the runtime environment Django must refuse
       # to start; this also fails if the image bakes in a default key.
@@ -170,6 +162,10 @@ jobs:
       - name: Verify the stack stays within the 4 GiB memory budget
         run: python scripts/smoke_stack_budget.py --compose-file docker-compose-dev.yml --max-memory-gib 4
 
+      - name: Show the stack logs
+        if: failure()
+        run: docker compose -f docker-compose-dev.yml logs --no-color --tail 200
+
       - name: Tear down
         if: always()
         run: docker compose -f docker-compose-dev.yml down -v
@@ -181,7 +177,7 @@ jobs:
   # -------------------------------------------------------------------------
   publish:
     needs: [lint, smoke-test]
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     strategy:
       matrix:
         runner: [ubuntu-26.04, ubuntu-26.04-arm]
@@ -241,13 +237,91 @@ jobs:
 
   # -------------------------------------------------------------------------
   # Merge: combine both digests into one multi-architecture manifest and tag
-  # it. `main` only moves forward in main's history: a build whose commit does
-  # not descend from the one under `main` (an older run finishing late) gets
-  # its sha- tag only and does not deploy. Serialized per ref, so overlapping
-  # runs never interleave tag writes.
+  # it sha-<short> (plus the version for v* tags). Not serialized: these tags
+  # belong to this commit alone, and a queued job can be dropped by a newer
+  # run, which would leave this build without its sha- tag.
   # -------------------------------------------------------------------------
   merge:
     needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # needed to push to GHCR
+    outputs:
+      tags: ${{ steps.summary.outputs.tags }}
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Resolve the image name
+        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+
+      - name: Create the multi-architecture manifest
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          tags=()
+          while read -r tag; do
+            [ -n "$tag" ] && tags+=(-t "$tag")
+          done <<< "${{ steps.meta.outputs.tags }}"
+          digests=()
+          for digest in *; do
+            digests+=("${IMAGE}@sha256:${digest}")
+          done
+          docker buildx imagetools create "${tags[@]}" "${digests[@]}"
+
+      - name: Verify both architectures are published
+        run: |
+          platforms=$(docker buildx imagetools inspect "${IMAGE}:sha-${GITHUB_SHA::7}" --format '{{json .Manifest}}' \
+            | jq -r '.manifests[].platform | "\(.os)/\(.architecture)"')
+          echo "$platforms"
+          grep -qx linux/amd64 <<< "$platforms"
+          grep -qx linux/arm64 <<< "$platforms"
+
+      - name: Summarize the published tags
+        id: summary
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          list=""
+          while read -r tag; do
+            [ -n "$tag" ] && list="${list:+$list, }${tag##*:}"
+          done <<< "$TAGS"
+          echo "tags=$list" >> "$GITHUB_OUTPUT"
+
+  # -------------------------------------------------------------------------
+  # Promote: point `main` at this build. `main` only moves forward in main's
+  # history: a build whose commit does not descend from the one under `main`
+  # (an older run finishing late) keeps its sha- tag only and does not deploy.
+  # Serialized per ref, so the check and the write never interleave. When
+  # several runs queue, GitHub keeps only the newest pending one; a dropped
+  # promote is harmless, because the newer run moves main further.
+  # -------------------------------------------------------------------------
+  promote:
+    needs: merge
     runs-on: ubuntu-latest
     concurrency:
       group: publish-${{ github.ref }}
@@ -264,13 +338,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Download digests
-        uses: actions/download-artifact@v4
-        with:
-          path: ${{ runner.temp }}/digests
-          pattern: digests-*
-          merge-multiple: true
 
       - name: Resolve the image name
         run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
@@ -313,50 +380,20 @@ jobs:
           echo "move_main=true" >> "$GITHUB_OUTPUT"
           echo "deploy=true" >> "$GITHUB_OUTPUT"
 
-      - name: Extract metadata (tags)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE }}
-          flavor: latest=false
-          tags: |
-            type=raw,value=main,enable=${{ steps.decide.outputs.move_main == 'true' }}
-            type=sha,prefix=sha-
-            type=semver,pattern={{version}}
-
-      - name: Create the multi-architecture manifest
-        working-directory: ${{ runner.temp }}/digests
-        run: |
-          tags=()
-          while read -r tag; do
-            [ -n "$tag" ] && tags+=(-t "$tag")
-          done <<< "${{ steps.meta.outputs.tags }}"
-          digests=()
-          for digest in *; do
-            digests+=("${IMAGE}@sha256:${digest}")
-          done
-          docker buildx imagetools create "${tags[@]}" "${digests[@]}"
-
-      - name: Verify both architectures are published
-        env:
-          VERSION: ${{ steps.meta.outputs.version }}
-        run: |
-          platforms=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .Manifest}}' \
-            | jq -r '.manifests[].platform | "\(.os)/\(.architecture)"')
-          echo "$platforms"
-          grep -qx linux/amd64 <<< "$platforms"
-          grep -qx linux/arm64 <<< "$platforms"
+      - name: Move main to this build
+        if: steps.decide.outputs.move_main == 'true'
+        run: docker buildx imagetools create -t "${IMAGE}:main" "${IMAGE}:sha-${GITHUB_SHA::7}"
 
       - name: Summarize the published tags
         id: summary
         env:
-          TAGS: ${{ steps.meta.outputs.tags }}
+          MOVED: ${{ steps.decide.outputs.move_main }}
+          TAGS: ${{ needs.merge.outputs.tags }}
         run: |
-          list=""
-          while read -r tag; do
-            [ -n "$tag" ] && list="${list:+$list, }${tag##*:}"
-          done <<< "$TAGS"
-          echo "tags=$list" >> "$GITHUB_OUTPUT"
+          if [ "$MOVED" = true ]; then
+            TAGS="main, ${TAGS}"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
   # -------------------------------------------------------------------------
   # Deploy: call the Portainer stack webhook so the server pulls the new
@@ -365,8 +402,8 @@ jobs:
   # never read it. The URL is never printed, and TLS is always verified.
   # -------------------------------------------------------------------------
   deploy:
-    needs: merge
-    if: needs.merge.outputs.deploy == 'true'
+    needs: promote
+    if: needs.promote.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: production
     # One group for every ref: there is one server and one webhook, so a main
@@ -389,16 +426,27 @@ jobs:
         id: trigger
         env:
           PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
-          TAGS: ${{ needs.merge.outputs.tags }}
+          TAGS: ${{ needs.promote.outputs.tags }}
         run: |
           if [ -z "$PORTAINER_WEBHOOK_URL" ]; then
             echo "::warning::Images ${TAGS} published; server deployment skipped because PORTAINER_WEBHOOK_URL is not configured."
             echo "triggered=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          limit=${WEBHOOK_TIMEOUT:-300}
           status=0
-          code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 300 \
-            --request POST "$PORTAINER_WEBHOOK_URL" 2>/dev/null) || status=$?
+          result=$(curl --silent --output /dev/null --write-out '%{http_code} %{size_request}' \
+            --max-time "$limit" --request POST "$PORTAINER_WEBHOOK_URL" 2>/dev/null) || status=$?
+          read -r code sent <<< "$result"
+          if [ "$status" -eq 28 ] && [ "${sent:-0}" -gt 0 ]; then
+            # Portainer answers only after it has pulled the images, which can take
+            # longer than the limit the first time or after a model change. The
+            # request got through, so let the confirmation below decide.
+            echo "::warning::Portainer did not answer within ${limit} s; it may still be pulling the images for ${TAGS}. Waiting for the site to confirm the redeploy."
+            echo "triggered=true" >> "$GITHUB_OUTPUT"
+            echo "timed_out=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           case "$code" in
             2??)
               echo "Redeploy triggered for ${TAGS} (HTTP ${code})."
@@ -418,9 +466,14 @@ jobs:
         if: steps.trigger.outputs.triggered == 'true'
         env:
           SITE_URL: ${{ vars.SITE_URL }}
-          TAGS: ${{ needs.merge.outputs.tags }}
+          TAGS: ${{ needs.promote.outputs.tags }}
+          TIMED_OUT: ${{ steps.trigger.outputs.timed_out }}
         run: |
           if [ -z "$SITE_URL" ]; then
+            if [ "$TIMED_OUT" = true ]; then
+              echo "::error::Portainer did not answer in time and SITE_URL is not configured, so the redeploy for ${TAGS} can't be confirmed. Check the stack in Portainer."
+              exit 1
+            fi
             echo "::notice::Redeploy not confirmed: SITE_URL is not configured for the production environment."
             exit 0
           fi

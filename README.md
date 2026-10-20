@@ -428,7 +428,7 @@ OpenAPI schema:  http://localhost:8000/api/schema/
 | `DEBUG` | `False` | Django debug mode; set `True` for local development only |
 | `SECRET_KEY` | — (required) | Session and cryptographic signing |
 | `ALLOWED_HOSTS` | `localhost,127.0.0.1` | Accepted HTTP hosts |
-| `TRUST_X_FORWARDED_PROTO` | `False` | Treat `X-Forwarded-Proto: https` as secure; set `True` only behind your HTTPS proxy |
+| `TRUST_X_FORWARDED_PROTO` | `False` | Treat `X-Forwarded-Proto: https` as secure; set `True` only behind your HTTPS proxy; an unrecognized value stops startup |
 | `CSRF_TRUSTED_ORIGINS` | empty | Comma list of trusted origins for form posts, e.g. `https://library.example.com` |
 | `DATABASE_URL` | — | Full PostgreSQL URL; overrides the `DB_*` values |
 | `DB_NAME` | `library_db` | PostgreSQL database |

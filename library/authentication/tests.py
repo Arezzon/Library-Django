@@ -134,14 +134,24 @@ class EnvironmentSettingsTests(SimpleTestCase):
 
     def test_forwarded_https_is_trusted_only_when_enabled(self):
         expression = 'getattr(s, "SECURE_PROXY_SSL_HEADER", None)'
-        self.assertSetting(
-            expression,
-            ["HTTP_X_FORWARDED_PROTO", "https"],
-            TRUST_X_FORWARDED_PROTO="True",
-        )
-        for value in (None, "", "False", "true"):
+        for value in ("True", "true", "TRUE", " true ", "1", "yes", "on"):
+            with self.subTest(trust=value):
+                self.assertSetting(
+                    expression,
+                    ["HTTP_X_FORWARDED_PROTO", "https"],
+                    TRUST_X_FORWARDED_PROTO=value,
+                )
+        for value in (None, "", "False", "false", "0", "no", "off"):
             with self.subTest(trust=value):
                 self.assertSetting(expression, None, TRUST_X_FORWARDED_PROTO=value)
+
+    def test_unrecognized_proxy_trust_value_stops_startup(self):
+        # A typo must not silently leave HTTPS detection off behind the proxy.
+        for value in ("ture", "enabled", "2"):
+            with self.subTest(trust=value):
+                self.assertStartupFails(
+                    "TRUST_X_FORWARDED_PROTO", TRUST_X_FORWARDED_PROTO=value
+                )
 
     def test_allowed_hosts_are_platform_neutral(self):
         self.assertSetting(

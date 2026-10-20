@@ -80,7 +80,7 @@ Runtime tuning, such as `BOOK_EMBEDDING_THREADS`, is not part of the spec and do
 
 | Reference | Points to | Moves? | Written by |
 |---|---|---|---|
-| `<repo>:main` | Newest successful `main` build, both architectures | Forward only: it moves only when the commit currently under `main` (its `org.opencontainers.image.revision` label) is an ancestor of the new build's commit, or when no `main` exists yet | `merge` job on `main` pushes |
+| `<repo>:main` | Newest successful `main` build, both architectures | Forward only: it moves only when the commit currently under `main` (its `org.opencontainers.image.revision` label) is an ancestor of the new build's commit, or when no `main` exists yet | `promote` job on `main` pushes |
 | `<repo>:sha-<short>` | That commit's build | Never | Every publishing run |
 | `<repo>:<semver>` | The version-tag build | Never | `v*` tag runs |
 
