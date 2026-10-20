@@ -1,4 +1,8 @@
 2026-10-20
+Current lint and format tools
+Bumped black from 26.5.1 to 26.10.1 and ruff from 0.16.10 to 0.17.1 in requirements-dev.txt. The code already passes both, so no reformatting or lint fixes were needed, and the pyproject.toml settings are unchanged.
+
+2026-10-20
 Django 5.2 LTS and current runtime dependencies (KAN-17)
 Upgraded Django from 4.1, which no longer receives security fixes, to 5.2.18 LTS, and moved every runtime dependency to its latest release compatible with it. The exception is redis-py, held at 6.4.0 by kombu. The root requirements.txt now pins the complete resolved set and is the only runtime dependency list; library/requirements.txt is removed. STORAGES replaces the removed STATICFILES_STORAGE setting, so WhiteNoise keeps serving compressed, hash-named static files, and USE_L10N is gone. Two migrations that had never been generated now ship: the role choice label and order.id as bigint. The API schema is unchanged, and no deprecation warnings remain. The constitution is amended to v2.1.0: the Django 5.2 LTS line, a single dependency list, and patch releases as routine updates.
 

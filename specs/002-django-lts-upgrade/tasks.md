@@ -238,7 +238,7 @@ post-merge steps.
   - the deprecation baseline;
   - constitution v2.1.0 (Django 5.2 LTS line, single dependency list, patch releases routine).
 - [x] T025 From the repository root, run `ruff check .` and `black --check .` with the `requirements-dev.txt` pins, and fix every finding.
-- [ ] T026 Commit and open PR 1:
+- [x] T026 Commit and open PR 1:
   - **Commit**: follow `.agents/skills/preview-commit/SKILL.md`.
   - **Push and PR**: follow `.agents/skills/preview-pr/SKILL.md`, with the title `chore(deps): upgrade Django to 5.2 LTS and refresh runtime dependencies`.
   - **PR description**: follows `.github/PULL_REQUEST_TEMPLATE.md`. It includes the R1 version table, the allowed schema differences from T014, the `deprecations.md` summary, and a note that it supersedes Dependabot's `django-5.2.17` and `djangorestframework-3.17.2` pull requests.
@@ -260,14 +260,14 @@ post-merge steps.
 **Independent Test**: quickstart.md §3. Lint and format report nothing, and the suite passes with no
 test assertion changed (SC-008).
 
-- [ ] T028 [US4] After PR 1 has merged, create `chore/lint-tools-latest` from a freshly fetched `origin/main`, following `.agents/skills/fresh-feature-branch/SKILL.md`.
-- [ ] T029 [US4] In `requirements-dev.txt`, set `black` and `ruff` to their newest releases (`python -m pip index versions black` and `… ruff`). On 2026-10-20 these are `black==26.10.1` and `ruff==0.17.1` (research R11). Keep the file's header comment.
-- [ ] T030 [US4] Install the new pins (`python -m pip install -r requirements-dev.txt`) and run `ruff check .` and `black --check .` from the root:
+- [x] T028 [US4] After PR 1 has merged, create `chore/lint-tools-latest` from a freshly fetched `origin/main`, following `.agents/skills/fresh-feature-branch/SKILL.md`.
+- [x] T029 [US4] In `requirements-dev.txt`, set `black` and `ruff` to their newest releases (`python -m pip index versions black` and `… ruff`). On 2026-10-20 these are `black==26.10.1` and `ruff==0.17.1` (research R11). Keep the file's header comment.
+- [x] T030 [US4] Install the new pins (`python -m pip install -r requirements-dev.txt`) and run `ruff check .` and `black --check .` from the root:
   - **Findings**: apply `ruff check --fix .` and `black .`, then fix the rest by hand without changing behavior.
   - **A finding that cannot be fixed without a behavior change**: suppress it at that line with `# noqa: <code>`, followed by the reason.
   - **`pyproject.toml`**: change it only if the tools warn about a renamed or removed setting or rule (FR-020).
-- [ ] T031 [US4] Run the full suite as in quickstart.md §2.4. Every test passes with no test assertion changed (SC-008).
-- [ ] T032 [US4] Finish PR 2:
+- [x] T031 [US4] Run the full suite as in quickstart.md §2.4. Every test passes with no test assertion changed (SC-008).
+- [x] T032 [US4] Finish PR 2:
   - add a changelog entry at the top of `docs/shared/changelog.md` ("Current lint and format tools": versions, plus "no code changes needed" or a summary of the fixes);
   - commit with the preview-commit skill;
   - open the PR with the preview-pr skill, titled `chore(ci): bump black and ruff to their latest releases`;
