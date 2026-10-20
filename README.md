@@ -165,8 +165,7 @@ python -m pip install -r ./requirements.txt
 ```
 
 `requirements.txt` in the repository root is the only runtime dependency list; the
-image installs the same file. A virtual environment installed from the old copy in
-`library/` should be reinstalled from it.
+image installs the same file.
 
 Create `.env` in the repository root from `.env.example`:
 
