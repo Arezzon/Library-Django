@@ -354,3 +354,21 @@ All targets are met: 2.669 GiB of 4 GiB, search p95 243 ms against 500 ms, and b
 173 ms against 2 s. Every seeded book has a vector from the current model. Compared with the
 PostgreSQL 15 and Redis 7.4 stack after PR 1 (2.645 GiB, 219 ms, 171 ms), memory and latency are
 practically unchanged.
+
+The operator confirmed every step of the one-time reset: the seed-only check passed, the demo
+passwords were replaced, `DJANGO_SEED=false` was set and the site brought back online, and the
+old `pgdata` and `redisdata` volumes were deleted.
+
+### Success criteria evidence (T045)
+
+| Criterion | Evidence |
+|---|---|
+| SC-001 tests pass, none weakened | 156 → 159 tests OK locally with real-model tests; #30, #31 and #32 merged through the required `lint` and `smoke-test` checks |
+| SC-002 no project-code deprecation warnings | `deprecations.md`: none, from project or third-party code |
+| SC-003 data and sign-in survive | In-place upgrade over a 4.1 database: counts `4\|8\|9\|3\|0\|9` unchanged; hash re-encoded to 1,000,000 iterations |
+| SC-004 API unchanged | `/api/schema/` byte-identical to the 4.1 baseline |
+| SC-005 Pi targets | Met after #30 (2.645 GiB, p95 219 ms) and after #32 (2.669 GiB, p95 243 ms) |
+| SC-006 supported until April 2028 | Django 5.2.18 LTS |
+| SC-007 one dependency list | `library/requirements.txt` removed; fresh venv installs in one step |
+| SC-008 current lint tools, no findings | black 26.10.1 and ruff 0.17.1: 0 findings, no code changes |
+| SC-009 reset on the Pi | Seed-only check passed; 9/9 vectors current; demo passwords replaced; budget check PASS |

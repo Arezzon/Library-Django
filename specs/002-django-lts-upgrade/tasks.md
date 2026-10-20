@@ -339,7 +339,7 @@ Pi, SC-009 holds.
   - **Commit** with the preview-commit skill.
   - **PR** with the preview-pr skill, titled `chore(deploy): move to PostgreSQL 18 and Redis 8 images`.
   - **PR description**: a "Before merging" checklist covering reset steps 1–3 (seed-only check passed, `DJANGO_SEED=true` saved in Portainer, site taken off the internet). Merge only after the operator confirms both.
-- [ ] T043 [US5] **(manual, operator)** After the merge, finish the reset on the Pi with steps 4–7 of the guide's new section (SC-009):
+- [x] T043 [US5] **(manual, operator)** After the merge, finish the reset on the Pi with steps 4–7 of the guide's new section (SC-009):
   - confirm the redeploy;
   - replace the demo passwords and set `DJANGO_SEED=false`;
   - verify the counts, that no book lacks a vector, the searches, and `smoke_stack_budget.py`;
@@ -363,7 +363,7 @@ five stories are done.
   ```
 
   **Expected**: no matches. Fix any hit in its file in a follow-up commit on the PR 3 branch, or in a small docs PR if PR 3 has merged.
-- [ ] T045 Re-read `specs/002-django-lts-upgrade/spec.md` success criteria SC-001–SC-009 against the evidence:
+- [x] T045 Re-read `specs/002-django-lts-upgrade/spec.md` success criteria SC-001–SC-009 against the evidence:
   - CI runs of PRs 1–3;
   - the T013 and T014 outputs;
   - `deprecations.md`;
