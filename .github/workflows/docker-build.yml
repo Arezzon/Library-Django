@@ -182,7 +182,9 @@ jobs:
     needs: smoke-test-matrix
     if: always()
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Require the smoke test to pass on every runner
         env:
