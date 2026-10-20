@@ -11,14 +11,14 @@
 
 services:
   db:
-    image: pgvector/pgvector:0.8.2-pg15
+    image: pgvector/pgvector:0.8.7-pg18
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-library_db}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the Portainer stack environment}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata18:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-library_db}"]
       interval: 5s
@@ -26,11 +26,11 @@ services:
       retries: 10
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8.10.2-alpine
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always", "--maxmemory-policy", "noeviction"]
     restart: unless-stopped
     volumes:
-      - redisdata:/data
+      - redisdata8:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -92,6 +92,9 @@ services:
       redis:
         condition: service_healthy
 
+# New volumes for PostgreSQL 18 and Redis 8: the upgraded services start on empty
+# data (PostgreSQL 18 cannot read 15 data files). See the operator guide,
+# "Upgrade to PostgreSQL 18 and Redis 8 (one-time reset)".
 volumes:
-  pgdata:
-  redisdata:
+  pgdata18:
+  redisdata8:

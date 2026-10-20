@@ -46,3 +46,13 @@
 
 {"timestamp":"2026-10-20T11:31:25.7332729Z","action":"guard","status":"allow","feature_directory":"specs/002-django-lts-upgrade","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
 
+{"timestamp":"2026-10-20T11:51:48.9734575Z","action":"handoff","status":"executing","feature_directory":"specs/002-django-lts-upgrade","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261020T1151489229504Z-executing"}
+
+{"timestamp":"2026-10-20T11:51:49.0216682Z","action":"guard","status":"allow","feature_directory":"specs/002-django-lts-upgrade","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-20T11:53:11.7753775Z","action":"handoff","status":"blocked","feature_directory":"specs/002-django-lts-upgrade","decision":"updated","reason":"T041: constitution v2.2.0 amendment (Database line) requires a non-executing handoff","actor":"claude","prior_actor":"claude","snapshot_id":"20261020T1153117524155Z-blocked"}
+
+{"timestamp":"2026-10-20T11:53:11.8151968Z","action":"guard","status":"allow","feature_directory":"specs/002-django-lts-upgrade","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-10-20T11:53:28.9507854Z","action":"handoff","status":"executing","feature_directory":"specs/002-django-lts-upgrade","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261020T1153288972379Z-executing"}
+

@@ -1,4 +1,8 @@
 2026-10-20
+PostgreSQL 18 and Redis 8
+Both Compose stacks now run pgvector/pgvector:0.8.7-pg18 (PostgreSQL 18) and redis:8.10.2-alpine on new volumes, pgdata18 mounted at /var/lib/postgresql and redisdata8. PostgreSQL 18 cannot read PostgreSQL 15 files and the server held only demo seed data, so the upgrade is a one-time reset: the stack starts empty and reseeds. The old volumes stay until the operator deletes them, so reverting brings the previous stack back. The operator guide has the steps, including the seed-only check before merging. A test keeps both stacks on the same exact images. The constitution is amended to v2.2.0 (PostgreSQL 18).
+
+2026-10-20
 Current lint and format tools
 Bumped black from 26.5.1 to 26.10.1 and ruff from 0.16.10 to 0.17.1 in requirements-dev.txt. The code already passes both, so no reformatting or lint fixes were needed, and the pyproject.toml settings are unchanged.
 
