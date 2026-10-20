@@ -328,16 +328,37 @@ class MigrationStateTests(TestCase):
     """Every model change has a migration, so drift fails here instead of slipping into
     whoever runs makemigrations next."""
 
-    def test_models_have_no_missing_migrations(self):
+    def check_migrations(self):
         import io
 
         from django.core.management import call_command
 
         output = io.StringIO()
         try:
-            call_command("makemigrations", check=True, dry_run=True, stdout=output)
+            call_command(
+                "makemigrations",
+                check=True,
+                dry_run=True,
+                interactive=False,
+                stdout=output,
+            )
         except SystemExit:
             self.fail("Models have changes without a migration:\n" + output.getvalue())
+
+    def test_models_have_no_missing_migrations(self):
+        self.check_migrations()
+
+    def test_migration_check_never_prompts(self):
+        """A rename would make the interactive questioner wait for input, hanging a
+        local run and erroring under CI instead of failing with the message above."""
+        from unittest.mock import patch
+
+        with patch(
+            "django.core.management.commands.makemigrations."
+            "InteractiveMigrationQuestioner",
+            side_effect=AssertionError("makemigrations would prompt for input"),
+        ):
+            self.check_migrations()
 
 
 class PasswordHashUpgradeTests(TestCase):
