@@ -11,7 +11,7 @@ need to read any application code.
 
 | Already done in this repository | You do this |
 |---|---|
-| `docker-compose.yml`: the server stack (web, worker, PostgreSQL, Redis), using published images only | **On the Pi**: install a 64-bit OS, Docker Engine and Portainer BE |
+| `docker-compose.yml`: the server stack (web, worker, PostgreSQL, Redis, daily backups), using published images only | **On the Pi**: install a 64-bit OS, Docker Engine and Portainer BE |
 | Multi-architecture images (`linux/amd64`, `linux/arm64`) published to `ghcr.io/arezzon/library-django` on every merge into `main` and every `v*` tag | **In Portainer**: create the stack from the repository, set its environment variables, turn on the webhook |
 | CI runs lint and the full smoke test on amd64 and arm64 before anything is published | **In Portainer / your network**: make the stack webhook reachable over HTTPS with a trusted certificate |
 | CI calls the Portainer webhook after both architectures are published, and checks that the site reports the new commit | **In GitHub** (repository admin): create the `production` environment, its secret `PORTAINER_WEBHOOK_URL` and optional variable `SITE_URL` |
@@ -26,7 +26,12 @@ need to read any application code.
 - [Review librarian accounts after an update](#review-librarian-accounts-after-an-update)
 - [First deployment checklist](#first-deployment-checklist)
 - [Viewing logs](#viewing-logs)
-- [Backup and restore](#backup-and-restore)
+- [Daily backups](#daily-backups)
+- [Weekly copy to another machine](#weekly-copy-to-another-machine)
+- [Restore into a separate database](#restore-into-a-separate-database)
+- [Restore after losing the database](#restore-after-losing-the-database)
+- [Rehearse a restore](#rehearse-a-restore)
+- [Check data persistence and limits](#check-data-persistence-and-limits)
 - [Upgrade to PostgreSQL 18 and Redis 8 (one-time reset)](#upgrade-to-postgresql-18-and-redis-8-one-time-reset)
 - [Turn on automatic updates](#turn-on-automatic-updates)
 - [Make the webhook reachable](#make-the-webhook-reachable)
@@ -97,6 +102,8 @@ never committed to the repository or baked into the images.
 | `DB_NAME` / `DB_USER` | no | `library_db` / `postgres` | Database name and user. |
 | `WEB_CONCURRENCY` | no | `3` | Gunicorn web workers. Each holds one model copy of about 0.6 GB. |
 | `BOOK_EMBEDDING_THREADS` | no | `2` | Inference threads per web worker. |
+| `BACKUP_HOUR` | no | `1` | The UTC hour at or after which each day's backup runs. `1` is 03:00 or 04:00 in Kyiv. See [Daily backups](#daily-backups). Any value other than a whole number from 0 to 23 stops the `backup` service with an error naming this setting. |
+| `BACKUP_KEEP_DAYS` | no | `7` | Backups older than this many days are deleted; the 7 newest always stay. Any value other than a whole number stops the `backup` service with an error naming this setting. |
 
 Generate `SECRET_KEY` and `DB_PASSWORD` on any machine with Python:
 
@@ -214,21 +221,177 @@ images download and the search vectors are built.
 
   Replace `library` with your stack name.
 
-## Backup and restore
+## Daily backups
 
 The database lives in the `pgdata18` volume and the event queue in `redisdata8`. Both survive
-redeploys and reboots. PostgreSQL 18 keeps its files under `/var/lib/postgresql/18/docker`
-inside that volume. Back up the database regularly:
+redeploys and reboots. The `backup` service backs the database up every day into a volume of its
+own, `pgbackups`, so removing or recreating `pgdata18` leaves the backups intact.
 
-```bash
-# Back up (run on the Pi; use your stack's db container name and DB_USER/DB_NAME).
-docker exec library-db-1 pg_dump -U postgres library_db > library-$(date +%F).sql
+- **Schedule**: every 10 minutes the service checks whether today's backup (UTC) exists. If it
+  doesn't and the hour is at or after `BACKUP_HOUR` (default `1`, which is 03:00 or 04:00 in
+  Kyiv), it takes one. A failed run is retried at the next check, so on a healthy server the
+  newest backup is never older than 24 hours.
+- **Each run**:
+  - takes one consistent `pg_dump` of the whole database;
+  - reads the whole archive back to check it;
+  - writes a checksum file;
+  - deletes backups older than `BACKUP_KEEP_DAYS` (default `7`), except that the 7 newest always
+    stay.
+- **Files**: `/backups/library-<UTC time>.dump` and its `.dump.sha256`. A `.partial` file is a
+  backup in progress; a failed run deletes it and keeps every earlier backup.
+- **Who can read them**: the files are mode 600 and owned by root, so only the operator can read
+  them on the Pi. **Backups contain every account's password hash and readers' personal data.**
+  Never put a backup or a copy of one in the repository, an image or a shared folder.
 
-# Restore into an empty database (for example after recreating the volume).
-docker exec -i library-db-1 psql -U postgres -d library_db < library-2026-10-20.sql
-```
+Replace `library` with your stack name:
 
-After a restore, restart `web`: it re-encodes any book vectors that don't match its model.
+| Task | Command |
+|---|---|
+| Check the latest result | `docker logs --tail 20 library-backup-1` |
+| List the backups | `docker exec library-backup-1 ls -lh /backups` |
+| Take a backup now | `docker exec library-backup-1 library-backup once` |
+
+A successful run logs one line such as
+`2026-10-28T01:00:04.512Z INFO backup - backup: created library-20261028T010000Z.dump (48.2 MB) in 4.3 s; check passed; 7 kept, 1 removed`.
+A failed run logs an `ERROR` line with the step and the cause, for example
+`... ERROR backup - backup: failed at pg_dump: ...; earlier backups kept; next try in 10 minutes`.
+
+## Weekly copy to another machine
+
+Daily backups stay on the Pi. Once a week, copy the newest one to another machine, so that losing
+the Pi or its disk costs at most a week of data:
+
+1. Copy the newest backup and its checksum out of the container:
+
+   ```bash
+   file=$(docker exec library-backup-1 sh -c 'ls -1t /backups/*.dump | head -1')
+   docker cp "library-backup-1:$file" . && docker cp "library-backup-1:$file.sha256" .
+   ```
+
+2. Move both files to the other machine with `scp`.
+3. On the other machine, check them:
+   - `sha256sum -c library-<time>.dump.sha256` reports `OK`;
+   - `pg_restore --list library-<time>.dump` lists the archive. Use a PostgreSQL 18 client, or
+     `docker run --rm -v "$PWD":/b:ro pgvector/pgvector:0.8.7-pg18 pg_restore --list /b/library-<time>.dump`.
+4. Keep the last 4 weekly copies there, readable only by you (`chmod 600`).
+5. Delete the transfer copies from the Pi's home folder.
+
+## Restore into a separate database
+
+Use this to check a backup, or to look at old data, without touching the live database. The
+temporary web container uses about 0.7 GB of memory while it runs.
+
+1. Create an empty database (use your `DB_USER`):
+
+   ```bash
+   docker exec library-db-1 createdb -U postgres library_restore
+   ```
+
+2. Restore the backup into it:
+
+   ```bash
+   docker exec library-backup-1 pg_restore --no-owner --exit-on-error -d library_restore /backups/library-<time>.dump
+   ```
+
+3. Start a temporary web container from the stack's image on port 8001. It needs the stack's
+   `SECRET_KEY` and `DB_PASSWORD`; `read -rs` keeps them out of the shell history:
+
+   ```bash
+   read -rs -p "SECRET_KEY: " SECRET_KEY; echo; export SECRET_KEY
+   read -rs -p "DB_PASSWORD: " DB_PASSWORD; echo; export DB_PASSWORD
+   docker run --rm -d --name library-restore-check --network library_default -p 8001:8000 \
+     -e SECRET_KEY -e DB_PASSWORD -e DB_USER=postgres -e DB_HOST=db -e DB_NAME=library_restore \
+     -e WEB_CONCURRENCY=1 -e CELERY_BROKER_URL=redis://redis:6379/15 \
+     -e TRUST_X_FORWARDED_PROTO=False -e ALLOWED_HOSTS=localhost,127.0.0.1,<pi address> \
+     "$(docker inspect --format '{{.Config.Image}}' library-web-1)"
+   ```
+
+   Its events go to broker database 15, so the live worker never sees them, and its cookies work
+   over plain HTTP on port 8001.
+4. Check the restored copy:
+   - the record counts match the backup's. Take the counts of the live database right before
+     `library-backup once` with the query in [Check data persistence and limits](#check-data-persistence-and-limits),
+     then run it with `-d library_restore`;
+   - a librarian can sign in at `http://<pi address>:8001/authentication/login/`;
+   - a search in the catalog returns books.
+5. Clean up:
+
+   ```bash
+   docker stop library-restore-check
+   docker exec library-db-1 dropdb -U postgres library_restore
+   docker exec library-redis-1 redis-cli -n 15 flushdb
+   ```
+
+Restoring into an older release than the one that made the backup is not supported.
+
+## Restore after losing the database
+
+1. Stop `web` and `worker` in Portainer.
+2. Remove and recreate the `pgdata18` volume (this deletes the old data), then start `db`.
+3. Restore the newest backup into the live database:
+
+   ```bash
+   docker exec library-backup-1 pg_restore --no-owner --exit-on-error -d library_db /backups/library-<time>.dump
+   ```
+
+4. Start `web`. It migrates the database and re-encodes any book vectors that don't match its
+   model, as it does after every deployment.
+5. Start `worker`.
+
+## Rehearse a restore
+
+Rehearse "Restore into a separate database" once after setting up backups, at a quiet time, with
+a fresh backup (`library-backup once`). Time it from `createdb` to a passing search; the target is
+under 60 minutes. Send the maintainers:
+
+| Field | Example |
+|---|---|
+| Date and operator | 2026-11-02, the operator's name |
+| Backup | `library-20261102T010000Z.dump`, 48.2 MB |
+| Restore duration | 3 min 20 s, from `createdb` to a passing search |
+| Counts | All tables match, or the differences |
+| Sign-in and search | A librarian signed in; a search for "detective" returned books |
+| Peak memory | From `docker stats` during the rehearsal |
+
+## Check data persistence and limits
+
+Do this once after deploying backups, and after any change to the Pi's storage. Replace `library`
+with your stack name, and `postgres` and `library_db` with your `DB_USER` and `DB_NAME`.
+
+1. **Record counts**: take them before and after each step below; they must match every time.
+
+   ```bash
+   docker exec library-db-1 psql -U postgres -d library_db -At -F ' ' -c "select 'accounts', count(*) from authentication_customuser
+   union all select 'authors', count(*) from author_author union all select 'books', count(*) from book_book
+   union all select 'book vectors', count(*) from book_bookembedding union all select 'loans', count(*) from order_order
+   union all select 'events', count(*) from events_userevent"
+   ```
+
+2. **Restart each service** and time how long the site takes to answer again (under 3 minutes):
+
+   ```bash
+   for s in db redis web worker backup; do
+     docker restart library-$s-1; start=$(date +%s)
+     until curl -fsS -o /dev/null http://localhost:8000/api/v1/version/; do sleep 2; done
+     echo "$s: back in $(( $(date +%s) - start )) s"
+   done
+   ```
+
+   Repeat after a redeploy in Portainer and after `sudo reboot`, timing the reboot from another
+   machine.
+3. **First request after a quiet day**: after 24 hours without traffic, time the first request and
+   a second one; they should be about as fast:
+   `curl -s -o /dev/null -w '%{time_total} s\n' http://localhost:8000/authentication/login/`.
+4. **Limits**:
+   - `docker system df -v` for the space used by `pgdata18`, `redisdata8` and `pgbackups`, and
+     `df -h /` for the free space;
+   - `sudo du -ch /var/lib/docker/containers/*/*-json.log | tail -1` for the logs;
+   - memory, from [Measure the stack on the Pi](#measure-the-stack-on-the-pi);
+   - confirm that the old Render services are gone ([Shut down Render](#shut-down-render-after-the-pi-is-verified)).
+
+Send each result to the maintainers. The site stores no uploaded files: every record lives in the
+database that the backups cover, and a future upload feature must keep its files in a volume that
+the backups also cover.
 
 ## Upgrade to PostgreSQL 18 and Redis 8 (one-time reset)
 

@@ -609,6 +609,28 @@ class ComposeServiceImagesTests(SimpleTestCase):
                 self.assertNotIn("pgdata", stack["volumes"])
                 self.assertNotIn("redisdata", stack["volumes"])
 
+    def test_both_stacks_define_the_same_backup_service(self):
+        server, dev = (
+            stack["services"].get("backup") for stack in self.stacks.values()
+        )
+        self.assertIsNotNone(server, "docker-compose.yml has no backup service")
+        self.assertIsNotNone(dev, "docker-compose-dev.yml has no backup service")
+        self.assertEqual(server["entrypoint"], dev["entrypoint"])
+        self.assertEqual(server["command"], dev["command"])
+        self.assertEqual(set(server["environment"]), set(dev["environment"]))
+
+    def test_backups_use_the_database_image_and_a_volume_of_their_own(self):
+        for name, stack in self.stacks.items():
+            with self.subTest(stack=name):
+                services = stack["services"]
+                self.assertIn("backup", list(services))
+                self.assertEqual(services["backup"]["image"], services["db"]["image"])
+                self.assertIn("pgbackups:/backups", services["backup"]["volumes"])
+                self.assertIn("pgbackups", stack["volumes"])
+                # Removing or recreating the database volume leaves backups intact.
+                self.assertNotIn("pgdata18", str(services["backup"]["volumes"]))
+                self.assertNotIn("pgbackups", str(services["db"]["volumes"]))
+
 
 def failing_view(request):
     raise RuntimeError("diagnostic regression")

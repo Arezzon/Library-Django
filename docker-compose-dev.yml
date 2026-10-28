@@ -1,5 +1,6 @@
 # Docker Compose for local development of the Django Library app
-# Services: web (Django + gunicorn), worker (Celery), db (PostgreSQL), redis
+# Services: web (Django + gunicorn), worker (Celery), db (PostgreSQL), redis,
+# backup (a daily, checked database backup into its own volume)
 # The server stack is docker-compose.yml; this file builds from local source.
 # Usage:
 #   cp .env.example .env                                  # then set SECRET_KEY and DB_PASSWORD
@@ -100,9 +101,125 @@ services:
     volumes:
       - ./library:/app/library
 
+  # Daily backups of the database into the pgbackups volume (operator guide, "Daily
+  # backups"). The database image carries the matching pg_dump. Keep this service
+  # identical in docker-compose.yml; a test compares them.
+  backup:
+    image: pgvector/pgvector:0.8.7-pg18
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGDATABASE: ${DB_NAME:-library_db}
+      PGUSER: ${DB_USER:-postgres}
+      PGPASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env (see .env.example)}
+      # The UTC hour at or after which each day's backup runs (1 is 03:00 or 04:00
+      # in Kyiv), and the days backups are kept; the 7 newest always stay.
+      BACKUP_HOUR: ${BACKUP_HOUR:-1}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+    volumes:
+      - pgbackups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    # Installs library-backup, then runs it. "loop" checks every 10 minutes and takes
+    # the day's backup; `library-backup once` takes one now. $$ is a literal $.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        cat > /usr/local/bin/library-backup <<'SCRIPT'
+        #!/bin/sh
+        # library-backup once|loop: pg_dump the database into /backups, read the
+        # whole archive back, write its checksum, then prune old backups.
+        set -u
+        dir=/backups
+        retry=""
+        log() {
+          printf '%s %s backup - backup: %s\n' "$$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" "$$1" "$$2"
+        }
+        hour=$${BACKUP_HOUR:-1}
+        keep_days=$${BACKUP_KEEP_DAYS:-7}
+        for value in "$$hour" "$$keep_days"; do
+          case "$$value" in
+            ''|*[!0-9]*)
+              log ERROR "BACKUP_HOUR and BACKUP_KEEP_DAYS must be whole numbers, not '$$hour' and '$$keep_days'; no backups are taken"
+              exit 2
+              ;;
+          esac
+        done
+        if [ "$$hour" -gt 23 ]; then
+          log ERROR "BACKUP_HOUR must be 0 to 23, not $$hour; no backups are taken"
+          exit 2
+        fi
+        once() {
+          umask 077
+          name=library-$$(date -u +%Y%m%dT%H%M%SZ).dump
+          partial="$$dir/$$name.partial"
+          started=$$(date +%s.%N)
+          fail() {
+            rm -f "$$partial" "$$dir/$$name.sha256"
+            message=$$(printf '%s' "$$2" | tr -s '\n\t' '  ')
+            log ERROR "failed at $$1: $$message; earlier backups kept$$retry"
+            exit 1
+          }
+          if ! output=$$(pg_dump --format=custom --file="$$partial" 2>&1); then
+            fail pg_dump "$$output"
+          fi
+          if ! output=$$(pg_restore --list "$$partial" 2>&1 >/dev/null); then
+            fail check "$$output"
+          fi
+          if ! output=$$(pg_restore --file=/dev/null "$$partial" 2>&1); then
+            fail check "$$output"
+          fi
+          hash=$$(sha256sum < "$$partial" | cut -d ' ' -f 1)
+          [ -n "$$hash" ] || fail checksum "sha256sum produced no checksum"
+          printf '%s  %s\n' "$$hash" "$$name" > "$$dir/$$name.sha256" \
+            || fail checksum "could not write $$name.sha256"
+          mv "$$partial" "$$dir/$$name" || fail rename "could not rename $$name.partial"
+          kept=0
+          removed=0
+          for file in $$(ls -1t "$$dir"/library-*.dump 2>/dev/null); do
+            if [ "$$kept" -ge 7 ] && [ -n "$$(find "$$file" -mtime +"$$keep_days")" ]; then
+              rm -f "$$file" "$$file.sha256"
+              removed=$$((removed + 1))
+            else
+              kept=$$((kept + 1))
+            fi
+          done
+          size=$$(stat -c %s "$$dir/$$name")
+          size=$$(awk -v bytes="$$size" 'BEGIN { printf "%.1f MB", bytes / 1000000 }')
+          took=$$(awk -v start="$$started" -v end="$$(date +%s.%N)" 'BEGIN { printf "%.1f", end - start }')
+          log INFO "created $$name ($$size) in $$took s; check passed; $$kept kept, $$removed removed"
+        }
+        case "$${1:-loop}" in
+          once)
+            once
+            ;;
+          loop)
+            retry="; next try in 10 minutes"
+            while :; do
+              if [ "$$(date -u +%H)" -ge "$$hour" ] \
+                && ! ls "$$dir"/library-"$$(date -u +%Y%m%d)"T*.dump >/dev/null 2>&1; then
+                (once) || true
+              fi
+              sleep 600
+            done
+            ;;
+          *)
+            echo "usage: library-backup once|loop" >&2
+            exit 2
+            ;;
+        esac
+        SCRIPT
+        chmod 755 /usr/local/bin/library-backup
+        exec library-backup "$$@"
+      - library-backup
+    command: ["loop"]
+
 # New volumes for PostgreSQL 18 and Redis 8: the upgraded services start on empty
 # data (PostgreSQL 18 cannot read 15 data files). See the operator guide,
 # "Upgrade to PostgreSQL 18 and Redis 8 (one-time reset)".
 volumes:
   pgdata18:
   redisdata8:
+  pgbackups:

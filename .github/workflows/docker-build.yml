@@ -126,6 +126,24 @@ jobs:
       - name: Collect static files for the mounted source
         run: docker compose -f docker-compose-dev.yml exec -T web python manage.py collectstatic --noinput
 
+      # The trial restore: one backup, restored into a scratch database, with the
+      # exact row count of every table compared against the live one. It runs before
+      # anything else writes, so the live counts cannot move while it compares.
+      - name: Verify a backup restores
+        run: |
+          dc="docker compose -f docker-compose-dev.yml"
+          $dc exec -T backup library-backup once
+          file=$($dc exec -T backup sh -c 'ls -1t /backups/*.dump | head -1')
+          $dc exec -T db createdb -U postgres library_restore
+          $dc exec -T backup pg_restore --no-owner --exit-on-error -d library_restore "$file"
+          counts="select table_name, (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', table_schema, table_name), false, true, '')))[1]::text from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' order by table_name"
+          $dc exec -T db psql -U postgres -d library_db -At -c "$counts" > "$RUNNER_TEMP/live-counts.txt"
+          $dc exec -T db psql -U postgres -d library_restore -At -c "$counts" > "$RUNNER_TEMP/restored-counts.txt"
+          $dc exec -T db dropdb -U postgres library_restore
+          diff "$RUNNER_TEMP/live-counts.txt" "$RUNNER_TEMP/restored-counts.txt"
+          echo "All $(wc -l < "$RUNNER_TEMP/restored-counts.txt") tables match:"
+          cat "$RUNNER_TEMP/restored-counts.txt"
+
       - name: Run Django regression tests against PostgreSQL
         run: docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events --verbosity 2
 

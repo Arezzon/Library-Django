@@ -78,18 +78,19 @@ before using the `venv` setup.
 +----------------+       +----------+------------+       +-------------------+
 | Redis          | <---- | Django web            | ----> | PostgreSQL        |
 | broker         |       | runserver / gunicorn  |       | + pgvector        |
-+-------+--------+       +-----------------------+       +-------------------+
-        |
-        v
-+----------------+
-| Celery worker  |
-| events queue   |
-+----------------+
++-------+--------+       +-----------------------+       +---------+---------+
+        |                                                          ^
+        v                                                          | daily pg_dump
++----------------+                                       +---------+---------+
+| Celery worker  |                                       | Backup            |
+| events queue   |                                       | pgbackups volume  |
++----------------+                                       +-------------------+
 ```
 
 The worker persists tracking events asynchronously. The web process can serve
 the application without a worker, but event API requests return `503` while
-the Redis broker is unavailable.
+the Redis broker is unavailable. The backup service takes a daily, checked
+backup of the database into a volume of its own.
 
 ## Quick start with Docker
 
@@ -458,6 +459,8 @@ OpenAPI schema:  http://localhost:8000/api/schema/
 | `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Redis broker |
 | `DJANGO_SEED` | `false` locally | Seed on container startup |
 | `BOOK_EMBEDDING_CACHE_DIR` | `.cache/book-embeddings` | Model cache directory |
+| `BACKUP_HOUR` | `1` | UTC hour at or after which the `backup` service takes each day's backup |
+| `BACKUP_KEEP_DAYS` | `7` | Days backups are kept; the 7 newest always stay |
 
 `.env` is ignored by Git and Docker builds, so local secrets reach neither
 commits nor images. `.env.example` holds placeholders only; never commit real
@@ -478,8 +481,13 @@ Docker smoke checks:
 ```bash
 docker compose -f docker-compose-dev.yml exec -T web python manage.py test authentication author book order events --verbosity 2
 docker compose -f docker-compose-dev.yml exec -T web python manage.py smoke_test_tracking
+docker compose -f docker-compose-dev.yml exec -T backup library-backup once
 node --test scripts/test_tracking_js.cjs
 ```
+
+CI also restores that backup into a scratch database and compares every table's
+row count with the live database; the operator guide's "Restore into a separate
+database" shows the same restore by hand.
 
 > **Tip:** If tests fail with `Missing staticfiles manifest entry`, run
 > `python manage.py collectstatic --noinput` before the test command.
@@ -530,6 +538,15 @@ multi-architecture images to GHCR on every merge into `main` and calls the
 stack webhook, so nothing is built on the Pi. The operator guide,
 [docs/deployment/raspberry-pi-portainer.md](docs/deployment/raspberry-pi-portainer.md),
 covers the one-time setup on the Pi, in Portainer and in GitHub.
+
+Both stacks include a `backup` service. Every day it takes a checked `pg_dump`
+of the database into the `pgbackups` volume, apart from the database's own
+volume, and keeps 7 days of backups. CI restores one into a scratch database on
+every run and compares every table's row count. Once a week the operator copies
+the newest backup to another machine. The operator guide covers the schedule,
+the weekly copy, restores and the rehearsal, and
+[ADR 0003](docs/adr/0003-database-backups.md) records the design. Backups hold
+password hashes and personal data, so only the operator can read them.
 
 ### Production checklist
 
