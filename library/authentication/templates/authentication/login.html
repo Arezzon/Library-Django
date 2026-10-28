@@ -27,6 +27,16 @@
                 </div>
             {% endif %}
 
+            {% if messages %}
+                <div class="space-y-2 mb-5">
+                    {% for message in messages %}
+                        <div class="{% if message.tags == 'error' %}alert-error{% elif message.tags == 'info' %}bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2{% else %}alert-success{% endif %}">
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
             <form method="post" class="space-y-5">
                 {% csrf_token %}
                 {% include 'includes/form_snippet.html' %}

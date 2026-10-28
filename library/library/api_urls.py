@@ -1,5 +1,6 @@
 from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from rest_framework.permissions import AllowAny
+from rest_framework.routers import APIRootView, DefaultRouter
 
 from authentication.api_views import CustomUserViewSet
 from author.api_views import AuthorViewSet
@@ -9,7 +10,18 @@ from order.api_views import OrderViewSet, UserOrderViewSet
 
 from .api_views import VersionView
 
-router = DefaultRouter()
+
+class IndexView(APIRootView):
+    """The index of the API's resources, which anyone may read (FR-003)."""
+
+    permission_classes = [AllowAny]
+
+
+class Router(DefaultRouter):
+    APIRootView = IndexView
+
+
+router = Router()
 router.register(r"user", CustomUserViewSet, basename="user")
 router.register(r"author", AuthorViewSet, basename="author")
 router.register(r"book", BookViewSet, basename="book")

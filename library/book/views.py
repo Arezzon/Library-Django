@@ -1,11 +1,10 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from authentication.decorators import librarian_required
+from authentication.decorators import librarian_required, signin_required
 from authentication.models import CustomUser
 from author.models import Author
 from order.models import Order
@@ -27,7 +26,7 @@ def _filter_books(query: str, author_id: str):
     return search_books(books, query) if query else books.order_by("id")
 
 
-@login_required(login_url="login")
+@signin_required
 def book_list(request: HttpRequest) -> HttpResponse:
     query = request.GET.get("q", "").strip()
     author_id = request.GET.get("author_id", "").strip()
@@ -51,7 +50,7 @@ def book_list(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required(login_url="login")
+@signin_required
 def book_detail(request: HttpRequest, book_id: int) -> HttpResponse:
     book = get_object_or_404(
         Book.objects.with_availability().prefetch_related("authors"), pk=book_id

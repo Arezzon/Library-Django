@@ -378,12 +378,12 @@ class AnalyticsTests(FakeEncoderMixin, TestCase):
     def test_dashboard_is_librarian_only_and_navigation_matches_role(self):
         self.assertRedirects(
             self.client.get("/events/"),
-            "/authentication/login/",
+            "/authentication/login/?next=/events/",
             fetch_redirect_response=False,
         )
         self.client.force_login(self.reader)
         response = self.client.get("/events/")
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
         self.assertNotContains(self.client.get("/book/"), "Activity Analytics")
         self.client.force_login(self.librarian)
         response = self.client.get("/events/")
@@ -492,8 +492,7 @@ class UserProfileActivityTests(FakeEncoderMixin, TestCase):
     def test_other_reader_cannot_open_profile(self):
         self.client.force_login(self.other)
         response = self.client.get(f"/authentication/users/{self.user.pk}/")
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "/")
+        self.assertEqual(response.status_code, 403)
 
     def test_profile_filters_and_pagination_remain_scoped(self):
         for _ in range(26):

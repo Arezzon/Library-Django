@@ -4,15 +4,20 @@
 Finds the stack's containers by their Compose project label, warms the web
 workers up, then runs concurrent searches and a few book saves while sampling
 `docker stats`. It also checks that every stored vector carries the current
-model tag. Standard library and the Docker CLI only, so it runs on the Pi:
+model tag. Search needs a signed-in account: the script signs in as --email with the
+password from BUDGET_CHECK_PASSWORD, or asks for it, and never takes it as an
+argument. Standard library and the Docker CLI only, so it runs on the Pi:
 
     python3 scripts/smoke_stack_budget.py --project-name library \\
+        --email reader@library.com \\
         --max-memory-gib 4 --max-search-p95-ms 500 --max-save-ms 2000
 
 Prints a JSON summary; exits 1 when a limit is exceeded or a check fails.
 """
 
 import argparse
+import getpass
+import http.cookiejar
 import json
 import os
 import re
@@ -24,6 +29,7 @@ import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +41,11 @@ parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
 parser.add_argument("--compose-file", help="Read the project name from this file.")
 parser.add_argument("--project-name", help="Compose project (Portainer stack) name.")
 parser.add_argument("--base-url", default="http://localhost:8000")
+parser.add_argument(
+    "--email",
+    required=True,
+    help="Account that searches; its password comes from BUDGET_CHECK_PASSWORD.",
+)
 parser.add_argument("--max-memory-gib", type=float, default=4.0)
 parser.add_argument("--max-search-p95-ms", type=float)
 parser.add_argument("--max-save-ms", type=float)
@@ -92,12 +103,38 @@ class MemorySampler(threading.Thread):
             self.done.wait(1)
 
 
-def search(query):
+class DirectCookiePolicy(http.cookiejar.DefaultCookiePolicy):
+    """Send the site's cookies back over plain HTTP. Behind the HTTPS proxy
+    (TRUST_X_FORWARDED_PROTO) the site marks them Secure, but this script talks to
+    the stack directly, usually on localhost, so a strict policy would drop them."""
+
+    def return_ok_secure(self, cookie, request):
+        return True
+
+
+def sign_in(email, password):
+    """Sign in through the sign-in form; return an opener that keeps the session."""
+    cookies = http.cookiejar.CookieJar(policy=DirectCookiePolicy())
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookies))
+    login = args.base_url + "/authentication/login/"
+    opener.open(login, timeout=60).read()
+    csrf = next((cookie.value for cookie in cookies if cookie.name == "csrftoken"), "")
+    form = {"csrfmiddlewaretoken": csrf, "email": email, "password": password}
+    request = urllib.request.Request(
+        login, data=urllib.parse.urlencode(form).encode(), headers={"Referer": login}
+    )
+    opener.open(request, timeout=60).read()
+    if not any(cookie.name == "sessionid" for cookie in cookies):
+        raise SystemExit(f"Could not sign in as {email}; check the password.")
+    return opener
+
+
+def search(opener, query):
     url = (
         args.base_url + "/api/v1/books/search/?" + urllib.parse.urlencode({"q": query})
     )
     started = time.perf_counter()
-    with urllib.request.urlopen(url, timeout=60) as response:
+    with opener.open(url, timeout=60) as response:
         response.read()
         if response.status != 200:
             raise RuntimeError(f"search returned HTTP {response.status}")
@@ -151,14 +188,19 @@ def main():
         case["query"] for case in json.loads(QUERIES.read_text(encoding="utf-8"))
     ]
 
+    password = os.getenv("BUDGET_CHECK_PASSWORD") or getpass.getpass(
+        f"Password for {args.email}: "
+    )
+    timed_search = partial(search, sign_in(args.email, password))
+
     sampler = MemorySampler(ids)
     sampler.sample()
     sampler.start()
     try:
         with ThreadPoolExecutor(max_workers=args.clients) as pool:
-            list(pool.map(search, queries[: args.clients]))  # warm every worker up
+            list(pool.map(timed_search, queries[: args.clients]))  # warm workers up
             jobs = [queries[i % len(queries)] for i in range(args.searches)]
-            search_ms = list(pool.map(search, jobs))
+            search_ms = list(pool.map(timed_search, jobs))
         output = web_shell(webs[0], SAVES)
         save_ms = json.loads(output.split("SAVES=", 1)[1].strip())
         sampler.sample()

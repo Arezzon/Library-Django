@@ -117,6 +117,7 @@ class AtomicIssuanceTests(FakeEncoderMixin, TestCase):
 
     def test_both_api_create_routes_reject_exhausted_stock(self):
         client = APIClient()
+        client.force_login(self.user)
         payload = {
             "user": self.user.pk,
             "book": self.book.pk,
@@ -134,7 +135,9 @@ class AtomicIssuanceTests(FakeEncoderMixin, TestCase):
     def test_api_reopening_is_rejected_without_changing_history(self):
         closed = self.issue(end_at=timezone.now())
         self.issue()
-        response = APIClient().patch(
+        client = APIClient()
+        client.force_login(reader("api-librarian@example.com", ROLE_LIBRARIAN))
+        response = client.patch(
             f"/api/v1/order/{closed.pk}/", {"end_at": None}, format="json"
         )
         self.assertEqual(response.status_code, 400)
@@ -185,26 +188,27 @@ class ConcurrentIssuanceTests(FakeEncoderMixin, TransactionTestCase):
         close_old_connections()
         try:
             book = Book.objects.get(pk=self.book.pk)
+            client = None
+            if api:
+                # Each borrower signs in before the barrier, so both requests race.
+                client = APIClient()
+                client.force_login(CustomUser.objects.get(pk=user_id))
             if backend_queue is not None:
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT pg_backend_pid()")
                     backend_queue.put(cursor.fetchone()[0])
             if barrier is not None:
                 barrier.wait(timeout=10)
-            if api:
-                return (
-                    APIClient()
-                    .post(
-                        "/api/v1/order/",
-                        {
-                            "user": user_id,
-                            "book": book.pk,
-                            "plated_end_at": timezone.now().isoformat(),
-                        },
-                        format="json",
-                    )
-                    .status_code
-                )
+            if client is not None:
+                return client.post(
+                    "/api/v1/order/",
+                    {
+                        "user": user_id,
+                        "book": book.pk,
+                        "plated_end_at": timezone.now().isoformat(),
+                    },
+                    format="json",
+                ).status_code
             order = Order.create(
                 CustomUser.objects.get(pk=user_id), book, timezone.now()
             )

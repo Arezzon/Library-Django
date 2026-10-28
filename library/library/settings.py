@@ -265,7 +265,14 @@ except ImportError:
     pass
 
 REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Every API view declares its audience; a view that does not refuses everyone.
+    "DEFAULT_PERMISSION_CLASSES": ["authentication.permissions.DenyAll"],
+    # Session sign-in only: 401 tells a caller to sign in, 403 that the role is wrong.
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "authentication.permissions.SessionAuthentication"
+    ],
+    # States each operation's audience and refusals in the schema.
+    "DEFAULT_SCHEMA_CLASS": "library.schema.AutoSchema",
 }
 SPECTACULAR_SETTINGS = {
     "TITLE": "Library Management API",

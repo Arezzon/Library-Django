@@ -16,13 +16,13 @@ class RegistrationForm(TailwindFormMixin, forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        fields = ["first_name", "middle_name", "last_name", "email", "role"]
+        # No role or status: sign-up always creates an active reader (FR-001).
+        fields = ["first_name", "middle_name", "last_name", "email"]
         labels = {
             "first_name": "First Name",
             "middle_name": "Middle Name",
             "last_name": "Last Name",
             "email": "Email Address",
-            "role": "Register As",
         }
         widgets = {
             "email": forms.EmailInput(attrs={"placeholder": "you@example.com"}),
@@ -54,7 +54,7 @@ class RegistrationForm(TailwindFormMixin, forms.ModelForm):
             first_name=self.cleaned_data.get("first_name", ""),
             middle_name=self.cleaned_data.get("middle_name", ""),
             last_name=self.cleaned_data.get("last_name", ""),
-            role=self.cleaned_data.get("role", ROLE_VISITOR),
+            role=ROLE_VISITOR,
             is_active=True,
         )
         return user
@@ -70,7 +70,22 @@ class LoginForm(TailwindFormMixin, forms.Form):
     )
 
 
+class ProfileForm(TailwindFormMixin, forms.ModelForm):
+    """What a reader may change on their own account: the names."""
+
+    class Meta:
+        model = CustomUser
+        fields = ["first_name", "middle_name", "last_name"]
+        labels = {
+            "first_name": "First Name",
+            "middle_name": "Middle Name",
+            "last_name": "Last Name",
+        }
+
+
 class UserUpdateForm(TailwindFormMixin, forms.ModelForm):
+    """What a librarian may change on any account: the names, role and status."""
+
     class Meta:
         model = CustomUser
         fields = ["first_name", "middle_name", "last_name", "role", "is_active"]

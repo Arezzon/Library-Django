@@ -9,6 +9,8 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.test import APIClient
 
+from authentication.models import CustomUser
+
 from .embedding_config import resolve
 from .models import Book, BookEmbedding
 from .search import search_books
@@ -35,6 +37,16 @@ class SemanticSearchTests(TestCase):
             self.assertEqual(embedding.model, self.spec.repository)
             self.assertEqual(embedding.model_revision, self.spec.tag)
         self.client = APIClient()
+        self.client.force_login(
+            CustomUser.objects.create_user(
+                email="semantic-reader@example.com",
+                password="test-password",
+                first_name="Test",
+                middle_name="",
+                last_name="Reader",
+                is_active=True,
+            )
+        )
 
     def test_cosine_order_prefix_and_availability(self):
         response = self.client.get("/api/v1/books/search/", {"q": "  concept  "})
@@ -75,8 +87,6 @@ class SemanticSearchTests(TestCase):
         )
 
     def test_catalog_page_renders_results_and_errors(self):
-        from authentication.models import CustomUser
-
         user = CustomUser.objects.create_user(
             email="search@example.com",
             password="test-password",
@@ -132,6 +142,7 @@ class SearchEvaluationTests(TestCase):
         cases = json.loads(EVALUATION_SET.read_text(encoding="utf-8"))
         self.assertEqual(len(cases), 18)
         client = APIClient()
+        client.force_login(CustomUser.objects.get(email="reader@library.com"))
         for case in cases:
             with self.subTest(query=case["query"]):
                 response = client.get("/api/v1/books/search/", {"q": case["query"]})
