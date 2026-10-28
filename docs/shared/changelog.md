@@ -1,3 +1,7 @@
+2026-10-28
+Daily database backups with a trial restore (KAN-68)
+Both Compose stacks add a backup service on the database's own image. Every day it takes a pg_dump of the whole database into the new pgbackups volume, reads the archive back to check it, and writes a SHA-256 checksum. It keeps 7 days of backups and always keeps the 7 newest. A failed run logs its cause and keeps every earlier backup. BACKUP_HOUR and BACKUP_KEEP_DAYS set the schedule and the retention. CI takes a backup on every run, restores it into a scratch database and compares every table's row count. The operator guide adds the daily backups, a weekly copy to another machine, a restore into a separate database, a restore after losing the database, the rehearsal record, and persistence and limit checks. ADR 0003 records the design. The constitution is amended to v2.2.1: the stacks list the backup service, and the smoke test includes the trial restore.
+
 2026-10-20
 Remove Render hosting integration
 Removed the Render Blueprint, launcher, Render-only scripts, CI checks, proxy settings and documentation references. Docker Compose remains the deployment path for Raspberry Pi and Portainer.

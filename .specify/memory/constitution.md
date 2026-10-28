@@ -107,16 +107,16 @@ results.
   `linux/arm64`. Files tuned for one CPU family or instruction set MUST NOT be used.
 - The Raspberry Pi 5 deployment MUST keep working. `docker-compose.yml` runs as a Portainer
   Business Edition Git stack using published images only, never building on the server, and the
-  whole stack (web, worker, database, broker) stays within 4 GB of memory. A change that adds a
-  dependency, model or background process MUST report its measured effect against that budget
-  and against the semantic search target: 95% of searches under 500 ms on the Pi.
+  whole stack (web, worker, database, broker, backup) stays within 4 GB of memory. A change that
+  adds a dependency, model or background process MUST report its measured effect against that
+  budget and against the semantic search target: 95% of searches under 500 ms on the Pi.
 - A new runtime dependency, external service or infrastructure component MUST be justified in
   the plan's Complexity Tracking table, including the simpler alternative that was rejected.
-- The local development stack, `docker-compose-dev.yml` (`web`, `db`, `redis`, `worker`), MUST
-  build and start from `.env` values alone. The server stack, `docker-compose.yml`, MUST start
-  from published images and the Portainer stack's environment values alone. Changes to setup or
-  configuration MUST update `.env.example`, the README and the operator deployment guide in the
-  same pull request.
+- The local development stack, `docker-compose-dev.yml` (`web`, `db`, `redis`, `worker`,
+  `backup`), MUST build and start from `.env` values alone. The server stack,
+  `docker-compose.yml`, MUST start from published images and the Portainer stack's environment
+  values alone. Changes to setup or configuration MUST update `.env.example`, the README and the
+  operator deployment guide in the same pull request.
 
 Rationale: the site runs on a shared Raspberry Pi 5 with a fixed memory budget, CI and the
 server run on different CPU architectures, and exact pins in a single dependency list plus a
@@ -160,9 +160,10 @@ single model definition keep local, CI and server builds identical.
 4. **CI gates**: all of these MUST pass before merge:
    - the `lint` job;
    - the `smoke-test` job, on native `linux/amd64` and `linux/arm64` runners: tracking
-     JavaScript tests, `manage.py test authentication author book order events` on PostgreSQL
-     with real-model tests, endpoint checks, the asynchronous tracking smoke test, broker and
-     worker recovery, and a validity check of `docker-compose.yml`;
+     JavaScript tests, a backup of the running database restored into a scratch database whose
+     table row counts must match, `manage.py test authentication author book order events` on
+     PostgreSQL with real-model tests, endpoint checks, the asynchronous tracking smoke test,
+     broker and worker recovery, and a validity check of `docker-compose.yml`;
    - CodeQL, with any alert newly raised by the change resolved or dismissed with a recorded
      reason.
 
@@ -202,4 +203,4 @@ single model definition keep local, CI and server builds identical.
   or a component in Technology & Platform Constraints changes, so the rules match what is
   actually enforced.
 
-**Version**: 2.2.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-20
+**Version**: 2.2.1 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-28
