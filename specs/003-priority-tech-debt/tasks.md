@@ -372,51 +372,51 @@ tests.
 
 ### Tests for User Story 8 (PR 3)
 
-- [ ] T040 [US8] Create branch `test/kan-21-business-rules` from a freshly fetched `origin/main`, with
+- [x] T040 [US8] Create branch `test/kan-21-business-rules` from a freshly fetched `origin/main`, with
   PR 1 merged. (Jira) Move KAN-21 to In Progress.
-- [ ] T041 [P] [US8] Create `library/author/tests.py`:
+- [x] T041 [P] [US8] Create `library/author/tests.py`:
   - creating, editing and deleting authors through the web (as a librarian), the API and the admin
     site;
   - `name`, `surname` and `patronymic` of 21 characters refused, since the limit is 20;
   - deletion refused, with its message, while books are attached;
   - the books an author is linked to, through the form and the API;
   - a reader refused for each change.
-- [ ] T042 [P] [US8] In `library/book/tests.py`:
+- [x] T042 [P] [US8] In `library/book/tests.py`:
   - add creating, editing and deleting books through the web, the API and the admin site;
   - test the limits: a 129-character name, a 257-character description and a negative `count` are
     refused. The negative count fails until T047.
   - refuse a reader for each change.
-- [ ] T043 [P] [US8] In `library/order/tests.py`, add every change of a loan in each channel, each with
+- [x] T043 [P] [US8] In `library/order/tests.py`, add every change of a loan in each channel, each with
   a permitted and a refused caller:
   - start: the web self-loan, the API, the admin site;
   - return: the web close action, the API, the admin site;
   - reopen;
   - reassign to another book, and to another reader;
   - delete: the API, the admin site.
-- [ ] T044 [P] [US8] Create `library/authentication/test_routes.py`: every web route in "Web routes" of
+- [x] T044 [P] [US8] Create `library/authentication/test_routes.py`: every web route in "Web routes" of
   contracts/access-control.md, with at least one permitted and one refused caller (FR-049).
-- [ ] T045 [P] [US8] In `library/authentication/tests.py`, add a test that saving a profile keeps the
+- [x] T045 [P] [US8] In `library/authentication/tests.py`, add a test that saving a profile keeps the
   account's `created_at`. It fails until T046.
 
 ### Implementation for User Story 8 (PR 3)
 
-- [ ] T046 [US8] Fix defect 1 (R9). In `library/authentication/models.py`, declare `created_at =
+- [x] T046 [US8] Fix defect 1 (R9). In `library/authentication/models.py`, declare `created_at =
   models.DateTimeField(editable=False, auto_now_add=True)`. Run `python manage.py makemigrations
   authentication` to create `library/authentication/migrations/0004_alter_customuser_created_at.py`,
   which changes Django's state only.
-- [ ] T047 [US8] Fix defect 2 (R9). In `library/book/models.py`, declare `count =
+- [x] T047 [US8] Fix defect 2 (R9). In `library/book/models.py`, declare `count =
   models.IntegerField(default=DEFAULT_COUNT, validators=[MinValueValidator(0)])`; data-model.md §3
   says "`count` must be 0 or more".
   - Run `python manage.py makemigrations book` to create
     `library/book/migrations/0005_alter_book_count.py`.
   - Confirm that the web form, the API and the admin site refuse -1.
-- [ ] T048 [US8] Set up coverage:
+- [x] T048 [US8] Set up coverage:
   - pin `coverage==7.16.2` and `diff-cover==10.6.0` in `requirements-dev.txt`;
   - add `[tool.coverage.run]` to `pyproject.toml`: `relative_files = true`; `source` set to the app
     folders under `library/`; `omit` covering migrations, `tests.py`, `test_*.py` and `testing.py`;
   - add `[tool.coverage.report]` with `show_missing = true`;
   - ignore `library/.coverage`, `library/coverage.xml` and `diff-coverage.md` in `.gitignore`.
-- [ ] T049 [US8] In `.github/workflows/docker-build.yml`, on the `ubuntu-latest` leg only (R9, FR-051):
+- [x] T049 [US8] In `.github/workflows/docker-build.yml`, on the `ubuntu-latest` leg only (R9, FR-051):
   1. check out with full history;
   2. in the web container, install the coverage version pinned in `requirements-dev.txt`;
   3. run the test command under `coverage run --rcfile=/app/pyproject.toml`, writing
@@ -428,13 +428,13 @@ tests.
      a new comment, with `continue-on-error: true` for forks.
 
   The other legs run the tests as today, and the report never fails the job.
-- [ ] T050 [US8] Review what the new tests found (FR-053):
+- [x] T050 [US8] Review what the new tests found (FR-053):
   - fix in this branch any further defect that is small;
   - for a larger one, file a bug report with `.github/ISSUE_TEMPLATE/bug_report.md`, and note it for
     the register.
-- [ ] T051 [P] [US8] In `README.md`, "Tests and checks", document the coverage command, the report on
+- [x] T051 [P] [US8] In `README.md`, "Tests and checks", document the coverage command, the report on
   every pull request, and the 85% target with its listed exceptions (SC-011).
-- [ ] T052 [US8] Verify and prepare the pull request:
+- [x] T052 [US8] Verify and prepare the pull request:
   - run quickstart.md §3, lint and format;
   - record the pull request's diff coverage in research.md "Measurements";
   - add the changelog entry;

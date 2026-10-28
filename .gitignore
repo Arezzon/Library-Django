@@ -45,6 +45,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+diff-coverage.md
 *.cover
 *.py,cover
 .hypothesis/

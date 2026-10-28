@@ -23,6 +23,20 @@ class AuthorAdmin(admin.ModelAdmin):
         ),
     )
 
+    def get_deleted_objects(self, objs, request):
+        # Books protect their authors (Author.deletion_refusal): the confirmation page
+        # lists them, and nothing is deleted.
+        deleted, counts, perms_needed, protected = super().get_deleted_objects(
+            objs, request
+        )
+        books = [
+            f"Book: {book}"
+            for author in objs
+            if author.deletion_refusal()
+            for book in author.books.all()
+        ]
+        return deleted, counts, perms_needed, [*protected, *books]
+
     def get_books_count(self, obj):
         return obj.books.count()
 

@@ -36,6 +36,16 @@ class Author(models.Model):
         """
         return f"Author(id={self.pk})"
 
+    def deletion_refusal(self):
+        """Why this author cannot be deleted, or None. The web, the API and the admin
+        site all refuse while the author is attached to a book."""
+        if self.books.exists():
+            return (
+                f'Cannot delete author "{self.name} {self.surname}" because they are '
+                "attached to one or more books."
+            )
+        return None
+
     @staticmethod
     def get_by_id(author_id):
         """

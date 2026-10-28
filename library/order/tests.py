@@ -6,7 +6,8 @@ from time import monotonic, sleep
 
 from django.contrib.messages import get_messages
 from django.db import close_old_connections, connection, connections, transaction
-from django.test import TestCase, TransactionTestCase, skipUnlessDBFeature
+from django.test import Client, TestCase, TransactionTestCase, skipUnlessDBFeature
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -269,3 +270,211 @@ class ConcurrentIssuanceTests(FakeEncoderMixin, TransactionTestCase):
                 )
             self.assertFalse(future.result(timeout=10))
         self.assertEqual(Order.objects.count(), 1)
+
+
+class LoanChangeTests(FakeEncoderMixin, TestCase):
+    """Every change of a loan in each channel that offers it, with a permitted and a
+    refused caller (research R9). The web edit form changes the dates only, so
+    reassigning happens through the API and the admin site."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.borrower = reader("loans-reader@example.com")
+        cls.other = reader("loans-other@example.com")
+        cls.librarian = reader("loans-librarian@example.com", ROLE_LIBRARIAN)
+        cls.book = Book.objects.create(name="Kobzar", count=5)
+        cls.other_book = Book.objects.create(name="Haidamaky", count=5)
+        due = timezone.now() + timedelta(days=14)
+        cls.loan = Order.objects.create(
+            user=cls.borrower, book=cls.book, plated_end_at=due
+        )
+        cls.returned = Order.objects.create(
+            user=cls.borrower, book=cls.book, plated_end_at=due, end_at=timezone.now()
+        )
+
+    def signed_in(self, user=None):
+        client = Client()
+        if user is not None:
+            client.force_login(user)
+        return client
+
+    def api(self, user, method, path, body=None):
+        return getattr(self.signed_in(user), method)(
+            path, body, content_type="application/json"
+        )
+
+    def admin_form(self, **changes):
+        return {
+            "user": self.borrower.pk,
+            "book": self.book.pk,
+            "plated_end_at_0": "2030-01-15",
+            "plated_end_at_1": "12:00:00",
+            "end_at_0": "",
+            "end_at_1": "",
+            "_save": "Save",
+            **changes,
+        }
+
+    def assertAdminSignIn(self, response, url):
+        self.assertRedirects(
+            response, f"/admin/login/?next={url}", fetch_redirect_response=False
+        )
+
+    def fresh(self, loan):
+        return Order.objects.filter(pk=loan.pk).first()
+
+    # Start
+
+    def test_start_on_the_web(self):
+        url = reverse("order_create", args=[self.other_book.pk])
+        refused = self.signed_in().post(url, {"days": 14})
+        self.assertRedirects(
+            refused,
+            f"/authentication/login/?next={url}",
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(Order.objects.filter(book=self.other_book).exists())
+        response = self.signed_in(self.borrower).post(url, {"days": 14})
+        self.assertRedirects(response, reverse("order_my"))
+        loan = Order.objects.get(book=self.other_book)
+        self.assertEqual((loan.user, loan.end_at), (self.borrower, None))
+
+    def test_start_through_the_api(self):
+        due = (timezone.now() + timedelta(days=7)).isoformat()
+        body = {"book": self.other_book.pk, "plated_end_at": due}
+        own_route = f"/api/v1/user/{self.borrower.pk}/order/"
+        other_route = f"/api/v1/user/{self.other.pk}/order/"
+        refused = [
+            self.api(
+                self.borrower, "post", "/api/v1/order/", {**body, "user": self.other.pk}
+            ),
+            self.api(self.borrower, "post", other_route, body),
+        ]
+        self.assertEqual([response.status_code for response in refused], [403, 404])
+        self.assertFalse(Order.objects.filter(book=self.other_book).exists())
+        started = [
+            self.api(
+                self.borrower,
+                "post",
+                "/api/v1/order/",
+                {**body, "user": self.borrower.pk},
+            ),
+            self.api(self.borrower, "post", own_route, body),
+        ]
+        self.assertEqual([response.status_code for response in started], [201, 201])
+        self.assertEqual(
+            Order.objects.filter(book=self.other_book, user=self.borrower).count(), 2
+        )
+
+    def test_start_in_the_admin_site(self):
+        url = "/admin/order/order/add/"
+        form = self.admin_form(book=self.other_book.pk)
+        self.assertAdminSignIn(self.signed_in(self.borrower).post(url, form), url)
+        self.assertFalse(Order.objects.filter(book=self.other_book).exists())
+        response = self.signed_in(self.librarian).post(url, form)
+        self.assertEqual(response.status_code, 302)
+        loan = Order.objects.get(book=self.other_book)
+        self.assertEqual((loan.user, loan.end_at), (self.borrower, None))
+
+    # Return
+
+    def test_return_on_the_web(self):
+        url = reverse("order_close", args=[self.loan.pk])
+        self.assertEqual(self.signed_in(self.borrower).post(url).status_code, 403)
+        self.assertIsNone(self.fresh(self.loan).end_at)
+        response = self.signed_in(self.librarian).post(url)
+        self.assertRedirects(response, reverse("order_all"))
+        self.assertIsNotNone(self.fresh(self.loan).end_at)
+
+    def test_return_through_the_api(self):
+        path = f"/api/v1/order/{self.loan.pk}/"
+        body = {"end_at": timezone.now().isoformat()}
+        self.assertEqual(self.api(self.borrower, "patch", path, body).status_code, 403)
+        self.assertIsNone(self.fresh(self.loan).end_at)
+        self.assertEqual(self.api(self.librarian, "patch", path, body).status_code, 200)
+        self.assertIsNotNone(self.fresh(self.loan).end_at)
+
+    def test_return_in_the_admin_site(self):
+        url = f"/admin/order/order/{self.loan.pk}/change/"
+        form = self.admin_form(end_at_0="2030-01-10", end_at_1="10:00:00")
+        self.assertAdminSignIn(self.signed_in(self.borrower).post(url, form), url)
+        self.assertIsNone(self.fresh(self.loan).end_at)
+        response = self.signed_in(self.librarian).post(url, form)
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNotNone(self.fresh(self.loan).end_at)
+
+    # Reopen
+
+    def test_reopen_on_the_web(self):
+        url = reverse("order_update", args=[self.returned.pk])
+        form = {"plated_end_at": "2030-01-15T12:00", "end_at": ""}
+        self.assertEqual(self.signed_in(self.borrower).post(url, form).status_code, 403)
+        self.assertIsNotNone(self.fresh(self.returned).end_at)
+        response = self.signed_in(self.librarian).post(url, form)
+        self.assertRedirects(response, reverse("order_all"))
+        self.assertIsNone(self.fresh(self.returned).end_at)
+
+    def test_reopen_through_the_api(self):
+        path = f"/api/v1/order/{self.returned.pk}/"
+        body = {"end_at": None}
+        self.assertEqual(self.api(self.borrower, "patch", path, body).status_code, 403)
+        self.assertIsNotNone(self.fresh(self.returned).end_at)
+        self.assertEqual(self.api(self.librarian, "patch", path, body).status_code, 200)
+        self.assertIsNone(self.fresh(self.returned).end_at)
+
+    def test_reopen_in_the_admin_site(self):
+        url = f"/admin/order/order/{self.returned.pk}/change/"
+        form = self.admin_form()
+        self.assertAdminSignIn(self.signed_in(self.borrower).post(url, form), url)
+        self.assertIsNotNone(self.fresh(self.returned).end_at)
+        response = self.signed_in(self.librarian).post(url, form)
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(self.fresh(self.returned).end_at)
+
+    # Reassign
+
+    def test_reassign_through_the_api(self):
+        path = f"/api/v1/order/{self.loan.pk}/"
+        changes = ({"book": self.other_book.pk}, {"user": self.other.pk})
+        for change in changes:
+            with self.subTest(change=change):
+                response = self.api(self.borrower, "patch", path, change)
+                self.assertEqual(response.status_code, 403)
+        loan = self.fresh(self.loan)
+        self.assertEqual((loan.book, loan.user), (self.book, self.borrower))
+        for change in changes:
+            response = self.api(self.librarian, "patch", path, change)
+            self.assertEqual(response.status_code, 200)
+        loan = self.fresh(self.loan)
+        self.assertEqual((loan.book, loan.user), (self.other_book, self.other))
+
+    def test_reassign_in_the_admin_site(self):
+        url = f"/admin/order/order/{self.loan.pk}/change/"
+        form = self.admin_form(user=self.other.pk, book=self.other_book.pk)
+        self.assertAdminSignIn(self.signed_in(self.borrower).post(url, form), url)
+        loan = self.fresh(self.loan)
+        self.assertEqual((loan.book, loan.user), (self.book, self.borrower))
+        response = self.signed_in(self.librarian).post(url, form)
+        self.assertEqual(response.status_code, 302)
+        loan = self.fresh(self.loan)
+        self.assertEqual((loan.book, loan.user), (self.other_book, self.other))
+
+    # Delete
+
+    def test_delete_through_the_api(self):
+        path = f"/api/v1/order/{self.loan.pk}/"
+        self.assertEqual(self.api(self.borrower, "delete", path).status_code, 403)
+        self.assertIsNotNone(self.fresh(self.loan))
+        self.assertEqual(self.api(self.librarian, "delete", path).status_code, 204)
+        self.assertIsNone(self.fresh(self.loan))
+
+    def test_delete_in_the_admin_site(self):
+        url = f"/admin/order/order/{self.loan.pk}/delete/"
+        refused = self.signed_in(self.borrower).post(url, {"post": "yes"})
+        self.assertAdminSignIn(refused, url)
+        self.assertIsNotNone(self.fresh(self.loan))
+        response = self.signed_in(self.librarian).post(url, {"post": "yes"})
+        self.assertRedirects(
+            response, "/admin/order/order/", fetch_redirect_response=False
+        )
+        self.assertIsNone(self.fresh(self.loan))
