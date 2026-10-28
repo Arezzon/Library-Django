@@ -29,7 +29,7 @@ A reader's 48-hour hold on one unit of a book's stock (FR-008), not on a particu
 
 | Name | Rule |
 |---|---|
-| `reservation_lasts_48_hours` | `CHECK (expires_at = created_at + interval '48 hours')` |
+| `reservation_lasts_48_hours` | `CHECK (expires_at - created_at = interval '48 hours')`. Elapsed time gives the same answer in a session of any time zone; `created_at` plus the 2 days that 48 hours arrives as would not, across a change of summer time. |
 | `one_active_reservation_per_reader_and_book` | Unique `(user, book)` where `state = 'active'`. A backstop; the service checks first, and expires due reservations under its locks (R11). |
 | `cancelled_reservation_has_time` | `state <> 'cancelled' OR cancelled_at IS NOT NULL` |
 

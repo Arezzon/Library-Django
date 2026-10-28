@@ -149,5 +149,6 @@ class Command(BaseCommand):
             ) from error
         finally:
             UserEvent.objects.filter(user=user).delete()
-            book.delete()
+            # The account first: its loan goes with it, and a book with loans is kept.
             user.delete()
+            book.delete()

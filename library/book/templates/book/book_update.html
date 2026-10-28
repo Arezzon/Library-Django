@@ -4,6 +4,16 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto px-0 sm:px-4 py-4 sm:py-8">
+    {% if messages %}
+    <div class="space-y-2 mb-4">
+        {% for message in messages %}
+        <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="card">
         <!-- Card Header -->
         <div class="card-header">

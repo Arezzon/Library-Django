@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import ProtectedError
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -96,16 +97,14 @@ def book_update(request: HttpRequest, book_id: int) -> HttpResponse:
 @librarian_required
 @require_POST
 def book_delete(request: HttpRequest, book_id: int) -> HttpResponse:
-    with transaction.atomic():
-        book = get_object_or_404(Book.objects.select_for_update(), pk=book_id)
-        if Order.objects.filter(book_id=book_id).exists():
-            messages.error(
-                request, "This book cannot be deleted because it has borrowing history."
-            )
-            return redirect("book_update", book_id=book_id)
-
-        name = book.name
-        book.delete()
+    try:
+        with transaction.atomic():
+            book = get_object_or_404(Book.objects.select_for_update(), pk=book_id)
+            name = book.name
+            book.delete()
+    except ProtectedError:
+        messages.error(request, Book.DELETION_REFUSAL)
+        return redirect("book_update", book_id=book_id)
 
     messages.success(request, f'Book "{name}" deleted successfully.')
     return redirect("book_list")
