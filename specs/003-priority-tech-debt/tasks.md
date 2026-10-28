@@ -276,7 +276,7 @@ Only the librarian's attempts and the reader's own reads succeed (spec Story 1).
     behavior could be used.
 
   When the user asks, commit only this phase's files and open the pull request.
-- [ ] T027 [US1] (Pi) After the merge and deployment:
+- [x] T027 [US1] (Pi) After the merge and deployment:
   - confirm that `/api/v1/version/` reports the merge commit;
   - review every librarian account (R7), and record the date, the number reviewed and each change in
     a comment on the pull request (FR-007);
