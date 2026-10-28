@@ -20,7 +20,7 @@ from rest_framework.views import APIView
 from author.models import Author
 from book.models import Book
 from book.testing import FakeEncoderMixin
-from order.models import Order
+from order.models import Order, Reservation
 
 from .models import ROLE_LIBRARIAN, CustomUser
 
@@ -98,6 +98,11 @@ OPERATIONS = [
     ("patch", "/api/v1/user/{reader}/order/{own_loan}/", LOAN, 401, 403, 200),
     ("delete", "/api/v1/user/{reader}/order/{own_loan}/", None, 401, 403, 204),
     ("post", "/api/v1/events/", EVENT, 401, 202, 202),
+    ("get", "/api/v1/reservation/", None, 401, 200, 200),
+    ("get", "/api/v1/reservation/{own_reservation}/", None, 401, 200, 200),
+    ("get", "/api/v1/reservation/{other_reservation}/", None, 401, 404, 200),
+    # The reader may reserve, but their loan is overdue, so the rules refuse it.
+    ("post", "/api/v1/reservation/", {"book": "{free_book}"}, 401, 409, 201),
 ]
 
 # A sample of operations with the audience the contract gives them.
@@ -119,6 +124,9 @@ SCHEMA_AUDIENCES = {
     ("/api/v1/user/{user_id}/order/", "post"): "self-or-librarian",
     ("/api/v1/user/{user_id}/order/{id}/", "get"): "self-or-librarian",
     ("/api/v1/user/{user_id}/order/{id}/", "delete"): "librarian",
+    ("/api/v1/reservation/", "get"): "signed-in",
+    ("/api/v1/reservation/", "post"): "signed-in",
+    ("/api/v1/reservation/{id}/", "get"): "signed-in",
 }
 
 
@@ -214,6 +222,10 @@ class OperationAccessTests(FakeEncoderMixin, TestCase):
         cls.other_loan = Order.objects.create(
             user=cls.other, book=cls.book, plated_end_at=timezone.now()
         )
+        cls.own_reservation = Reservation.objects.create(user=cls.reader, book=cls.book)
+        cls.other_reservation = Reservation.objects.create(
+            user=cls.other, book=cls.book
+        )
 
     def ids(self):
         return {
@@ -224,6 +236,8 @@ class OperationAccessTests(FakeEncoderMixin, TestCase):
             "author": self.author.pk,
             "own_loan": self.own_loan.pk,
             "other_loan": self.other_loan.pk,
+            "own_reservation": self.own_reservation.pk,
+            "other_reservation": self.other_reservation.pk,
         }
 
     def api(self, user=None):

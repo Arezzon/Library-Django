@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, timedelta
 
 from django.db import DataError, models, router, transaction
 from django.db.models import F, Q
@@ -18,10 +18,11 @@ class BookUnavailableError(ValueError):
 
 
 def as_text(moment):
-    """A date and time as audit entries store it."""
+    """A date and time as audit entries store it: ISO 8601 in UTC, as the database
+    keeps it, whatever zone the value arrived in."""
     if isinstance(moment, str):
         moment = parse_datetime(moment)
-    return moment.isoformat() if moment else None
+    return moment.astimezone(UTC).isoformat() if moment else None
 
 
 AUDITED_LOAN_FIELDS = {"end_at", "book", "book_id", "user", "user_id"}
@@ -377,6 +378,13 @@ class Reservation(models.Model):
             # Set once; the database refuses any other deadline (FR-010).
             self.expires_at = self.created_at + timedelta(hours=RESERVATION_HOURS)
         super().save(*args, **kwargs)
+
+    def audit_label(self):
+        user = self.user
+        return (
+            f"Reservation #{self.pk}: {self.book.name} "
+            f"({user.first_name} {user.last_name} #{user.pk})"
+        )
 
     def effective_state(self, now):
         """The state every check and page uses: an active reservation is expired from

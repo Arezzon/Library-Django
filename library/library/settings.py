@@ -214,7 +214,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+# Storage stays UTC; pages and the API show the library's local time (R16).
+TIME_ZONE = "Europe/Kyiv"
 
 USE_I18N = True
 
@@ -278,3 +279,10 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
 # Eager execution is for isolated unit tests; smoke tests use the real worker.
 CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_TASK_ALWAYS_EAGER", "False") == "True"
 CELERY_TASK_EAGER_PROPAGATES = True
+# Celery beat runs inside the worker (--beat), the stack's only one (R11).
+CELERY_BEAT_SCHEDULE = {
+    "expire-reservations": {
+        "task": "order.tasks.expire_reservations",
+        "schedule": 300,
+    },
+}

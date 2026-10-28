@@ -945,6 +945,19 @@ pull request.
 
 The whole of the measured code stood at 87% after PR 3 (1,862 statements, 247 not run).
 
+### Memory with the reservation expiry in the worker (PR 5, Principle VI)
+
+Celery beat now runs inside the existing worker (`--beat`, R11), so the stack adds no container.
+CI's memory check, run on the development machine on 2026-10-28 with beat running and after the
+scheduled expiry had run:
+
+| Containers | Peak memory | Search p95 | Catalog p95 | Book save p95 | Result |
+|---|---|---|---|---|---|
+| 5 | 2.882 GiB | 52.8 ms | 26.9 ms | 48.8 ms | PASS (limit 4 GiB) |
+
+PR 8's run on the same machine, before beat, peaked at 2.955 GiB, so the embedded scheduler adds
+no measurable memory. CI repeats the check on every run.
+
 ### Librarian account review after PR 1 (FR-007)
 
 - **Date**: 28.10.2026, after PR 1 was deployed.

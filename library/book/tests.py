@@ -19,7 +19,8 @@ from rest_framework.test import APIClient
 
 from authentication.models import ROLE_LIBRARIAN, CustomUser
 from author.models import Author
-from order.models import Order
+from library.testing import assert_same_query_count
+from order.models import Order, Reservation, ReservationState
 
 from . import embeddings
 from .embedding_config import resolve, threads
@@ -1195,3 +1196,130 @@ class BookChannelTests(FakeEncoderMixin, TestCase):
                     fetch_redirect_response=False,
                 )
         self.assertUnchanged()
+
+
+class ReservedAvailabilityTests(FakeEncoderMixin, TestCase):
+    """Active, unexpired reservations hold copies as loans do (FR-009, R12)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.reader = CustomUser.objects.create_user(
+            email="held-reader@example.com",
+            password="test-password",
+            first_name="Held",
+            middle_name="",
+            last_name="Reader",
+            is_active=True,
+        )
+        cls.other = CustomUser.objects.create_user(
+            email="lapsed-reader@example.com",
+            password="test-password",
+            first_name="Lapsed",
+            middle_name="",
+            last_name="Reader",
+            is_active=True,
+        )
+        cls.librarian = CustomUser.objects.create_user(
+            email="held-librarian@example.com",
+            password="test-password",
+            first_name="Held",
+            middle_name="",
+            last_name="Librarian",
+            role=ROLE_LIBRARIAN,
+            is_active=True,
+        )
+        cls.book = Book.objects.create(name="Held book", count=3)
+        now = timezone.now()
+        Order.objects.create(
+            book=cls.book, user=cls.reader, plated_end_at=now + timedelta(days=14)
+        )
+        cls.held = Reservation.objects.create(book=cls.book, user=cls.reader)
+        # Past its deadline and never marked, so it no longer holds a copy.
+        Reservation.objects.create(
+            book=cls.book, user=cls.other, created_at=now - timedelta(hours=49)
+        )
+        Reservation.objects.create(
+            book=cls.book,
+            user=cls.librarian,
+            state=ReservationState.CANCELLED,
+            cancelled_at=now,
+        )
+
+    def test_active_unexpired_reservations_hold_copies(self):
+        annotated = Book.objects.with_availability().get(pk=self.book.pk)
+        self.assertEqual(
+            (annotated.active_order_count, annotated.active_reservation_count), (1, 1)
+        )
+        with self.assertNumQueries(0):
+            self.assertEqual(annotated.available_count, 1)
+        plain = Book.objects.get(pk=self.book.pk)
+        with self.assertNumQueries(1):
+            self.assertEqual(plain.available_count, 1)
+
+    def test_a_reservation_stops_holding_its_copy_at_its_deadline(self):
+        deadline = self.held.expires_at
+        for now, available in (
+            (deadline - timedelta(microseconds=1), 1),
+            (deadline, 2),
+        ):
+            with self.subTest(now=now):
+                annotated = Book.objects.with_availability(now).get(pk=self.book.pk)
+                self.assertEqual(annotated.available_count, available)
+                with patch("django.utils.timezone.now", return_value=now):
+                    book = Book.objects.get(pk=self.book.pk)
+                    self.assertEqual(book.available_count, available)
+
+    def test_availability_never_goes_below_0(self):
+        self.book.count = 1
+        self.book.save()
+        self.assertEqual(Book.objects.get(pk=self.book.pk).available_count, 0)
+        self.assertEqual(
+            Book.objects.with_availability().get(pk=self.book.pk).available_count, 0
+        )
+
+    def test_the_catalog_keeps_its_query_count_with_reservations(self):
+        def add_reserved_books(count):
+            for _ in range(count):
+                book = Book.objects.create(name="Reserved title", count=2)
+                Reservation.objects.create(book=book, user=self.reader)
+
+        client = Client()
+        client.force_login(self.reader)
+        assert_same_query_count(self, client, reverse("book_list"), add_reserved_books)
+
+    def test_lowering_the_total_below_the_holds_warns_on_the_edit_page(self):
+        self.client.force_login(self.librarian)
+        response = self.client.post(
+            reverse("book_update", args=[self.book.pk]),
+            {"name": self.book.name, "description": "", "count": 1},
+            follow=True,
+        )
+        self.assertEqual(
+            response.redirect_chain,
+            [(reverse("book_update", args=[self.book.pk]), 302)],
+        )
+        self.assertContains(
+            response,
+            "This book now has 1 copy but 2 open loans and active reservations",
+        )
+        self.book.refresh_from_db()
+        self.assertEqual((self.book.count, self.book.available_count), (1, 0))
+
+    def test_a_total_that_covers_the_holds_saves_without_a_warning(self):
+        self.client.force_login(self.librarian)
+        response = self.client.post(
+            reverse("book_update", args=[self.book.pk]),
+            {"name": self.book.name, "description": "", "count": 2},
+            follow=True,
+        )
+        self.assertEqual(
+            response.redirect_chain,
+            [(reverse("book_detail", args=[self.book.pk]), 302)],
+        )
+        self.assertNotContains(response, "open loans and active reservations")
+
+    def test_the_admin_site_lists_the_available_count(self):
+        self.client.force_login(self.librarian)
+        response = self.client.get("/admin/book/book/")
+        self.assertContains(response, "Available")
+        self.assertContains(response, '<td class="field-available">1</td>', html=True)

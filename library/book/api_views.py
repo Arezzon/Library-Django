@@ -15,15 +15,18 @@ from .serializers import BookSearchSerializer, BookSerializer
 
 class BookViewSet(viewsets.ModelViewSet):
     permission_classes = [ReadOnlyOrLibrarian]
-    queryset = (
-        Book.objects.with_availability().prefetch_related("authors").order_by("id")
-    )
+    queryset = Book.objects.prefetch_related("authors").order_by("id")
     serializer_class = BookSerializer
     refusals = {
         "destroy": {
             "409": "The book has borrowing or reservation history; nothing changed."
         }
     }
+
+    def get_queryset(self):
+        # Counted per request, so a reservation stops holding its copy at its
+        # deadline (FR-013); a class-level annotation would keep the import's time.
+        return super().get_queryset().with_availability()
 
     def destroy(self, request, *args, **kwargs):
         book = self.get_object()

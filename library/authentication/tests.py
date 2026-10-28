@@ -596,6 +596,15 @@ class ComposeServiceImagesTests(SimpleTestCase):
             for name in ("docker-compose.yml", "docker-compose-dev.yml")
         }
 
+    def test_the_worker_runs_the_reservation_expiry_schedule(self):
+        # Celery beat inside the stack's one worker, its schedule file in /tmp (R11).
+        for name, stack in self.stacks.items():
+            with self.subTest(stack=name):
+                command = stack["services"]["worker"]["command"]
+                self.assertIn("--beat", command)
+                self.assertIn("--schedule=/tmp/celerybeat-schedule", command)
+                self.assertIn("--queues=events", command)
+
     def test_both_stacks_use_the_same_exact_service_images(self):
         server, dev = self.stacks.values()
         for service in ("db", "redis"):

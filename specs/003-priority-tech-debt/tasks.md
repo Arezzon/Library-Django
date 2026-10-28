@@ -894,9 +894,9 @@ usable (FR-061).
 
 ### Tests for User Story 2 (PR 5)
 
-- [ ] T100 [US2] Create branch `feat/kan-56-reserve-a-book`, either from a freshly fetched `origin/main`
+- [x] T100 [US2] Create branch `feat/kan-56-reserve-a-book`, either from a freshly fetched `origin/main`
   with PR 4 merged, or from PR 4's verified branch. (Jira) Move KAN-56 to In Progress.
-- [ ] T101 [P] [US2] In `library/order/test_reservations.py`, add Story 2's scenarios through the web
+- [x] T101 [P] [US2] In `library/order/test_reservations.py`, add Story 2's scenarios through the web
   and the API:
   - A reservation is active at once, with a deadline exactly 48 hours later. The available count
     drops by one on the catalog, the book page, search and the API (scenario 1, FR-010).
@@ -915,29 +915,29 @@ usable (FR-061).
   - A reader's own loan of a book they reserved issues the reservation, and leaves the count
     unchanged (FR-061).
   - With the event broker unavailable, reserving still works.
-- [ ] T102 [US2] In `library/order/test_reservations.py`, add races in a `TransactionTestCase`, using
+- [x] T102 [US2] In `library/order/test_reservations.py`, add races in a `TransactionTestCase`, using
   `threading.Barrier`, `ThreadPoolExecutor` and `connections.close_all()` as in
   `ConcurrentIssuanceTests` (FR-050, SC-002):
   - 20 readers reserving the last copy succeed exactly once, in each of 20 repeated runs;
   - a reservation racing a loan of the last copy succeeds exactly once;
   - one reader sending 5 reservations for 5 books at once ends with at most 3 active.
-- [ ] T103 [P] [US2] In `library/book/tests.py`, add tests that:
+- [x] T103 [P] [US2] In `library/book/tests.py`, add tests that:
   - `with_availability()` and `available_count` subtract active, unexpired reservations, never go
     below 0, and keep the query count constant;
   - lowering a book's total below its active loans and reservations shows a warning on the edit
     page.
-- [ ] T104 [P] [US2] In `library/order/test_queries.py`, add the reader's reservation page and the API
+- [x] T104 [P] [US2] In `library/order/test_queries.py`, add the reader's reservation page and the API
   reservation list, with 1 and 50 reservations.
 
 ### Implementation for User Story 2 (PR 5)
 
-- [ ] T105 [US2] In `library/book/models.py` (FR-009, R12):
+- [x] T105 [US2] In `library/book/models.py` (FR-009, R12):
   - make `with_availability(now=None)` also annotate
     `active_reservation_count=Count("reservations", filter=Q(reservations__state="active",
     reservations__expires_at__gt=now), distinct=True)`;
   - make `available_count` subtract it, never going below 0, with the fallback aggregate when the
     queryset is not annotated.
-- [ ] T106 [US2] Create `library/order/services.py`:
+- [x] T106 [US2] Create `library/order/services.py`:
   - **`ReservationRefused(code, message, **context)`**, with the codes, and the readers' and
     librarians' messages, from contracts/reservations-api.md.
   - **`eligibility(reader, book, now)`**: the same rules without locks, for display.
@@ -957,23 +957,23 @@ usable (FR-061).
   - **`expire_due(now)`**.
   - **Audit**: record `reservation_created`, `reservation_issued` and `reservation_expired` with
     `audit.services.record`. Expiries have no actor and channel `system`.
-- [ ] T107 [US2] Schedule the expiry and switch to Kyiv time (R16):
+- [x] T107 [US2] Schedule the expiry and switch to Kyiv time (R16):
   - Create `library/order/tasks.py` with the `expire_reservations` task. It calls
     `expire_due(timezone.now())`, locking rows with `skip_locked=True`, and logs the count.
   - In `library/library/settings.py`, add `CELERY_BEAT_SCHEDULE` to run
     `order.tasks.expire_reservations` every 300 seconds, and set `TIME_ZONE = "Europe/Kyiv"`.
   - Adjust the analytics tests in `library/events/tests.py` that assume UTC days.
-- [ ] T108 [US2] In `docker-compose.yml` and `docker-compose-dev.yml`, add `--beat
+- [x] T108 [US2] In `docker-compose.yml` and `docker-compose-dev.yml`, add `--beat
   --schedule=/tmp/celerybeat-schedule` to the worker's command, and update the comment that says it
   only runs queued events (R11).
-- [ ] T109 [US2] In `library/order/views.py` and `library/order/urls.py`:
+- [x] T109 [US2] In `library/order/views.py` and `library/order/urls.py`:
   - add `reserve`: POST `/order/reserve/<book_id>/`, for signed-in callers. Success redirects to My
     reservations, with the deadline in the message. A refusal returns to the book page with its
     message.
   - add `reservation_my`: GET `/order/reservations/`, the reader's reservations with their effective
     state;
   - make `order_create` lend through `services.lend()`.
-- [ ] T110 [US2] Add the pages (FR-023, FR-061):
+- [x] T110 [US2] Add the pages (FR-023, FR-061):
   - Create `library/order/templates/order/reservation_my.html`. It shows the state, the creation time,
     the deadline and the next step, with times as `|date:"j M Y, H:i T"`, plus messages and an empty
     state.
@@ -982,7 +982,7 @@ usable (FR-061).
       and `data-book-id`;
     - show the reason from `eligibility()` when reserving is not possible;
     - keep the self-loan link, without tracking attributes, until PR 6.
-- [ ] T111 [US2] Add the reservation API, in `library/order/serializers.py` and
+- [x] T111 [US2] Add the reservation API, in `library/order/serializers.py` and
   `library/order/api_views.py`:
   - `ReservationSerializer`, with the fields in contracts/reservations-api.md. `state` is the
     effective state, and `cancelled_by` is shown only to librarians.
@@ -995,15 +995,15 @@ usable (FR-061).
       `detail`.
   - `extend_schema` for the query parameter and the 409.
   - `reservation`, registered in `library/library/api_urls.py`.
-- [ ] T112 [P] [US2] In `library/book/views.py`, warn the librarian after saving a book whose total is
+- [x] T112 [P] [US2] In `library/book/views.py`, warn the librarian after saving a book whose total is
   below its active loans plus active reservations. In `library/book/admin.py`, show the available
   count from `with_availability()`.
-- [ ] T113 [P] [US2] Document the reader's side:
+- [x] T113 [P] [US2] Document the reader's side:
   - create `docs/features/reservations.md` with the reader's side: reserving, the 48 hours, the limit
     of 3, the overdue block, collecting the book, and expiry;
   - add reservations, with their audiences, to the README's "Features" and its REST API table;
   - note in the README that API datetimes now carry the Kyiv offset.
-- [ ] T114 [US2] Verify and prepare the pull request:
+- [x] T114 [US2] Verify and prepare the pull request:
   - run quickstart.md §5;
   - run CI's memory check with beat running, and record the result in research.md "Measurements";
   - run lint, format and the diff coverage;

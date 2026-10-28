@@ -74,14 +74,20 @@
                 {% endif %}
 
                 {% if request.user.is_visitor %}
-                    {% if book.available_count > 0 %}
-                    <a data-track-event="borrow_intent" data-book-id="{{ book.id }}" href="{% url 'order_create' book.id %}" class="btn-primary w-full sm:w-auto justify-center">
+                    {% if reserve_refusal %}
+                    <p class="text-sm text-slate-600 sm:max-w-sm">{{ reserve_refusal.message }}</p>
+                    {% else %}
+                    <form method="post" action="{% url 'reserve' book.id %}" class="w-full sm:w-auto">
+                        {% csrf_token %}
+                        <button type="submit" data-track-event="borrow_intent" data-book-id="{{ book.id }}" class="btn-primary w-full sm:w-auto justify-center">
+                            Reserve for 48 Hours
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if not lend_refusal %}
+                    <a href="{% url 'order_create' book.id %}" class="btn-secondary w-full sm:w-auto justify-center">
                         Borrow This Book
                     </a>
-                    {% else %}
-                    <button disabled class="inline-flex items-center justify-center px-5 py-2.5 bg-slate-200 text-slate-400 text-sm font-medium rounded-xl cursor-not-allowed w-full sm:w-auto">
-                        Currently Unavailable
-                    </button>
                     {% endif %}
                 {% endif %}
             </div>

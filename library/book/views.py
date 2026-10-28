@@ -3,12 +3,14 @@ from django.db import transaction
 from django.db.models import ProtectedError
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from authentication.decorators import librarian_required, signin_required
 from authentication.models import CustomUser
 from author.models import Author
 from order.models import Order
+from order.services import eligibility
 
 from .embeddings import EmbeddingGenerationError
 from .forms import BookForm
@@ -53,10 +55,16 @@ def book_list(request: HttpRequest) -> HttpResponse:
 
 @signin_required
 def book_detail(request: HttpRequest, book_id: int) -> HttpResponse:
+    now = timezone.now()
     book = get_object_or_404(
-        Book.objects.with_availability().prefetch_related("authors"), pk=book_id
+        Book.objects.with_availability(now).prefetch_related("authors"), pk=book_id
     )
-    return render(request, "book/book_detail.html", {"book": book})
+    context = {"book": book}
+    if request.user.is_visitor:
+        # Why the reader cannot reserve or borrow, if they cannot (FR-020).
+        context["reserve_refusal"] = eligibility(request.user, book, now)
+        context["lend_refusal"] = eligibility(request.user, book, now, lending=True)
+    return render(request, "book/book_detail.html", context)
 
 
 @librarian_required
@@ -88,10 +96,23 @@ def book_update(request: HttpRequest, book_id: int) -> HttpResponse:
                 form.add_error(None, str(error))
             else:
                 messages.success(request, f'Book "{book.name}" updated successfully.')
+                held = book.held_count
+                if book.count < held:
+                    # Allowed, for example when copies are lost (spec edge cases).
+                    messages.warning(request, _held_warning(book.count, held))
+                    return redirect("book_update", book_id=book.id)
                 return redirect("book_detail", book_id=book.id)
     else:
         form = BookForm(instance=book)
     return render(request, "book/book_update.html", {"form": form, "book": book})
+
+
+def _held_warning(count, held):
+    copies = "copy" if count == 1 else "copies"
+    return (
+        f"This book now has {count} {copies} but {held} open loans and active "
+        "reservations, so none is available until enough are returned or end."
+    )
 
 
 @librarian_required

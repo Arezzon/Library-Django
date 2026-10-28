@@ -11,7 +11,7 @@ from book.models import Book
 from book.testing import FakeEncoderMixin
 from library.testing import assert_same_query_count
 
-from .models import Order
+from .models import Order, Reservation
 
 
 def account(email, role=CustomUser.ROLE_VISITOR):
@@ -77,5 +77,51 @@ class LoanListQueryTests(FakeEncoderMixin, TestCase):
         url = f"/api/v1/user/{self.reader.pk}/order/"
         response = assert_same_query_count(
             self, self.signed_in(self.reader), url, self.add_loans
+        )
+        self.assertEqual(len(response.json()), 50)
+
+
+class ReservationListQueryTests(FakeEncoderMixin, TestCase):
+    """Each reservation list loads in a fixed number of queries (FR-047)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.reader = account("queries-holder@example.com")
+        cls.librarian = account("queries-desk@example.com", ROLE_LIBRARIAN)
+
+    def signed_in(self, user):
+        client = Client()
+        client.force_login(user)
+        return client
+
+    def add_reservations(self, count):
+        for _ in range(count):
+            book = Book.objects.create(name="Reserved title", count=1)
+            Reservation.objects.create(user=self.reader, book=book)
+
+    def test_my_reservations(self):
+        response = assert_same_query_count(
+            self,
+            self.signed_in(self.reader),
+            reverse("reservation_my"),
+            self.add_reservations,
+        )
+        self.assertContains(response, "Reserved title", count=50)
+
+    def test_the_api_list_for_a_reader(self):
+        response = assert_same_query_count(
+            self,
+            self.signed_in(self.reader),
+            "/api/v1/reservation/",
+            self.add_reservations,
+        )
+        self.assertEqual(len(response.json()), 50)
+
+    def test_the_api_list_for_a_librarian(self):
+        response = assert_same_query_count(
+            self,
+            self.signed_in(self.librarian),
+            "/api/v1/reservation/",
+            self.add_reservations,
         )
         self.assertEqual(len(response.json()), 50)
