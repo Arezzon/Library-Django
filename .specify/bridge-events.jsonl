@@ -58,3 +58,29 @@
 
 {"timestamp":"2026-10-20T12:43:02.2220945Z","action":"handoff","status":"complete","feature_directory":"specs/002-django-lts-upgrade","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261020T1243021570665Z-complete"}
 
+{"timestamp":"2026-10-27T19:02:30.2689397Z","action":"guard","status":"allow","feature_directory":"specs/002-django-lts-upgrade","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.clarify"}
+
+{"timestamp":"2026-10-27T20:05:32.1259045Z","action":"guard","status":"allow","feature_directory":"specs/002-django-lts-upgrade","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.plan"}
+
+{"timestamp":"2026-10-27T20:52:53.8371150Z","action":"guard","status":"allow","feature_directory":"specs/002-django-lts-upgrade","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.tasks"}
+
+{"timestamp":"2026-10-27T21:09:05.1263432Z","action":"handoff","status":"ready","feature_directory":"specs/002-django-lts-upgrade","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261027T2109050907330Z-ready"}
+
+{"timestamp":"2026-10-27T21:09:25.2546168Z","action":"handoff","status":"ready","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261027T2109252360211Z-ready"}
+
+{"timestamp":"2026-10-27T21:28:29.2614299Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261027T2128292040898Z-executing"}
+
+{"timestamp":"2026-10-27T21:28:29.5748818Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-27T23:41:26.2788595Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-28T00:34:41.3593024Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Constitution PATCH amendment for PR 9 (T065, R29): backup service and trial restore","actor":"claude","prior_actor":"claude","snapshot_id":"20261028T0034413419823Z-blocked"}
+
+{"timestamp":"2026-10-28T00:34:41.6749227Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-10-28T00:36:35.1670394Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261028T0036351022763Z-executing"}
+
+{"timestamp":"2026-10-28T00:36:35.4713330Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-28T10:22:35.7120231Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+

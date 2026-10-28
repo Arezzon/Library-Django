@@ -1,12 +1,12 @@
 ﻿{
     "schema_version":  1,
-    "updated_at":  "2026-10-20T12:43:02.1654673Z",
-    "feature_directory":  "specs/002-django-lts-upgrade",
+    "updated_at":  "2026-10-28T00:36:35.1111374Z",
+    "feature_directory":  "specs/003-priority-tech-debt",
     "source_of_truth":  {
                             "constitution":  ".specify/memory/constitution.md",
-                            "spec":  "specs/002-django-lts-upgrade/spec.md",
-                            "plan":  "specs/002-django-lts-upgrade/plan.md",
-                            "tasks":  "specs/002-django-lts-upgrade/tasks.md"
+                            "spec":  "specs/003-priority-tech-debt/spec.md",
+                            "plan":  "specs/003-priority-tech-debt/plan.md",
+                            "tasks":  "specs/003-priority-tech-debt/tasks.md"
                         },
     "supersedes":  [
                        "speckit.implement"
@@ -19,18 +19,18 @@
                          "requesting-code-review",
                          "finishing-a-development-branch"
                      ],
-    "status":  "complete",
+    "status":  "executing",
     "blocked_reason":  null,
     "artifact_owner":  "claude",
     "review_only_agents":  [
 
                            ],
     "notes":  null,
-    "last_snapshot_id":  "20261020T1243021570665Z-complete",
+    "last_snapshot_id":  "20261028T0036351022763Z-executing",
     "instructions":  "Use /speckit-superpowers-bridge (Claude Code) or $speckit-superpowers-bridge (Codex). The bridge orchestrates native Superpowers skills against tasks.md; do not run speckit.implement and do not invoke superpowers:writing-plans / :brainstorming for an active Spec Kit feature.",
     "artifacts_sha256":  {
-                             "spec.md":  "a874e6127d05772db5501218e1adeca994b9e88698dafc3f3b61fb63d2a0168b",
-                             "plan.md":  "79899051646cdc4e3b2d70b9ffa13d7c2b999e0adf842202ab52790892157ee2",
-                             "tasks.md":  "699b764d45cd5389ad70b7fef5c3caf85180a01b7b9da170e4f408f2496410f6"
+                             "spec.md":  "7f62fdcf07e4889bb2ee8ceae2b01f3b73d839e88dbf6aff96ad6c56d1f8a3d1",
+                             "plan.md":  "b1e1c0c4db77303729a05977372bfad2ff9d35efcc346a9f0f5cde3d873a09c0",
+                             "tasks.md":  "3ab57e86880e900af8980b3643cc4fa6e2add0366447b9503a0fbac63280fea4"
                          }
 }

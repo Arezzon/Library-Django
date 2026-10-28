@@ -8,5 +8,5 @@ from .serializers import AuthorSerializer
 
 class AuthorViewSet(viewsets.ModelViewSet):
     permission_classes = [ReadOnlyOrLibrarian]
-    queryset = Author.objects.all().order_by("id")
+    queryset = Author.objects.prefetch_related("books").order_by("id")
     serializer_class = AuthorSerializer

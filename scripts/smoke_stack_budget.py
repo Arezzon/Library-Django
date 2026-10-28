@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Stack budget check: peak memory of the whole stack, search and save latency.
+"""Stack budget check: peak memory of the whole stack, search, catalog and save latency.
 
 Finds the stack's containers by their Compose project label, warms the web
-workers up, then runs concurrent searches and a few book saves while sampling
-`docker stats`. It also checks that every stored vector carries the current
-model tag. Search needs a signed-in account: the script signs in as --email with the
-password from BUDGET_CHECK_PASSWORD, or asks for it, and never takes it as an
-argument. Standard library and the Docker CLI only, so it runs on the Pi:
+workers up, then runs concurrent searches, 60 loads of the catalog page and a few
+book saves while sampling `docker stats`. It also checks that every stored vector
+carries the current model tag. Search and the catalog need a signed-in account: the
+script signs in as --email with the password from BUDGET_CHECK_PASSWORD, or asks for
+it, and never takes it as an argument. Standard library and the Docker CLI only, so
+it runs on the Pi:
 
     python3 scripts/smoke_stack_budget.py --project-name library \\
-        --email reader@library.com \\
-        --max-memory-gib 4 --max-search-p95-ms 500 --max-save-ms 2000
+        --email reader@library.com --max-memory-gib 4 --max-search-p95-ms 500 \\
+        --max-catalog-p95-ms 2000 --max-save-ms 2000
 
 Prints a JSON summary; exits 1 when a limit is exceeded or a check fails.
 """
@@ -36,6 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 QUERIES = ROOT / "library" / "book" / "search_evaluation.json"
 UNITS = {"B": 1, "KIB": 2**10, "MIB": 2**20, "GIB": 2**30, "TIB": 2**40}
 UNITS.update({"KB": 10**3, "MB": 10**6, "GB": 10**9, "TB": 10**12})
+CATALOG_LOADS = 60
 
 parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
 parser.add_argument("--compose-file", help="Read the project name from this file.")
@@ -48,6 +50,7 @@ parser.add_argument(
 )
 parser.add_argument("--max-memory-gib", type=float, default=4.0)
 parser.add_argument("--max-search-p95-ms", type=float)
+parser.add_argument("--max-catalog-p95-ms", type=float)
 parser.add_argument("--max-save-ms", type=float)
 parser.add_argument(
     "--clients", type=int, default=int(os.getenv("WEB_CONCURRENCY") or 3)
@@ -141,6 +144,19 @@ def search(opener, query):
     return (time.perf_counter() - started) * 1000
 
 
+def load_catalog(opener):
+    url = args.base_url + "/book/"
+    started = time.perf_counter()
+    with opener.open(url, timeout=60) as response:
+        response.read()
+        # A lost session redirects to the sign-in page, which must not be timed.
+        if response.status != 200 or response.geturl() != url:
+            raise RuntimeError(
+                f"the catalog answered HTTP {response.status} at {response.geturl()}"
+            )
+    return (time.perf_counter() - started) * 1000
+
+
 def web_shell(web, code):
     return docker("exec", web, "python", "manage.py", "shell", "-c", code)
 
@@ -191,7 +207,8 @@ def main():
     password = os.getenv("BUDGET_CHECK_PASSWORD") or getpass.getpass(
         f"Password for {args.email}: "
     )
-    timed_search = partial(search, sign_in(args.email, password))
+    opener = sign_in(args.email, password)
+    timed_search = partial(search, opener)
 
     sampler = MemorySampler(ids)
     sampler.sample()
@@ -201,6 +218,7 @@ def main():
             list(pool.map(timed_search, queries[: args.clients]))  # warm workers up
             jobs = [queries[i % len(queries)] for i in range(args.searches)]
             search_ms = list(pool.map(timed_search, jobs))
+        catalog_ms = [load_catalog(opener) for _ in range(CATALOG_LOADS)]
         output = web_shell(webs[0], SAVES)
         save_ms = json.loads(output.split("SAVES=", 1)[1].strip())
         sampler.sample()
@@ -219,6 +237,12 @@ def main():
             "p50": round(statistics.median(search_ms), 1),
             "p95": round(percentile(search_ms, 0.95), 1),
         },
+        "catalog_ms": {
+            "count": len(catalog_ms),
+            "first": round(catalog_ms[0], 1),
+            "p50": round(statistics.median(catalog_ms), 1),
+            "p95": round(percentile(catalog_ms, 0.95), 1),
+        },
         "save_ms": {
             "count": len(save_ms),
             "p50": round(statistics.median(save_ms), 1),
@@ -232,6 +256,11 @@ def main():
         failures.append(f"peak memory above {args.max_memory_gib} GiB")
     if args.max_search_p95_ms and summary["search_ms"]["p95"] > args.max_search_p95_ms:
         failures.append(f"search p95 above {args.max_search_p95_ms} ms")
+    if (
+        args.max_catalog_p95_ms
+        and summary["catalog_ms"]["p95"] > args.max_catalog_p95_ms
+    ):
+        failures.append(f"catalog p95 above {args.max_catalog_p95_ms} ms")
     if args.max_save_ms and summary["save_ms"]["p95"] > args.max_save_ms:
         failures.append(f"save p95 above {args.max_save_ms} ms")
     if current != books:
