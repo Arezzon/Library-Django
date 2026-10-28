@@ -1,4 +1,8 @@
 2026-10-28
+A fixed number of queries for every list (KAN-18)
+Every page and API list of books, authors, accounts, loans and analytics events now has a test that loads it with 1 row and with 50 and fails if the number of database queries differs. The API's author list read each author's books with a separate query, 53 queries for 50 authors; it now loads them together and uses 4 at any size. The other lists already used a fixed number. The query count of every list, before and after, is recorded in the feature's research notes. The memory budget script also times 60 loads of the signed-in catalog page and reports the first load and the 95th percentile; --max-catalog-p95-ms sets its limit, and the operator guide documents it. This change also publishes the planning documents of KAN-62 in specs/003-priority-tech-debt.
+
+2026-10-28
 Daily database backups with a trial restore (KAN-68)
 Both Compose stacks add a backup service on the database's own image. Every day it takes a pg_dump of the whole database into the new pgbackups volume, reads the archive back to check it, and writes a SHA-256 checksum. It keeps 7 days of backups and always keeps the 7 newest. A failed run logs its cause and keeps every earlier backup. BACKUP_HOUR and BACKUP_KEEP_DAYS set the schedule and the retention. CI takes a backup on every run, restores it into a scratch database and compares every table's row count. The operator guide adds the daily backups, a weekly copy to another machine, a restore into a separate database, a restore after losing the database, the rehearsal record, and persistence and limit checks. ADR 0003 records the design. The constitution is amended to v2.2.1: the stacks list the backup service, and the smoke test includes the trial restore.
 

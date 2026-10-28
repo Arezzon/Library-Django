@@ -540,6 +540,7 @@ Do this once after the first deployment, and again after changing `WEB_CONCURREN
 
 - the whole stack uses at most **4 GiB** of memory, even under load;
 - 95% of searches answer in under **500 ms**;
+- 95% of catalog page loads finish within **2 s**;
 - saving a book (including its embedding) takes under **2 s**.
 
 The check needs Python 3 and Docker on the Pi; it only reads the running containers and adds
@@ -554,19 +555,22 @@ and deletes a few temporary books named `budget-check-…`.
 
 2. Run it against your stack (use the stack name from Portainer and the site's port). The
    catalog should hold books, for example the demo data (`DJANGO_SEED=true`) or your own.
-   Search is open only to signed-in accounts, so the script signs in first: `--email` names
-   an active account, for example your librarian account. It asks for that account's
-   password, or reads it from `BUDGET_CHECK_PASSWORD`; never put the password on the command
-   line, where it would stay in the shell history.
+   Search and the catalog are open only to signed-in accounts, so the script signs in first:
+   `--email` names an active account, for example your librarian account. It asks for that
+   account's password, or reads it from `BUDGET_CHECK_PASSWORD`; never put the password on the
+   command line, where it would stay in the shell history.
 
    ```bash
    python3 scripts/smoke_stack_budget.py --project-name library \
      --base-url http://localhost:8000 --email librarian@example.com \
-     --max-memory-gib 4 --max-search-p95-ms 500 --max-save-ms 2000
+     --max-memory-gib 4 --max-search-p95-ms 500 --max-catalog-p95-ms 2000 \
+     --max-save-ms 2000
    ```
 
-   It prints a JSON summary ending in `"result": "PASS"` or `"result": "FAIL: …"`. If it stops
-   with "Could not sign in", check the email and the password.
+   It prints a JSON summary ending in `"result": "PASS"` or `"result": "FAIL: …"`. Its
+   `catalog_ms` part times 60 loads of the catalog page, `/book/`: `first` is the first load,
+   and 95% of the loads took at most `p95` milliseconds. If it stops with "Could not sign in",
+   check the email and the password.
 
 3. If it fails, change one setting in the stack's environment variables, redeploy, and run it
    again:
@@ -574,13 +578,17 @@ and deletes a few temporary books named `budget-check-…`.
       copy of about 0.6 GB.
    2. **Searches or saves too slow**: raise `BOOK_EMBEDDING_THREADS` from `2` to `3`, then `4`.
       If that doesn't help, lower `WEB_CONCURRENCY` to free CPU cores.
-   No rebuild is needed for either.
+   3. **Catalog pages too slow**: the page does no model work, so first run the check again
+      when nothing else is running, such as a backup or an update. If it still fails, lower
+      `WEB_CONCURRENCY` to free CPU cores.
+   No rebuild is needed for any of them.
 
 4. **Report the results**: send the JSON summary, with the values of `WEB_CONCURRENCY` and
    `BOOK_EMBEDDING_THREADS` you used, to the maintainers. They are recorded in
    `specs/001-rpi-portainer-deploy/research.md` (§R1), and the feature counts as complete only
    once the targets are met there, or relaxed to the measured values with the project owner's
-   sign-off.
+   sign-off. The catalog timing is also recorded in `specs/003-priority-tech-debt/research.md`,
+   under "Measurements".
 
 ## Confirm deployments
 

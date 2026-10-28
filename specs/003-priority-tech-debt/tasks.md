@@ -303,7 +303,7 @@ published.
 
 - [x] T028 [US7] Create branch `perf/kan-18-query-counts` from a freshly fetched `origin/main` after
   PR 1 is deployed. (Jira) Move KAN-18 to In Progress.
-- [ ] T029 [US7] When the user asks to commit, add `specs/003-priority-tech-debt/` as its own commit on
+- [x] T029 [US7] When the user asks to commit, add `specs/003-priority-tech-debt/` as its own commit on
   this branch: the spec, the checklists, the plan, the research, the data model, the quickstart, the
   contracts and these tasks. Include the feature's bridge records: `.specify/superpowers-handoff.json`,
   `.specify/bridge-events.jsonl`, and the new `.specify/bridge-snapshots/` folders. It is the first
