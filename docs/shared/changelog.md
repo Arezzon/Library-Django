@@ -1,4 +1,8 @@
 2026-10-28
+Tests for the book, author and loan rules, and a coverage report (KAN-21)
+The author app gets its first tests, and books, authors and loans are now tested through the web, the API and the admin site: creating, editing and deleting, the field limits, every change of a loan, and a reader refused at each step. A new table checks every web route for an anonymous visitor, a reader and a librarian. CI measures coverage on one runner and reports how many of a pull request's added and changed lines the tests cover, in the job summary and in a comment on the pull request; the target is 85%. Three defects the tests found are fixed: saving an account no longer changes its creation time, a book's number of copies can no longer be negative, and an author attached to books can no longer be deleted through the API or the admin site, where the API now answers 409.
+
+2026-10-28
 A fixed number of queries for every list (KAN-18)
 Every page and API list of books, authors, accounts, loans and analytics events now has a test that loads it with 1 row and with 50 and fails if the number of database queries differs. The API's author list read each author's books with a separate query, 53 queries for 50 authors; it now loads them together and uses 4 at any size. The other lists already used a fixed number. The query count of every list, before and after, is recorded in the feature's research notes. The memory budget script also times 60 loads of the signed-in catalog page and reports the first load and the 95th percentile; --max-catalog-p95-ms sets its limit, and the operator guide documents it. This change also publishes the planning documents of KAN-62 in specs/003-priority-tech-debt.
 

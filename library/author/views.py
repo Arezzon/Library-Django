@@ -15,11 +15,9 @@ def _delete_author(request: HttpRequest, author_id: int) -> None:
         messages.error(request, "Author not found.")
         return
 
-    if author.books.exists():
-        messages.error(
-            request,
-            f'Cannot delete author "{author.name} {author.surname}" because they are attached to one or more books.',
-        )
+    refusal = author.deletion_refusal()
+    if refusal:
+        messages.error(request, refusal)
     else:
         Author.delete_by_id(author_id)
         messages.success(

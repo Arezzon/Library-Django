@@ -927,3 +927,28 @@ author list changed. It read each author's books with a separate query, so it gr
 | API loan list, `/api/v1/order/` | librarian | 3 / 3 | 3 / 3 |
 | API list of one user's loans, `/api/v1/user/<id>/order/` | reader | 3 / 3 | 3 / 3 |
 | Analytics dashboard, `/events/` (25 events per page) | librarian | 11 / 11 | 11 / 11 |
+
+### Coverage of added and changed lines (FR-051)
+
+**Method**: the full test command runs under `coverage run --rcfile=/app/pyproject.toml`
+in the web container, with the real-model tests on. `diff-cover` then compares
+`coverage.xml` with the pull request's base, from `library/`. The settings in
+`pyproject.toml` measure the five apps and the project package, and leave out
+migrations, test files and test helpers. From PR 3 on, CI posts the same report on every
+pull request.
+
+| Pull request | Date | Changed lines measured | Covered | Note |
+|---|---|---|---|---|
+| PR 1, access control | 2026-10-28 | 127 | 100% | Measured locally before the report existed |
+| PR 2, query counts | 2026-10-28 | 1 | 100% | Measured locally; `scripts/smoke_stack_budget.py` runs outside the Django tests and was checked by running it |
+| PR 3, tests and coverage | 2026-10-28 | 32 | 100% | Measured locally against `main`, after PR 2 merged |
+
+The whole of the measured code stood at 87% after PR 3 (1,862 statements, 247 not run).
+
+### Librarian account review after PR 1 (FR-007)
+
+- **Date**: 28.10.2026, after PR 1 was deployed.
+- **Method**: the operator reviewed every librarian account on the server (R7).
+- **Result**: 1 account reviewed, none changed. No unauthorized changes or signs of
+  exploitation were found.
+- **Record**: [the comment on #36](https://github.com/Arezzon/Library-Django/pull/36#issuecomment-6468084803).

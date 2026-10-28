@@ -3,7 +3,8 @@
 Each permission class in ``authentication.permissions`` carries an audience label. For
 every operation this schema class adds that label as ``x-audience``, ends the
 description with "Audience: ...", and documents the refusals: 401 and 403 unless anyone
-may call the operation, and 404 where readers see only their own records.
+may call the operation, 404 where readers see only their own records, and any refusal a
+view declares in ``refusals = {action: {status: description}}``.
 """
 
 from drf_spectacular import openapi
@@ -59,19 +60,24 @@ class AutoSchema(openapi.AutoSchema):
         text = operation.get("description", "").rstrip()
         sentence = f"Audience: {description}"
         operation["description"] = f"{text}\n\n{sentence}" if text else sentence
+        refusals = {}
         if audience != "anonymous":
-            codes = ["401", "403"]
+            refusals = {code: REFUSALS[code] for code in ("401", "403")}
             if "{" in path and self.limits_readers_to_own_records(audience):
-                codes.append("404")
+                refusals["404"] = REFUSALS["404"]
+        # A view may declare refusals of its own for an action, such as a 409.
+        action = getattr(self.view, "action", None)
+        refusals.update(getattr(self.view, "refusals", {}).get(action, {}))
+        if refusals:
             registry.register_on_missing(REFUSAL_BODY)
-            for code in codes:
-                operation["responses"].setdefault(
-                    code,
-                    {
-                        "description": REFUSALS[code],
-                        "content": {"application/json": {"schema": REFUSAL_BODY.ref}},
-                    },
-                )
+        for code, reason in refusals.items():
+            operation["responses"].setdefault(
+                code,
+                {
+                    "description": reason,
+                    "content": {"application/json": {"schema": REFUSAL_BODY.ref}},
+                },
+            )
         return operation
 
     def get_audience(self):

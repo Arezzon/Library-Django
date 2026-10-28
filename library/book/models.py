@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator
 from django.db import models, router, transaction
 from django.db.models import Count, Q
 from pgvector.django import VectorField
@@ -54,7 +55,9 @@ class Book(models.Model):
 
     name = models.CharField(blank=True, max_length=NAME_MAX_LEN)
     description = models.CharField(blank=True, max_length=DESCRIPTION_MAX_LEN)
-    count = models.IntegerField(default=DEFAULT_COUNT)
+    count = models.IntegerField(
+        default=DEFAULT_COUNT, validators=[MinValueValidator(0)]
+    )
     id = models.AutoField(primary_key=True)
     objects = BookQuerySet.as_manager()
 

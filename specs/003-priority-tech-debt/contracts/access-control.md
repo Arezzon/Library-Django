@@ -33,7 +33,7 @@ This table is the source for PR 1's access tests. A change to it changes the tes
 | `/api/v1/book/{id}/` | DELETE | 401 | 403 | 204; from PR 4, 409 if the book has loans or reservations |
 | `/api/v1/author/`, `/api/v1/author/{id}/` | GET | 401 | 200 | 200 |
 | `/api/v1/author/` | POST | 401 | 403 | 201 |
-| `/api/v1/author/{id}/` | PUT, PATCH, DELETE | 401 | 403 | 200 or 204 |
+| `/api/v1/author/{id}/` | PUT, PATCH, DELETE | 401 | 403 | 200 or 204; from PR 3, DELETE answers 409 while the author is attached to a book |
 | `/api/v1/user/` | GET, POST | 401 | 403 | 200 or 201 |
 | `/api/v1/user/{id}/` | GET | 401 | Own: 200. Other: 404. | 200 |
 | `/api/v1/user/{id}/` | PUT, PATCH | 401 | Own: 200 for name fields. 403 if the body has `role`, `is_active`, `email` or `password`. Other: 404. | 200. From PR 11, 403 if the body changes `role` and the caller is not an administrator. |
