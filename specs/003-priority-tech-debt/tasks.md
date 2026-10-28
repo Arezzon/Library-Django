@@ -603,9 +603,9 @@ other phases.
 
 ### Tests for User Story 5 (PR 8)
 
-- [ ] T068 [US5] Create branch `feat/kan-67-logs-and-audit` from a freshly fetched `origin/main`, with
+- [x] T068 [US5] Create branch `feat/kan-67-logs-and-audit` from a freshly fetched `origin/main`, with
   PR 1 merged. (Jira) Move KAN-67 to In Progress.
-- [ ] T069 [P] [US5] Create `library/authentication/test_logging.py` (contracts/logs-and-audit.md):
+- [x] T069 [P] [US5] Create `library/authentication/test_logging.py` (contracts/logs-and-audit.md):
   - **Format**: a record renders `<UTC time with ms>Z <LEVEL> <service> <request id or -> <logger>:
     <message>`, and every traceback line repeats the header followed by `| `.
   - **Request id**:
@@ -623,7 +623,7 @@ other phases.
     account", and never the email or the password.
   - **Existing test**: update `ProductionErrorLoggingTests` in `library/authentication/tests.py` to
     capture the new handler.
-- [ ] T070 [P] [US5] Create `library/audit/tests.py`:
+- [x] T070 [P] [US5] Create `library/audit/tests.py`:
   - **One entry each**: exactly one entry for each action in data-model.md §5, when made through the
     web, the API, the admin site and a management command. Each records the actor, the channel, the
     before and after values of the changed fields only, and the request id.
@@ -636,7 +636,7 @@ other phases.
   - **Readers**: a reader cannot open `/admin/audit/auditentry/`.
   - **Account guard**: `CustomUser.objects.filter(…).update(role=…)`, and the same for `is_active`,
     raises `ValueError`.
-- [ ] T071 [P] [US5] Add guard tests:
+- [x] T071 [P] [US5] Add guard tests:
   - In `library/book/tests.py`, change the two tests that bulk-update `count` (the availability test
     and the "bulk stock updates" test) to use `save()`. Add a test that
     `Book.objects.filter(…).update(count=…)` raises `ValueError`.
@@ -645,7 +645,7 @@ other phases.
 
 ### Implementation for User Story 5 (PR 8)
 
-- [ ] T072 [US5] Create `library/library/logs.py` (R18, R19, FR-034, FR-035, FR-039):
+- [x] T072 [US5] Create `library/library/logs.py` (R18, R19, FR-034, FR-035, FR-039):
   - a request-id `ContextVar`;
   - a filter that adds `request_id` (or `-`) and `service`;
   - a formatter that:
@@ -655,27 +655,27 @@ other phases.
   - `build_logging_config(service, level)`, which returns a `dictConfig` with one stream handler for
     the root logger, `django`, `django.request` (at WARNING), `celery`, `gunicorn.error` and the app
     loggers, all at `level`.
-- [ ] T073 [US5] Create `library/library/middleware.py` with `RequestIdMiddleware`. It accepts an
+- [x] T073 [US5] Create `library/library/middleware.py` with `RequestIdMiddleware`. It accepts an
   `X-Request-ID` that matches `^[A-Za-z0-9._-]{8,64}$` and otherwise uses `uuid.uuid4().hex`. It
   sets the context variable, adds the response header, and resets the variable afterwards. In
   `library/library/settings.py`:
   - put `RequestIdMiddleware` first in `MIDDLEWARE`;
   - replace `LOGGING` with `build_logging_config("web", os.getenv("LOG_LEVEL", "INFO"))`.
-- [ ] T074 [US5] In `library/library/celery.py`, connect these signals:
+- [x] T074 [US5] In `library/library/celery.py`, connect these signals:
   - `setup_logging`, which applies `build_logging_config("worker", LOG_LEVEL)`;
   - `before_task_publish`, which adds the current request id to the message headers;
   - `task_prerun`, which sets the context variable from the task's headers, or from its task id;
   - `task_postrun`, which resets it.
-- [ ] T075 [P] [US5] In `library/gunicorn.conf.py`, set `logconfig_dict = build_logging_config("web",
+- [x] T075 [P] [US5] In `library/gunicorn.conf.py`, set `logconfig_dict = build_logging_config("web",
   …)` and `loglevel` from `LOG_LEVEL`. Keep the access log off, with a comment that URLs can carry
   search text.
-- [ ] T076 [P] [US5] In `entrypoint.sh`, add a `log` function that prints `$(date -u
+- [x] T076 [P] [US5] In `entrypoint.sh`, add a `log` function that prints `$(date -u
   +%Y-%m-%dT%H:%M:%S.%3NZ) INFO web - entrypoint: <message>`, and use it for every startup message.
-- [ ] T077 [P] [US5] Create `library/authentication/signals.py` with a `user_login_failed` receiver.
+- [x] T077 [P] [US5] Create `library/authentication/signals.py` with a `user_login_failed` receiver.
   It logs at WARNING "Sign-in failed for account #<id>" when the normalized email matches an account,
   and "Sign-in failed for an unknown account" otherwise. Connect it in `AuthenticationConfig.ready()`
   in `library/authentication/apps.py`.
-- [ ] T078 [US5] Create the `audit` app: `library/audit/__init__.py`, `library/audit/apps.py` and
+- [x] T078 [US5] Create the `audit` app: `library/audit/__init__.py`, `library/audit/apps.py` and
   `library/audit/models.py`.
   - **`AuditEntry` fields**, as in data-model.md §5:
 
@@ -698,7 +698,7 @@ other phases.
     and `delete()` also refuse.
   - **Install**: add `"audit"` to `INSTALLED_APPS` in `library/library/settings.py`, then run `python
     manage.py makemigrations audit` to create `library/audit/migrations/0001_initial.py`.
-- [ ] T079 [US5] Wire the audit context and service (FR-037):
+- [x] T079 [US5] Wire the audit context and service (FR-037):
   - Create `library/audit/context.py`: a context variable holding the actor, the channel and the
     request id, and `audit_context(actor=None, channel="command", reason=None)`. By default the
     channel is `command` and there is no actor.
@@ -709,11 +709,11 @@ other phases.
     to the signed-in user, and the channel from the path: `/admin/` is admin, `/api/` is api,
     anything else is web.
   - In `task_prerun` in `library/library/celery.py`, set the channel to `system`, with no actor.
-- [ ] T080 [P] [US5] Create `library/audit/admin.py` with a read-only `AuditEntryAdmin`:
+- [x] T080 [P] [US5] Create `library/audit/admin.py` with a read-only `AuditEntryAdmin`:
   - it lists the time, action, actor, target and channel;
   - it filters by action, channel and date, and searches the labels;
   - `has_add_permission`, `has_change_permission` and `has_delete_permission` return `False`.
-- [ ] T081 [US5] In `library/authentication/models.py`:
+- [x] T081 [US5] In `library/authentication/models.py`:
   - wrap `CustomUser.save()` in `transaction.atomic`, and compare with the previous row, locked with
     `select_for_update`;
   - record `role_granted` or `role_removed`, including for an account created as a librarian, and
@@ -721,7 +721,7 @@ other phases.
   - add a `post_delete` receiver that records `account_deleted`;
   - give `CustomUserManager` a queryset, through `from_queryset`, whose `update()` refuses `role` and
     `is_active`.
-- [ ] T082 [US5] In `library/order/models.py` (data-model.md §2):
+- [x] T082 [US5] In `library/order/models.py` (data-model.md §2):
   - inside `Order.save()`'s existing atomic block, also read `user_id` and `plated_end_at` from the
     locked previous row;
   - record `loan_started`, `loan_returned`, `loan_reopened` or `loan_reassigned`;
@@ -729,22 +729,22 @@ other phases.
     their account.
   - make `OrderQuerySet` the manager. It refuses `update()` of `end_at`, `book` and `user`, and
     `bulk_create()`.
-- [ ] T083 [US5] In `library/book/models.py`:
+- [x] T083 [US5] In `library/book/models.py`:
   - `Book.save()` records `book_copies_changed` when `count` differs from the locked previous row;
   - a `post_delete` receiver records `book_deleted`;
   - `BookQuerySet.update()` refuses `count`, with "Book stock update bypasses the audit trail; use
     save().".
-- [ ] T084 [P] [US5] Make the request id visible in the worker:
+- [x] T084 [P] [US5] Make the request id visible in the worker:
   - in `library/events/tasks.py`, log "Persisted event <id>" at INFO in `persist_event`, without the
     payload;
   - in `library/events/management/commands/smoke_test_tracking.py`, send every request with a known
     `X-Request-ID` (`smoke-` followed by a UUID4 hex), and print `REQUEST_ID=<id>`.
-- [ ] T085 [US5] In `docker-compose.yml` and `docker-compose-dev.yml` (FR-036):
+- [x] T085 [US5] In `docker-compose.yml` and `docker-compose-dev.yml` (FR-036):
   - add an `x-logging` anchor to every service: `driver: json-file`, with options `max-size: "10m"`
     and `max-file: "5"`;
   - add `LOG_LEVEL: ${LOG_LEVEL:-INFO}` to the shared app environment;
   - let the worker's level follow it.
-- [ ] T086 [US5] In `.github/workflows/docker-build.yml`:
+- [x] T086 [US5] In `.github/workflows/docker-build.yml`:
   - add `audit` to the test command, and `tee` its output to a file;
   - after `smoke_test_tracking`, assert that the worker's log holds its `REQUEST_ID` (SC-008);
   - add "Verify the logs hold no secrets or search text" (SC-007). It searches `docker compose logs
@@ -754,7 +754,7 @@ other phases.
     - the search word `detective`.
 
     It fails on any match.
-- [ ] T087 [P] [US5] Update ownership and docs:
+- [x] T087 [P] [US5] Update ownership and docs:
   - add `/library/audit/ @fazelukario @Arezzon` to `.github/CODEOWNERS`;
   - add `audit` to the test command in `AGENTS.md` and `README.md`, and to "Project layout" in the
     README;
@@ -765,10 +765,10 @@ other phases.
     - rotation and its limit;
     - `LOG_LEVEL`;
     - where librarians read audit entries.
-- [ ] T088 [P] [US5] Create `docs/adr/0002-audit-trail.md`: audit entries as part of the business
+- [x] T088 [P] [US5] Create `docs/adr/0002-audit-trail.md`: audit entries as part of the business
   record, their own app, where they are written, and the alternatives rejected in R21. Create
   `docs/adr/README.md` if it does not exist yet.
-- [ ] T089 [US5] Constitution MINOR amendment (R29), in `.specify/memory/constitution.md`. With the
+- [x] T089 [US5] Constitution MINOR amendment (R29), in `.specify/memory/constitution.md`. With the
   handoff set to `blocked`, use `/speckit-constitution` to make these changes:
   - Principle I lists `audit`.
   - Principle V adds "a critical change with its audit entry" to the writes that succeed or fail
@@ -777,7 +777,7 @@ other phases.
     secrets.
 
   Add the changelog entry, then set the handoff back.
-- [ ] T090 [US5] Verify and prepare the pull request:
+- [x] T090 [US5] Verify and prepare the pull request:
   - run quickstart.md §8, CI's memory check, lint, format and the diff coverage;
   - add the changelog entry;
   - use the title `feat(audit): add technical logs and an audit trail of critical changes (KAN-67)`.

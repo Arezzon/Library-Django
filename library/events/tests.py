@@ -240,6 +240,16 @@ class EventTests(FakeEncoderMixin, TestCase):
         self.assertEqual(event.occurred_at.isoformat(), payload["occurred_at"])
         self.assertGreaterEqual(event.recorded_at, event.occurred_at)
 
+    def test_worker_logs_each_persisted_event_without_its_payload(self):
+        payload = make_payload(
+            self.request(), EventType.SEARCH, properties={"query": "private words"}
+        )
+        with self.assertLogs("events.tasks", level="INFO") as logs:
+            persist_event.run(payload)
+        self.assertEqual(
+            logs.output, [f"INFO:events.tasks:Persisted event {payload['id']}"]
+        )
+
     def test_deleted_user_does_not_poison_queued_event(self):
         payload = make_payload(
             self.request(), EventType.BOOK_VIEW, book_id=self.book.pk

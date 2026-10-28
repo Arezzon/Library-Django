@@ -17,6 +17,8 @@ from urllib.parse import parse_qsl, unquote, urlsplit
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
+from .logs import build_logging_config
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -102,6 +104,7 @@ INSTALLED_APPS = [
     "book",
     "order",
     "events.apps.EventsConfig",
+    "audit",
     "rest_framework",
     "drf_spectacular",
 ]
@@ -109,12 +112,14 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = "authentication.CustomUser"
 
 MIDDLEWARE = [
+    "library.middleware.RequestIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "audit.middleware.AuditContextMiddleware",
     "events.middleware.EventTrackingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -230,35 +235,9 @@ STORAGES = {
 
 # Logger required settings.
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "default",
-        },
-    },
-    "loggers": {
-        "django.request": {
-            "handlers": ["console"],
-            "level": "ERROR",
-            "propagate": False,
-        },
-        "dev": {
-            "handlers": ["console"],
-            "level": "DEBUG",
-            "propagate": True,
-        },
-    },
-    "formatters": {
-        "default": {
-            "format": "%(levelname)s %(asctime)s %(pathname)s line: %(lineno)d "
-            "message: %(message)s",
-            "datefmt": "%d/%m/%Y %I:%M:%S",
-        },
-    },
-}
+# One line format with the request id, and redaction (library/logs.py). The worker
+# applies the same configuration as service "worker" (library/celery.py).
+LOGGING = build_logging_config("web", os.getenv("LOG_LEVEL", "INFO"))
 try:
     from .local_settings import *  # noqa: F403
 except ImportError:

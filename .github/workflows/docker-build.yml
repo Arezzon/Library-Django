@@ -144,8 +144,11 @@ jobs:
           echo "All $(wc -l < "$RUNNER_TEMP/restored-counts.txt") tables match:"
           cat "$RUNNER_TEMP/restored-counts.txt"
 
+      # The output is kept for the log check at the end of the job.
       - name: Run Django regression tests against PostgreSQL
-        run: docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events --verbosity 2
+        run: |
+          set -o pipefail
+          docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events audit --verbosity 2 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
 
       - name: Wait for the web server to accept connections
         run: |
@@ -185,8 +188,15 @@ jobs:
           grep -q sessionid "$jar" || { echo "::error::The demo reader could not sign in."; exit 1; }
           curl -fsS -b "$jar" "$base/api/v1/books/search/?q=detective"
 
+      # The worker's lines carry the identifier of the requests that queued them (SC-008).
       - name: Verify real asynchronous event tracking
-        run: docker compose -f docker-compose-dev.yml exec -T web python manage.py smoke_test_tracking
+        run: |
+          set -o pipefail
+          dc="docker compose -f docker-compose-dev.yml"
+          $dc exec -T web python manage.py smoke_test_tracking | tee "$RUNNER_TEMP/tracking.txt"
+          request_id=$(sed -n 's/^REQUEST_ID=//p' "$RUNNER_TEMP/tracking.txt" | tr -d '\r')
+          echo "Worker lines with request id $request_id:"
+          $dc logs --no-color worker | grep -F "$request_id"
 
       - name: Verify event queue survives worker and broker restart
         run: python scripts/smoke_tracking_recovery.py --compose-file docker-compose-dev.yml
@@ -197,6 +207,27 @@ jobs:
         env:
           BUDGET_CHECK_PASSWORD: reader123password # the seeded demo reader's public password
         run: python scripts/smoke_stack_budget.py --compose-file docker-compose-dev.yml --email reader@library.com --max-memory-gib 4
+
+      # No secret, demo password or search text in any service's log or in the test
+      # output (SC-007). Secrets are named, never printed.
+      - name: Verify the logs hold no secrets or search text
+        run: |
+          docker compose -f docker-compose-dev.yml logs --no-color > "$RUNNER_TEMP/stack.log"
+          failed=0
+          check() {  # check <what> <value>
+            if grep -qF -- "$2" "$RUNNER_TEMP/stack.log" "$RUNNER_TEMP/test-output.txt"; then
+              echo "::error::The logs hold $1."
+              failed=1
+            fi
+          }
+          check "the run's SECRET_KEY" "$SECRET_KEY"
+          check "the run's DB_PASSWORD" "$DB_PASSWORD"
+          for password in admin123password reader123password alice123password bob123password; do
+            check "the demo password $password" "$password"
+          done
+          check "the search word 'detective'" detective
+          [ "$failed" -eq 0 ] && echo "No secret, demo password or search word in any log."
+          exit "$failed"
 
       - name: Show the stack logs
         if: failure()

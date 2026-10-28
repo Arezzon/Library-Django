@@ -1,6 +1,10 @@
 from django.db import models, router, transaction
 from django.db.models import Count, Q
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from pgvector.django import VectorField
+
+from audit.services import record
 
 
 class BookQuerySet(models.QuerySet):
@@ -12,12 +16,16 @@ class BookQuerySet(models.QuerySet):
     def update(self, **kwargs):
         if {"name", "description"}.intersection(kwargs):
             raise ValueError("Book text update bypasses embeddings; use save().")
+        if "count" in kwargs:
+            raise ValueError("Book stock update bypasses the audit trail; use save().")
         return super().update(**kwargs)
 
     def bulk_update(self, objs, fields, batch_size=None):
         fields = tuple(fields)
         if {"name", "description"}.intersection(fields):
             raise ValueError("Book text bulk_update bypasses embeddings; use save().")
+        if "count" in fields:
+            raise ValueError("Book stock update bypasses the audit trail; use save().")
         return super().bulk_update(objs, fields, batch_size=batch_size)
 
     def with_availability(self):
@@ -89,10 +97,16 @@ class Book(models.Model):
                 return
         database = using or router.db_for_write(type(self), instance=self)
         with transaction.atomic(using=database):
+            previous = None
             if self.pk is not None:
-                type(self).objects.using(database).select_for_update().filter(
-                    pk=self.pk
-                ).values("pk").first()
+                previous = (
+                    type(self)
+                    .objects.using(database)
+                    .select_for_update()
+                    .filter(pk=self.pk)
+                    .values("count")
+                    .first()
+                )
             result = super().save(
                 force_insert=force_insert,
                 force_update=force_update,
@@ -119,6 +133,12 @@ class Book(models.Model):
             ):
                 regenerate_book_embedding(current, database)
                 self._state.fields_cache.pop("embedding", None)
+            # A change of total copies is audited with it (FR-037, FR-040).
+            if previous is not None and current.count != previous["count"]:
+                before, after = {"count": previous["count"]}, {"count": current.count}
+                record(
+                    "book_copies_changed", "book", self.pk, current.name, before, after
+                )
             return result
 
     @property
@@ -240,6 +260,12 @@ class Book(models.Model):
         returns data for json request with QuerySet of all books
         """
         return list(Book.objects.all())
+
+
+@receiver(post_delete, sender=Book, dispatch_uid="book.book_deleted")
+def record_book_deletion(sender, instance, **kwargs):
+    before = {"name": instance.name, "count": instance.count}
+    record("book_deleted", "book", instance.pk, instance.name, before, {})
 
 
 class BookEmbedding(models.Model):  # noqa: DJ008

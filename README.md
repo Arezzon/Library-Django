@@ -65,6 +65,7 @@ before using the `venv` setup.
 | API | Endpoints under `/api/v1/`, each open only to its stated audience, plus Swagger and ReDoc |
 | Embeddings | Multilingual 1024-dimensional `bge-m3` vectors generated with ONNX Runtime |
 | Analytics | Activity dashboard, filters, daily totals and per-user activity |
+| Logs and audit | One log line format whose request identifier follows a request into the worker; secrets and search text redacted; rotated logs; a read-only audit trail of role, account, loan and stock changes in the admin site |
 | Deployment | Docker Compose for development; a Raspberry Pi 5 Portainer stack from multi-architecture GHCR images |
 
 ## Architecture
@@ -145,6 +146,8 @@ used and can be removed with `docker volume rm`.
 
 > **Tip:** `docker compose -f docker-compose-dev.yml up --build -d` starts the stack in the background.
 > Use `docker compose -f docker-compose-dev.yml logs -f web worker` to follow application and worker logs.
+> Each line carries the request's `X-Request-ID`, so one request can be followed from the web
+> service into the worker; the operator guide's "Viewing logs" explains the format.
 
 ## Local development with `venv`
 
@@ -446,6 +449,7 @@ OpenAPI schema:  http://localhost:8000/api/schema/
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `DEBUG` | `False` | Django debug mode; set `True` for local development only |
+| `LOG_LEVEL` | `INFO` | Level of the web, gunicorn and worker logs: `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`; any other value stops startup |
 | `SECRET_KEY` | — (required) | Session and cryptographic signing |
 | `ALLOWED_HOSTS` | `localhost,127.0.0.1` | Accepted HTTP hosts |
 | `TRUST_X_FORWARDED_PROTO` | `False` | Treat `X-Forwarded-Proto: https` as secure; set `True` only behind your HTTPS proxy, where it also makes session and CSRF cookies HTTPS-only; an unrecognized value stops startup |
@@ -471,7 +475,7 @@ credentials.
 Run Django tests from `library/`:
 
 ```powershell
-python manage.py test authentication author book order events
+python manage.py test authentication author book order events audit
 python manage.py collectstatic --noinput
 python manage.py check
 ```
@@ -479,7 +483,7 @@ python manage.py check
 Docker smoke checks:
 
 ```bash
-docker compose -f docker-compose-dev.yml exec -T web python manage.py test authentication author book order events --verbosity 2
+docker compose -f docker-compose-dev.yml exec -T web python manage.py test authentication author book order events audit --verbosity 2
 docker compose -f docker-compose-dev.yml exec -T web python manage.py smoke_test_tracking
 docker compose -f docker-compose-dev.yml exec -T backup library-backup once
 node --test scripts/test_tracking_js.cjs
@@ -525,7 +529,8 @@ excluded from both tools.
     ├── author/                # author catalog
     ├── book/                  # books and embeddings
     ├── order/                 # borrowing workflow
-    └── events/                # tracking, queue tasks and analytics UI
+    ├── events/                # tracking, queue tasks and analytics UI
+    └── audit/                 # audit trail of critical changes, read in the admin site
 ```
 
 ## Deployment

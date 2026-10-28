@@ -258,8 +258,9 @@ The book and its loans remain.
    $DC logs --no-log-prefix web worker | grep "$rid"
    ```
 
-   **Expected**: lines from both web and worker, each with the header. `smoke_test_tracking` in CI
-   asserts the same.
+   **Expected**: the worker's lines for the event, each with the header and the id.
+   `smoke_test_tracking` in CI asserts the same. A successful request writes no web line, because
+   the access log stays off; a refused or failing request adds its web lines with the same id.
 3. A failing request's traceback lines all carry its identifier (a test covers this).
 4. **(manual)** Make each critical change once, for example a role change in the admin site or a loan
    return on the web. `/admin/audit/auditentry/` shows exactly one entry each, with the actor, the
