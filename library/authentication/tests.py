@@ -8,10 +8,12 @@ import json
 import os
 import subprocess
 import sys
+from datetime import timedelta
 
 from django.conf import settings
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import path
+from django.utils import timezone
 
 from .models import ROLE_LIBRARIAN, ROLE_VISITOR, CustomUser
 
@@ -311,6 +313,18 @@ class AccountWebAccessTests(TestCase):
         self.assertEqual(
             (self.reader.role, self.reader.is_active), (ROLE_VISITOR, True)
         )
+
+    def test_saving_a_profile_keeps_the_creation_time(self):
+        created = timezone.now() - timedelta(days=30)
+        CustomUser.objects.filter(pk=self.reader.pk).update(created_at=created)
+        self.client.force_login(self.reader)
+        self.client.post(
+            self.update_url(self.reader),
+            {"first_name": "Renamed", "middle_name": "Q", "last_name": "Reader"},
+        )
+        self.reader.refresh_from_db()
+        self.assertEqual(self.reader.first_name, "Renamed")
+        self.assertEqual(self.reader.created_at, created)
 
     def test_librarian_changes_role_and_status(self):
         self.client.force_login(self.librarian)

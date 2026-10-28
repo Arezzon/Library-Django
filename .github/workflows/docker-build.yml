@@ -68,6 +68,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          # The coverage report compares with origin/main, so its leg needs history.
+          fetch-depth: ${{ matrix.runner == 'ubuntu-latest' && '0' || '1' }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -146,9 +149,43 @@ jobs:
 
       # The output is kept for the log check at the end of the job.
       - name: Run Django regression tests against PostgreSQL
+        if: matrix.runner != 'ubuntu-latest'
         run: |
           set -o pipefail
           docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events audit --verbosity 2 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
+
+      # The same tests on one leg, measured by coverage, with the output kept the same
+      # way. The data and coverage.xml land in library/ through the bind mount, where
+      # diff-cover reads them.
+      - name: Run Django regression tests against PostgreSQL, measuring coverage
+        if: matrix.runner == 'ubuntu-latest'
+        run: |
+          set -o pipefail
+          dc="docker compose -f docker-compose-dev.yml"
+          $dc exec -T web python -m pip install --quiet "$(grep '^coverage==' requirements-dev.txt)"
+          $dc exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python -m coverage run --rcfile=/app/pyproject.toml manage.py test authentication author book order events audit --verbosity 2 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
+          $dc exec -T web python -m coverage xml --rcfile=/app/pyproject.toml -o coverage.xml
+
+      # Coverage of the lines the pull request adds or changes (FR-051). A report
+      # for reviewers, never a gate: the 85% target allows listed exceptions.
+      - name: Report coverage of the changed lines
+        if: matrix.runner == 'ubuntu-latest' && github.event_name == 'pull_request'
+        continue-on-error: true
+        working-directory: library
+        run: |
+          python -m pip install --quiet "$(grep '^diff-cover==' ../requirements-dev.txt)"
+          diff-cover coverage.xml --compare-branch=origin/main --format markdown:../diff-coverage.md
+          cat ../diff-coverage.md >> "$GITHUB_STEP_SUMMARY"
+
+      # One comment per pull request, updated by each push. A fork's read-only token
+      # cannot comment; the job summary still has the report.
+      - name: Post the coverage report on the pull request
+        if: matrix.runner == 'ubuntu-latest' && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --edit-last --create-if-none --body-file diff-coverage.md
 
       - name: Wait for the web server to accept connections
         run: |

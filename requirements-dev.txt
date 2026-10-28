@@ -1,4 +1,6 @@
 # Development and CI tooling; not installed into the Docker image.
 # Settings live in pyproject.toml. Bump the pins together and reformat.
 black==26.10.1
+coverage==7.16.2
+diff-cover==10.6.0
 ruff==0.17.1

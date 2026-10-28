@@ -12,7 +12,8 @@ from django.contrib.messages import get_messages
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection, models
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -29,6 +30,7 @@ from .embeddings import (
 )
 from .models import Book, BookEmbedding
 from .serializers import BookSerializer
+from .testing import FakeEncoderMixin
 from .views import _filter_books
 
 
@@ -1045,3 +1047,151 @@ class SeedEmbeddingTests(TestCase):
         self.assertFalse(CustomUser.objects.exists())
         self.assertFalse(Author.objects.exists())
         self.assertFalse(Book.objects.exists())
+
+
+# One character past each limit (data-model.md: 128 and 256), and the smallest
+# refused number of copies.
+LIMITS = [("name", "n" * 129), ("description", "d" * 257), ("count", -1)]
+
+
+class BookChannelTests(FakeEncoderMixin, TestCase):
+    """The limits, deletion and a reader's refusal in each channel (research R9).
+
+    Creating and editing through each channel are covered above, with their
+    embeddings, and deleting through the web in test_delete.py.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.librarian = cls.account("books-librarian@example.com", ROLE_LIBRARIAN)
+        cls.reader = cls.account("books-reader@example.com", CustomUser.ROLE_VISITOR)
+        cls.book = Book.objects.create(name="Kobzar", description="Poems", count=3)
+
+    @staticmethod
+    def account(email, role):
+        return CustomUser.objects.create_user(
+            email=email,
+            password="books-password",
+            first_name="Book",
+            middle_name="",
+            last_name="Tester",
+            role=role,
+            is_active=True,
+        )
+
+    def signed_in(self, user):
+        client = Client()
+        client.force_login(user)
+        return client
+
+    def admin_form(self, **changes):
+        return {
+            "name": "New book",
+            "description": "",
+            "count": 1,
+            "order_set-TOTAL_FORMS": "0",
+            "order_set-INITIAL_FORMS": "0",
+            "order_set-MIN_NUM_FORMS": "0",
+            "order_set-MAX_NUM_FORMS": "1000",
+            "_save": "Save",
+            **changes,
+        }
+
+    def assertUnchanged(self):
+        book = Book.objects.filter(pk=self.book.pk).first()
+        self.assertIsNotNone(book, "the book was deleted")
+        self.assertEqual(
+            (book.name, book.description, book.count), ("Kobzar", "Poems", 3)
+        )
+        self.assertEqual(Book.objects.count(), 1)
+
+    def test_the_web_form_refuses_values_past_the_limits(self):
+        client = self.signed_in(self.librarian)
+        for field, value in LIMITS:
+            with self.subTest(field=field):
+                data = {"name": "New book", "description": "", "count": 1}
+                response = client.post(reverse("book_create"), {**data, field: value})
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(field, response.context["form"].errors)
+        self.assertUnchanged()
+
+    def test_the_api_refuses_values_past_the_limits(self):
+        client = self.signed_in(self.librarian)
+        for field, value in LIMITS:
+            with self.subTest(field=field):
+                body = {"name": "New book", "count": 1, field: value}
+                response = client.post(
+                    "/api/v1/book/", body, content_type="application/json"
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn(field, response.json())
+        self.assertUnchanged()
+
+    def test_the_admin_site_refuses_values_past_the_limits(self):
+        client = self.signed_in(self.librarian)
+        for field, value in LIMITS:
+            with self.subTest(field=field):
+                response = client.post(
+                    "/admin/book/book/add/", self.admin_form(**{field: value})
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(field, response.context["adminform"].form.errors)
+        self.assertUnchanged()
+
+    def test_librarian_deletes_a_book_through_the_api(self):
+        free = Book.objects.create(name="Never borrowed", count=1)
+        response = self.signed_in(self.librarian).delete(f"/api/v1/book/{free.pk}/")
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Book.objects.filter(pk=free.pk).exists())
+
+    def test_librarian_deletes_a_book_in_the_admin_site(self):
+        free = Book.objects.create(name="Never borrowed", count=1)
+        response = self.signed_in(self.librarian).post(
+            f"/admin/book/book/{free.pk}/delete/", {"post": "yes"}
+        )
+        self.assertRedirects(
+            response, "/admin/book/book/", fetch_redirect_response=False
+        )
+        self.assertFalse(Book.objects.filter(pk=free.pk).exists())
+
+    def test_a_reader_changes_no_book_on_the_web(self):
+        client = self.signed_in(self.reader)
+        form = {"name": "Renamed", "description": "", "count": 1}
+        attempts = [
+            (reverse("book_create"), form),
+            (reverse("book_update", args=[self.book.pk]), form),
+            (reverse("book_delete", args=[self.book.pk]), {}),
+        ]
+        for url, data in attempts:
+            with self.subTest(url=url):
+                self.assertEqual(client.post(url, data).status_code, 403)
+        self.assertUnchanged()
+
+    def test_a_reader_changes_no_book_through_the_api(self):
+        client = self.signed_in(self.reader)
+        url = f"/api/v1/book/{self.book.pk}/"
+        body = {"name": "Renamed", "count": 1}
+        attempts = [
+            client.post("/api/v1/book/", body, content_type="application/json"),
+            client.put(url, body, content_type="application/json"),
+            client.patch(url, {"count": 1}, content_type="application/json"),
+            client.delete(url),
+        ]
+        self.assertEqual([response.status_code for response in attempts], [403] * 4)
+        self.assertUnchanged()
+
+    def test_a_reader_changes_no_book_in_the_admin_site(self):
+        client = self.signed_in(self.reader)
+        attempts = [
+            ("/admin/book/book/add/", self.admin_form()),
+            (f"/admin/book/book/{self.book.pk}/change/", self.admin_form()),
+            (f"/admin/book/book/{self.book.pk}/delete/", {"post": "yes"}),
+        ]
+        for url, data in attempts:
+            with self.subTest(url=url):
+                self.assertRedirects(
+                    client.post(url, data),
+                    f"/admin/login/?next={url}",
+                    fetch_redirect_response=False,
+                )
+        self.assertUnchanged()

@@ -110,7 +110,7 @@ class CustomUser(AbstractBaseUser):
     middle_name = models.CharField(max_length=MIDDLE_NAME_MAX_LEN, default=None)
     email = models.CharField(max_length=EMAIL_MAX_LEN, unique=True, default=None)
     password = models.CharField(default=None, max_length=PASSWORD_MAX_LEN)
-    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=datetime.datetime.now())
     role = models.IntegerField(choices=ROLE_CHOICES, default=ROLE_VISITOR)
     is_active = models.BooleanField(default=False)
