@@ -6,8 +6,9 @@
 
 - Feature code MUST live in the Django app under `library/` that owns its domain:
   `authentication` (users, roles), `author`, `book` (catalog, embeddings, semantic search),
-  `order` (borrowing) and `events` (tracking, analytics). Project-wide wiring (settings, URLs,
-  Celery, shared mixins) belongs in `library/library/`.
+  `order` (borrowing), `events` (tracking, analytics) and `audit` (the audit trail of critical
+  changes). Project-wide wiring (settings, URLs, Celery, shared mixins) belongs in
+  `library/library/`.
 - A new Django app MUST be justified in the plan's Complexity Tracking table; extending the
   owning app is the default.
 - A domain rule (stock availability, borrowing guards, embedding refresh, event identity) MUST
@@ -76,8 +77,12 @@ demo passwords are public.
   the code that needs them. A migration that has reached `main` MUST NOT be edited; corrections
   go in a new migration.
 - Writes that must succeed or fail together (an order with its stock change, a book with its
-  embedding) MUST run inside `transaction.atomic`. When a required step fails, such as embedding
-  inference during a book save, the whole business change MUST roll back.
+  embedding, a critical change with its audit entry) MUST run inside `transaction.atomic`. When a
+  required step fails, such as embedding inference during a book save, the whole business change
+  MUST roll back.
+- Audit entries are part of the business record. Each MUST be written in the same transaction as
+  the change it records, so a change whose entry cannot be written rolls back. Unlike analytics,
+  audit entries are never best effort.
 - Every stored book vector MUST record the model that produced it, and search MUST compare only
   vectors from the current embedding model. Vectors from another model are excluded until they
   are re-encoded.
@@ -87,9 +92,9 @@ demo passwords are public.
 - Event ingestion MUST stay idempotent: retrying the same client `event_id` MUST NOT create a
   second event.
 
-Rationale: catalog and borrowing data are the system of record. Analytics are derived and may
-be lost, and vectors can be rebuilt, but neither may corrupt that record or mix incompatible
-results.
+Rationale: catalog and borrowing data, with the audit entries of their critical changes, are the
+system of record. Analytics are derived and may be lost, and vectors can be rebuilt, but neither
+may corrupt that record or mix incompatible results.
 
 ### VI. Lean, Portable, Reproducible Deployment
 
@@ -161,9 +166,11 @@ single model definition keep local, CI and server builds identical.
    - the `lint` job;
    - the `smoke-test` job, on native `linux/amd64` and `linux/arm64` runners: tracking
      JavaScript tests, a backup of the running database restored into a scratch database whose
-     table row counts must match, `manage.py test authentication author book order events` on
-     PostgreSQL with real-model tests, endpoint checks, the asynchronous tracking smoke test,
-     broker and worker recovery, and a validity check of `docker-compose.yml`;
+     table row counts must match, `manage.py test authentication author book order events audit`
+     on PostgreSQL with real-model tests, endpoint checks, the asynchronous tracking smoke test,
+     broker and worker recovery, a check that no service's log or the test output holds the run's
+     secrets, the demo passwords or the search words, and a validity check of
+     `docker-compose.yml`;
    - CodeQL, with any alert newly raised by the change resolved or dismissed with a recorded
      reason.
 
@@ -203,4 +210,4 @@ single model definition keep local, CI and server builds identical.
   or a component in Technology & Platform Constraints changes, so the rules match what is
   actually enforced.
 
-**Version**: 2.2.1 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-28
+**Version**: 2.3.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-28

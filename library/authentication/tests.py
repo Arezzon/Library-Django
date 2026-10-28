@@ -633,6 +633,21 @@ class ComposeServiceImagesTests(SimpleTestCase):
         self.assertEqual(server["command"], dev["command"])
         self.assertEqual(set(server["environment"]), set(dev["environment"]))
 
+    def test_every_service_rotates_its_log_and_follows_log_level(self):
+        # At most 5 files of 10 MB per container: 250 MB for five (FR-036).
+        rotation = {
+            "driver": "json-file",
+            "options": {"max-size": "10m", "max-file": "5"},
+        }
+        for name, stack in self.stacks.items():
+            for service, definition in stack["services"].items():
+                with self.subTest(stack=name, service=service):
+                    self.assertEqual(definition.get("logging"), rotation)
+            with self.subTest(stack=name):
+                web, worker = stack["services"]["web"], stack["services"]["worker"]
+                self.assertEqual(web["environment"]["LOG_LEVEL"], "${LOG_LEVEL:-INFO}")
+                self.assertIn("--loglevel=${LOG_LEVEL:-INFO}", worker["command"])
+
     def test_backups_use_the_database_image_and_a_volume_of_their_own(self):
         for name, stack in self.stacks.items():
             with self.subTest(stack=name):

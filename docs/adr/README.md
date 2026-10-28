@@ -9,4 +9,5 @@ are under review.
 
 | Record | Decision | Status |
 |---|---|---|
+| [0002](0002-audit-trail.md) | An audit trail written with each critical change | Accepted, 2026-10-28 |
 | [0003](0003-database-backups.md) | Database backups: a sidecar on the database image | Accepted, 2026-10-28 |

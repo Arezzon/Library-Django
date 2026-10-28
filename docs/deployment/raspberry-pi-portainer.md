@@ -99,6 +99,7 @@ never committed to the repository or baked into the images.
 | `IMAGE_REPOSITORY` | no | `ghcr.io/arezzon/library-django` | Only for forks that publish their own images. |
 | `DJANGO_SEED` | no | `false` | `true` loads demo data. See the warning below. |
 | `DEBUG` | no | `False` | Must stay `False` on the server. |
+| `LOG_LEVEL` | no | `INFO` | How much the web service, Gunicorn and the worker log: `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. See [Viewing logs](#viewing-logs). Any other value stops the web service with an error naming this setting. |
 | `DB_NAME` / `DB_USER` | no | `library_db` / `postgres` | Database name and user. |
 | `WEB_CONCURRENCY` | no | `3` | Gunicorn web workers. Each holds one model copy of about 0.6 GB. |
 | `BOOK_EMBEDDING_THREADS` | no | `2` | Inference threads per web worker. |
@@ -208,6 +209,17 @@ images download and the search vectors are built.
 
 ## Viewing logs
 
+Every service writes one line per record, in one format:
+
+```text
+2026-10-27T10:15:30.123Z WARNING web 8f14e45fceea167a5a36dedd4bea2543 django.request: Forbidden: /api/v1/user/
+```
+
+The fields are the time in UTC with milliseconds, the level, the service (`web`, `worker` or
+`backup`), the request identifier (`-` outside a request), the logger and the message. Every
+line of a traceback starts the same way, followed by `| `. Passwords, secrets, session
+identifiers and search text never appear: they are replaced with `[redacted]`.
+
 - **In Portainer**: open the stack, then a container (for example `web`), then **Logs**. The
   `web` log shows startup in order: migrations, optional seeding, `Re-encoding stale book
   embeddings...` with a `Generated: N` line, then Gunicorn.
@@ -220,6 +232,28 @@ images download and the search vectors are built.
   ```
 
   Replace `library` with your stack name.
+
+**Follow one request.** Every response carries an `X-Request-ID` header, and the background
+work a request starts logs the same identifier. To find every line of one request, in the web
+service and in the worker:
+
+```bash
+id=8f14e45fceea167a5a36dedd4bea2543
+for c in library-web-1 library-worker-1; do docker logs "$c" 2>&1 | grep "$id"; done
+```
+
+In Portainer, open each container's **Logs** and search for the identifier.
+
+**Level.** `LOG_LEVEL` sets how much the web service, Gunicorn and the worker write. `INFO`, the
+default, includes the startup steps; `WARNING` keeps only warnings and errors, refused requests
+included.
+
+**Rotation.** Docker keeps at most 5 files of 10 MB per container and deletes older lines, so
+the five containers use at most 250 MB of disk, under the 500 MB limit.
+
+**Audit trail.** Librarians read who changed what in the admin site, at
+`/admin/audit/auditentry/`: roles and account status, loans, and books' copies and deletions,
+each with its time, channel and request identifier. Nobody can edit or delete an entry.
 
 ## Daily backups
 

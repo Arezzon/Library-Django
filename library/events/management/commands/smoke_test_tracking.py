@@ -28,6 +28,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         base = options["base_url"].rstrip("/")
         identity = uuid.uuid4().hex
+        # One known id on every request, so CI can find it in the worker's log.
+        request_id = f"smoke-{uuid.uuid4().hex}"
+        self.stdout.write(f"REQUEST_ID={request_id}")
         password = uuid.uuid4().hex
         user = CustomUser.objects.create_user(
             email=f"tracking-smoke-{identity}@example.com",
@@ -43,7 +46,7 @@ class Command(BaseCommand):
         opener = build_opener(HTTPCookieProcessor(jar))
 
         def request(path, data=None, json_body=False, token=None):
-            headers = {}
+            headers = {"X-Request-ID": request_id}
             body = None
             if data is not None:
                 body = (

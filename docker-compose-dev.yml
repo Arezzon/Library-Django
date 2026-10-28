@@ -9,10 +9,20 @@
 #   docker compose -f docker-compose-dev.yml down           # stop & remove
 #   docker compose -f docker-compose-dev.yml down -v        # also remove the DB volume
 
+# Every service rotates its log: at most 5 files of 10 MB, so 50 MB per container and
+# 250 MB for the five, under the 500 MB limit. json-file is Docker's default driver,
+# so `docker logs` and Portainer's log view keep working.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: pgvector/pgvector:0.8.7-pg18
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_DB: ${DB_NAME:-library_db}
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -33,11 +43,13 @@ services:
       args:
         APP_COMMIT: "${APP_COMMIT:-unknown}"
     restart: unless-stopped
+    logging: *logging
     # The Django settings read these env vars directly. Secrets have no
     # defaults: Compose stops with an error until .env provides them.
     environment: &app_environment
       CELERY_BROKER_URL: redis://redis:6379/0
       DEBUG: ${DEBUG:-False}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (see .env.example)}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
       DB_ENGINE: django.db.backends.postgresql_psycopg2
@@ -73,6 +85,7 @@ services:
     image: redis:8.10.2-alpine
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always", "--maxmemory-policy", "noeviction"]
     restart: unless-stopped
+    logging: *logging
     volumes:
       - redisdata8:/data
     healthcheck:
@@ -89,9 +102,10 @@ services:
       args:
         APP_COMMIT: "${APP_COMMIT:-unknown}"
     restart: unless-stopped
+    logging: *logging
     # Web owns migrations/seeding; the worker executes only committed tasks.
     entrypoint: ["celery"]
-    command: ["-A", "library", "worker", "--loglevel=INFO", "--concurrency=2", "--queues=events"]
+    command: ["-A", "library", "worker", "--loglevel=${LOG_LEVEL:-INFO}", "--concurrency=2", "--queues=events"]
     environment: *app_environment
     depends_on:
       db:
@@ -107,6 +121,7 @@ services:
   backup:
     image: pgvector/pgvector:0.8.7-pg18
     restart: unless-stopped
+    logging: *logging
     environment:
       PGHOST: db
       PGDATABASE: ${DB_NAME:-library_db}

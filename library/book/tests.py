@@ -95,7 +95,8 @@ class BookAvailabilityTests(TestCase):
             self.assertEqual(Book(count=4).available_count, 4)
 
     def test_availability_is_never_negative(self):
-        Book.objects.filter(pk=self.book.pk).update(count=1)
+        self.book.count = 1
+        self.book.save()
         self.book.refresh_from_db()
         self.assertEqual(self.book.available_count, 0)
         self.assertEqual(
@@ -946,16 +947,30 @@ class AutomaticBookEmbeddingTests(TestCase):
         self.assert_current(book)
         self.assertEqual(book.name, "Кобзар")
 
-    def test_bulk_stock_updates_preserve_current_embedding(self):
+    def test_bulk_stock_updates_are_refused(self):
+        book = self.create_book()
+        operations = (
+            lambda: Book.objects.filter(pk=book.pk).update(count=8),
+            lambda: Book.objects.bulk_update([Book(pk=book.pk, count=8)], ["count"]),
+        )
+        for operation in operations:
+            with self.assertRaisesMessage(
+                ValueError, "Book stock update bypasses the audit trail; use save()."
+            ):
+                operation()
+        self.assertEqual(Book.objects.get(pk=book.pk).count, book.count)
+
+    def test_stock_updates_preserve_current_embedding(self):
         book = self.create_book()
         timestamp = book.embedding.updated_at
         self.loader.reset_mock()
-        Book.objects.filter(pk=book.pk).update(count=8)
+        book.count = 8
+        book.save()
         book.count = 9
-        Book.objects.bulk_update([book], ["count"])
+        book.save(update_fields=["count"])
         self.loader.assert_not_called()
         self.assertEqual(self.assert_current(book).updated_at, timestamp)
-        self.assertEqual(book.count, 9)
+        self.assertEqual(Book.objects.get(pk=book.pk).count, 9)
 
 
 class SeedEmbeddingTests(TestCase):

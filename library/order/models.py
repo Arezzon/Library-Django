@@ -1,11 +1,48 @@
 from django.db import DataError, models, router, transaction
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+from django.utils.dateparse import parse_datetime
 
+from audit.services import record
 from authentication.models import CustomUser
 from book.models import Book
 
 
 class BookUnavailableError(ValueError):
     """An active order cannot consume a copy that is already on loan."""
+
+
+def as_text(moment):
+    """A date and time as audit entries store it."""
+    if isinstance(moment, str):
+        moment = parse_datetime(moment)
+    return moment.isoformat() if moment else None
+
+
+AUDITED_LOAN_FIELDS = {"end_at", "book", "book_id", "user", "user_id"}
+
+
+class OrderQuerySet(models.QuerySet):
+    # Refused before bulk_update opens a transaction, so the caller's stays usable.
+    def bulk_update(self, objs, fields, batch_size=None):
+        if AUDITED_LOAN_FIELDS & set(fields):
+            raise ValueError(
+                "Loan update bypasses the copy check and the audit trail; use save()."
+            )
+        return super().bulk_update(objs, fields, batch_size=batch_size)
+
+    def update(self, **kwargs):
+        if AUDITED_LOAN_FIELDS & set(kwargs):
+            raise ValueError(
+                "Loan update bypasses the copy check and the audit trail; use save()."
+            )
+        return super().update(**kwargs)
+
+    def bulk_create(self, *args, **kwargs):
+        raise ValueError(
+            "Loan bulk_create bypasses the copy check and the audit trail; "
+            "use create() or save()."
+        )
 
 
 class Order(models.Model):
@@ -30,6 +67,7 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     end_at = models.DateTimeField(default=None, null=True, blank=True)
     plated_end_at = models.DateTimeField(default=None)
+    objects = OrderQuerySet.as_manager()
 
     def __str__(self):
         return f"Order #{self.id} ({self.user.email} - {self.book.name})"
@@ -63,13 +101,15 @@ class Order(models.Model):
                     .objects.using(database)
                     .select_for_update()
                     .filter(pk=self.pk)
-                    .values("book_id", "end_at")
+                    .values("book_id", "user_id", "end_at", "plated_end_at")
                     .first()
                 )
-            book_id, end_at = self.book_id, self.end_at
+            book_id, user_id, end_at = self.book_id, self.user_id, self.end_at
             if previous is not None and update_fields is not None:
                 if not {"book", "book_id"} & update_fields:
                     book_id = previous["book_id"]
+                if not {"user", "user_id"} & update_fields:
+                    user_id = previous["user_id"]
                 if "end_at" not in update_fields:
                     end_at = previous["end_at"]
             consumes_copy = end_at is None and (
@@ -85,12 +125,45 @@ class Order(models.Model):
                     raise BookUnavailableError(
                         "No copies of this book are currently available."
                     )
-            return super().save(
+            result = super().save(
                 force_insert=force_insert,
                 force_update=force_update,
                 using=database,
                 update_fields=update_fields,
             )
+            self._audit_changes(previous, book_id, user_id, end_at)
+            return result
+
+    def audit_label(self):
+        user = self.user
+        return f"Loan #{self.pk}: {self.book.name} ({user.first_name} {user.last_name} #{user.pk})"
+
+    def _audit_changes(self, previous, book_id, user_id, end_at):
+        """Record the change in the save's transaction (FR-037, FR-040)."""
+        label = self.audit_label()
+        if previous is None:
+            after = {
+                "book": book_id,
+                "user": user_id,
+                "due": as_text(self.plated_end_at),
+            }
+            record("loan_started", "loan", self.pk, label, {}, after)
+            return
+        if previous["end_at"] is None and end_at is not None:
+            after = {"end_at": as_text(end_at)}
+            record("loan_returned", "loan", self.pk, label, {"end_at": None}, after)
+        elif previous["end_at"] is not None and end_at is None:
+            before = {"end_at": as_text(previous["end_at"])}
+            record("loan_reopened", "loan", self.pk, label, before, {"end_at": None})
+        moved = {
+            field: (previous[f"{field}_id"], value)
+            for field, value in (("book", book_id), ("user", user_id))
+            if previous[f"{field}_id"] != value
+        }
+        if moved:
+            before = {field: old for field, (old, _new) in moved.items()}
+            after = {field: new for field, (_old, new) in moved.items()}
+            record("loan_reassigned", "loan", self.pk, label, before, after)
 
     def to_dict(self):
         """
@@ -149,3 +222,14 @@ class Order(models.Model):
         else:
             a.delete()
             return True
+
+
+@receiver(post_delete, sender=Order, dispatch_uid="order.loan_deleted")
+def record_loan_deletion(sender, instance, **kwargs):
+    """Also covers loans deleted along with their account or book."""
+    before = {
+        "book": instance.book_id,
+        "user": instance.user_id,
+        "end_at": as_text(instance.end_at),
+    }
+    record("loan_deleted", "loan", instance.pk, instance.audit_label(), before, {})

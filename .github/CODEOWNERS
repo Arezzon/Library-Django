@@ -13,6 +13,9 @@
 # Event tracking and analytics currently share one Django app.
 /library/events/ @fazelukario @myrrhfawn @OLEkSandrKoniaiev @Arezzon
 
+# Audit trail of critical changes.
+/library/audit/ @fazelukario @Arezzon
+
 # QA owns test suites and test files, including tests inside app directories.
 **/tests/ @Dima22820 @Arezzon
 **/tests.py @Dima22820 @Arezzon

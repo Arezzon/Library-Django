@@ -2,14 +2,23 @@
 # Container entrypoint: wait for Postgres, migrate, optionally seed, then exec CMD.
 set -e
 
+# Startup messages use the services' log line format (library/library/logs.py), and
+# LOG_LEVEL above INFO hides them, as it hides the application's INFO lines.
+log() {
+  case "$(echo "${LOG_LEVEL:-INFO}" | tr '[:lower:]' '[:upper:]')" in
+    WARNING | ERROR | CRITICAL) return 0 ;;
+  esac
+  echo "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ) INFO web - entrypoint: $*"
+}
+
 DB_HOST="${DB_HOST:-postgres}"
 DB_PORT="${DB_PORT:-5432}"
 
 # DATABASE_URL takes precedence over DB_* in the Django settings as well.
 if [ -n "${DATABASE_URL}" ]; then
-  echo "Waiting for PostgreSQL from DATABASE_URL..."
+  log "Waiting for PostgreSQL from DATABASE_URL..."
 else
-  echo "Waiting for PostgreSQL at ${DB_HOST}:${DB_PORT}..."
+  log "Waiting for PostgreSQL at ${DB_HOST}:${DB_PORT}..."
 fi
 # Busy-wait using Python's socket (no nc dependency needed)
 while ! python - <<PY 2>/dev/null
@@ -32,25 +41,25 @@ except Exception:
     sys.exit(1)
 PY
 do
-  echo "  PostgreSQL is unavailable - sleeping 1s"
+  log "PostgreSQL is unavailable; trying again in 1 s"
   sleep 1
 done
-echo "PostgreSQL is up - continuing"
+log "PostgreSQL is up"
 
-echo "Applying database migrations..."
+log "Applying database migrations..."
 python manage.py migrate --noinput
 
 if [ "${DJANGO_SEED}" = "true" ]; then
-  echo "Seeding database with sample data..."
+  log "Seeding database with sample data..."
   python seed_db.py
 fi
 
 # Bring stored vectors in line with the image's model before serving traffic.
 # Books that already match are skipped, so a normal start runs no inference;
 # a failure stops startup (set -e) and the next start resumes where it ended.
-echo "Re-encoding stale book embeddings..."
+log "Re-encoding stale book embeddings..."
 python manage.py generate_book_embeddings --offline --threads "$(python -c 'import os; print(min(os.cpu_count() or 1, 4))')"
 
-echo "Starting server..."
+log "Starting server..."
 
 exec "$@"

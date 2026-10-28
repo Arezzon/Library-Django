@@ -44,6 +44,37 @@ class AtomicIssuanceTests(FakeEncoderMixin, TestCase):
             **kwargs,
         )
 
+    def test_bulk_writes_that_skip_the_copy_check_and_the_audit_are_refused(self):
+        loan = self.issue()
+        other = reader("guard-other@example.com")
+        other_book = Book.objects.create(name="Other copy", count=1)
+        loans = Order.objects.filter(pk=loan.pk)
+        changes = (
+            {"end_at": timezone.now()},
+            {"book": other_book},
+            {"book_id": other_book.pk},
+            {"user": other},
+            {"user_id": other.pk},
+        )
+        for change in changes:
+            with self.subTest(change=list(change)), self.assertRaises(ValueError):
+                loans.update(**change)
+        with self.assertRaises(ValueError):
+            Order.objects.bulk_create(
+                [Order(user=other, book=other_book, plated_end_at=timezone.now())]
+            )
+        for fields in (["end_at"], ["book"], ["user"]):
+            with self.subTest(fields=fields), self.assertRaises(ValueError):
+                Order.objects.bulk_update([loan], fields)
+        self.assertEqual(loans.update(plated_end_at=timezone.now()), 1)
+        loan.plated_end_at = timezone.now() + timedelta(days=3)
+        self.assertEqual(Order.objects.bulk_update([loan], ["plated_end_at"]), 1)
+        loan.refresh_from_db()
+        self.assertEqual(
+            (loan.book, loan.user, loan.end_at), (self.book, self.user, None)
+        )
+        self.assertEqual(Order.objects.count(), 1)
+
     def test_issue_consumes_derived_availability_without_changing_total(self):
         self.issue()
         self.book.refresh_from_db()

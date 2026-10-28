@@ -1,7 +1,11 @@
 import datetime
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
-from django.db import models
+from django.db import models, router, transaction
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+from audit.services import account_label, record
 
 ROLE_VISITOR = 0
 ROLE_LIBRARIAN = 1
@@ -12,7 +16,27 @@ ROLE_CHOICES = (
 )
 
 
-class CustomUserManager(BaseUserManager):
+AUDITED_ACCOUNT_FIELDS = {"role", "is_active"}
+
+
+class CustomUserQuerySet(models.QuerySet):
+    # Refused before bulk_update opens a transaction, so the caller's stays usable.
+    def bulk_update(self, objs, fields, batch_size=None):
+        if AUDITED_ACCOUNT_FIELDS & set(fields):
+            raise ValueError(
+                "Account role and status updates bypass the audit trail; use save()."
+            )
+        return super().bulk_update(objs, fields, batch_size=batch_size)
+
+    def update(self, **kwargs):
+        if AUDITED_ACCOUNT_FIELDS & set(kwargs):
+            raise ValueError(
+                "Account role and status updates bypass the audit trail; use save()."
+            )
+        return super().update(**kwargs)
+
+
+class CustomUserManager(BaseUserManager.from_queryset(CustomUserQuerySet)):
     """
     Custom user model manager where email is the unique identifiers
     for authentication instead of usernames.
@@ -143,6 +167,48 @@ class CustomUser(AbstractBaseUser):
         :return: class, id
         """
         return f"{CustomUser.__name__}(id={self.id})"
+
+    def save(self, *args, **kwargs):
+        """Record role and status changes with the change itself (FR-037, FR-040).
+
+        The comparison is with the stored row, locked until the save commits.
+        """
+        database = kwargs.get("using") or router.db_for_write(type(self), instance=self)
+        with transaction.atomic(using=database):
+            previous = None
+            if self.pk is not None:
+                previous = (
+                    type(self)
+                    .objects.using(database)
+                    .select_for_update()
+                    .filter(pk=self.pk)
+                    .values("role", "is_active")
+                    .first()
+                )
+            super().save(*args, **kwargs)
+            self._audit_changes(previous, kwargs.get("update_fields"))
+
+    def _audit_changes(self, previous, update_fields):
+        saved = set(update_fields) if update_fields is not None else None
+        roles = dict(ROLE_CHOICES)
+        label = account_label(self)
+        old_role = previous["role"] if previous else None
+        if (saved is None or "role" in saved) and self.role != old_role:
+            if self.role == ROLE_LIBRARIAN or old_role == ROLE_LIBRARIAN:
+                action = (
+                    "role_granted" if self.role == ROLE_LIBRARIAN else "role_removed"
+                )
+                before = {} if previous is None else {"role": roles[old_role]}
+                after = {"role": roles[self.role]}
+                record(action, "account", self.pk, label, before, after)
+        if previous is None or not (saved is None or "is_active" in saved):
+            return
+        if self.is_active != previous["is_active"]:
+            action = "account_activated" if self.is_active else "account_deactivated"
+            before = {"is_active": previous["is_active"]}
+            record(
+                action, "account", self.pk, label, before, {"is_active": self.is_active}
+            )
 
     @staticmethod
     def get_by_id(user_id):
@@ -295,3 +361,14 @@ class CustomUser(AbstractBaseUser):
         returns str role name
         """
         return dict(ROLE_CHOICES).get(self.role, str(self.role))
+
+
+@receiver(post_delete, sender=CustomUser, dispatch_uid="authentication.account_deleted")
+def record_account_deletion(sender, instance, **kwargs):
+    before = {
+        "role": dict(ROLE_CHOICES)[instance.role],
+        "is_active": instance.is_active,
+    }
+    record(
+        "account_deleted", "account", instance.pk, account_label(instance), before, {}
+    )

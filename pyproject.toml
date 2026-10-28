@@ -44,7 +44,7 @@ ignore = ["E501"]
 relative_files = true
 # Packages rather than folders, so coverage.xml names files from library/
 # (author/models.py), as diff-cover needs to match them with git's paths.
-source_pkgs = ["authentication", "author", "book", "events", "order", "library"]
+source_pkgs = ["audit", "authentication", "author", "book", "events", "order", "library"]
 omit = ["*/migrations/*", "*/tests.py", "*/test_*.py", "*/testing.py"]
 
 [tool.coverage.report]

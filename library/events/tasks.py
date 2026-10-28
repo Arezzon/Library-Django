@@ -1,9 +1,13 @@
+import logging
+
 from celery import shared_task
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, InterfaceError, OperationalError
 from django.utils.dateparse import parse_datetime
 
 from .models import UserEvent
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task(
@@ -33,3 +37,5 @@ def persist_event(payload):
             "occurred_at": parse_datetime(payload["occurred_at"]),
         },
     )
+    # The id only: the payload can hold search text (FR-039).
+    logger.info("Persisted event %s", payload["id"])
