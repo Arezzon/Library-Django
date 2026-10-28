@@ -1,5 +1,7 @@
+from django.db import transaction
+from django.db.models import ProtectedError
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 
@@ -17,6 +19,23 @@ class BookViewSet(viewsets.ModelViewSet):
         Book.objects.with_availability().prefetch_related("authors").order_by("id")
     )
     serializer_class = BookSerializer
+    refusals = {
+        "destroy": {
+            "409": "The book has borrowing or reservation history; nothing changed."
+        }
+    }
+
+    def destroy(self, request, *args, **kwargs):
+        book = self.get_object()
+        try:
+            with transaction.atomic():
+                # Locked, as the web view does, so a loan started meanwhile waits.
+                Book.objects.select_for_update().get(pk=book.pk).delete()
+        except ProtectedError:
+            return Response(
+                {"detail": Book.DELETION_REFUSAL}, status=status.HTTP_409_CONFLICT
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class BookSearchView(GenericAPIView):

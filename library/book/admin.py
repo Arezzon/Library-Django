@@ -48,6 +48,15 @@ class BookAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         return ("get_authors",)
 
+    def get_deleted_objects(self, objs, request):
+        # Loans and reservations protect their book (FR-024): the page lists them, and
+        # nothing is deleted. Nobody may delete a reservation, which Django would
+        # otherwise report as a missing permission instead of a protected record.
+        deleted, counts, perms_needed, protected = super().get_deleted_objects(
+            objs, request
+        )
+        return deleted, counts, set() if protected else perms_needed, protected
+
     @admin.display(description="Authors")
     def get_authors(self, obj):
         authors = obj.authors.all()

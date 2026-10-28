@@ -1,6 +1,11 @@
+from datetime import timedelta
+
 from django.db import DataError, models, router, transaction
+from django.db.models import F, Q
+from django.db.models.lookups import Exact
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from audit.services import record
@@ -62,7 +67,8 @@ class Order(models.Model):
     type plated_end_at: int (timestamp)
     """
 
-    book = models.ForeignKey(Book, on_delete=models.CASCADE, default=None)
+    # A book with loans cannot be deleted in any channel (FR-024).
+    book = models.ForeignKey(Book, on_delete=models.PROTECT, default=None)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     end_at = models.DateTimeField(default=None, null=True, blank=True)
@@ -226,10 +232,173 @@ class Order(models.Model):
 
 @receiver(post_delete, sender=Order, dispatch_uid="order.loan_deleted")
 def record_loan_deletion(sender, instance, **kwargs):
-    """Also covers loans deleted along with their account or book."""
+    """Also covers loans deleted along with their account."""
     before = {
         "book": instance.book_id,
         "user": instance.user_id,
         "end_at": as_text(instance.end_at),
     }
     record("loan_deleted", "loan", instance.pk, instance.audit_label(), before, {})
+
+
+RESERVATION_HOURS = 48
+
+
+class ReservationState(models.TextChoices):
+    ACTIVE = "active", "Active"
+    ISSUED = "issued", "Issued"
+    CANCELLED = "cancelled", "Cancelled"
+    EXPIRED = "expired", "Expired"
+
+
+class ReservationStateError(ValueError):
+    """A reservation cannot make this change of state (FR-014)."""
+
+
+# A reservation changes these one at a time, through change_state() and save().
+GUARDED_RESERVATION_FIELDS = {
+    "state",
+    "loan",
+    "loan_id",
+    "cancelled_by",
+    "cancelled_by_id",
+    "cancelled_at",
+    "cancel_reason",
+    "cancellation_seen_at",
+}
+
+
+class ReservationQuerySet(models.QuerySet):
+    # Refused before bulk_update opens a transaction, so the caller's stays usable.
+    def bulk_update(self, objs, fields, batch_size=None):
+        if GUARDED_RESERVATION_FIELDS & set(fields):
+            raise ValueError(
+                "Reservation update bypasses its state rules; "
+                "use change_state() and save()."
+            )
+        return super().bulk_update(objs, fields, batch_size=batch_size)
+
+    def update(self, **kwargs):
+        if GUARDED_RESERVATION_FIELDS & set(kwargs):
+            raise ValueError(
+                "Reservation update bypasses its state rules; "
+                "use change_state() and save()."
+            )
+        return super().update(**kwargs)
+
+    def bulk_create(self, *args, **kwargs):
+        raise ValueError(
+            "Reservation bulk_create bypasses its rules; "
+            "create one reservation at a time."
+        )
+
+
+class Reservation(models.Model):
+    """A reader's 48-hour hold on one unit of a book's stock, not on a particular copy
+    (FR-008, ADR 0001)."""
+
+    # Deleting the account deletes its reservations; their audit entries remain.
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="reservations",
+        verbose_name="reader",
+    )
+    # A book with reservations cannot be deleted in any channel (FR-024).
+    book = models.ForeignKey(
+        Book, on_delete=models.PROTECT, related_name="reservations"
+    )
+    state = models.CharField(
+        max_length=16,
+        choices=ReservationState.choices,
+        default=ReservationState.ACTIVE,
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    expires_at = models.DateTimeField()
+    # The loan the reservation became when it was issued.
+    loan = models.OneToOneField(
+        Order,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reservation",
+    )
+    cancelled_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.CharField(max_length=500, blank=True)
+    # When the reader dismissed the library's cancellation notice.
+    cancellation_seen_at = models.DateTimeField(null=True, blank=True)
+    objects = ReservationQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            # Elapsed time, not created_at + interval: the database adds the 2 days
+            # that 48 hours is sent as in the session's time zone, so a restore into
+            # a server set to a zone with summer time would refuse valid rows.
+            models.CheckConstraint(
+                condition=Exact(
+                    F("expires_at") - F("created_at"),
+                    timedelta(hours=RESERVATION_HOURS),
+                ),
+                name="reservation_lasts_48_hours",
+            ),
+            # A backstop: the reservation service checks first.
+            models.UniqueConstraint(
+                fields=["user", "book"],
+                condition=Q(state=ReservationState.ACTIVE),
+                name="one_active_reservation_per_reader_and_book",
+            ),
+            models.CheckConstraint(
+                condition=~Q(state=ReservationState.CANCELLED)
+                | Q(cancelled_at__isnull=False),
+                name="cancelled_reservation_has_time",
+            ),
+        ]
+        indexes = [
+            # Availability, the reader's limit and list, and the desk list and expiry.
+            models.Index(
+                fields=["book", "state", "expires_at"], name="reservation_book_idx"
+            ),
+            models.Index(fields=["user", "state"], name="reservation_user_idx"),
+            models.Index(fields=["state", "expires_at"], name="reservation_state_idx"),
+        ]
+
+    def __str__(self):
+        return f"Reservation #{self.pk} ({self.user.email} - {self.book.name})"
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            # Set once; the database refuses any other deadline (FR-010).
+            self.expires_at = self.created_at + timedelta(hours=RESERVATION_HOURS)
+        super().save(*args, **kwargs)
+
+    def effective_state(self, now):
+        """The state every check and page uses: an active reservation is expired from
+        its deadline on, whether or not its expiry has been recorded (FR-013)."""
+        if self.state == ReservationState.ACTIVE and self.expires_at <= now:
+            return ReservationState.EXPIRED
+        return self.state
+
+    def change_state(self, state, now):
+        """Move to ``state`` if FR-014 allows it. Before the deadline, an active
+        reservation is issued or cancelled; from the deadline on, it can only expire.
+        Issued, cancelled and expired are final. Any other change raises, and nothing
+        changes."""
+        if self.state != ReservationState.ACTIVE:
+            allowed = ()
+        elif self.effective_state(now) == ReservationState.ACTIVE:
+            allowed = (ReservationState.ISSUED, ReservationState.CANCELLED)
+        else:
+            allowed = (ReservationState.EXPIRED,)
+        if state not in allowed:
+            raise ReservationStateError(
+                f"A reservation that is {self.effective_state(now)} cannot become "
+                f"{state}."
+            )
+        self.state = state

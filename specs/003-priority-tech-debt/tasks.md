@@ -801,9 +801,9 @@ other phases.
 
 ### Tests for User Story 2 (PR 4)
 
-- [ ] T091 [US2] Create branch `feat/kan-55-reservation-model` from a freshly fetched `origin/main`,
+- [x] T091 [US2] Create branch `feat/kan-55-reservation-model` from a freshly fetched `origin/main`,
   with PR 1 merged. (Jira) Move KAN-55 to In Progress.
-- [ ] T092 [P] [US2] Create `library/order/test_reservations.py` with model tests:
+- [x] T092 [P] [US2] Create `library/order/test_reservations.py` with model tests:
   - `expires_at` is exactly 48 hours after `created_at`, and the database refuses any other value
     (`reservation_lasts_48_hours`);
   - only active to issued, cancelled or expired is allowed, and the final states refuse every change;
@@ -812,7 +812,7 @@ other phases.
   - a cancelled reservation without `cancelled_at` violates `cancelled_reservation_has_time`;
   - `Reservation.objects` refuses `update()`, `bulk_update()` and `bulk_create()` of `state`, `loan`
     and the `cancel*` fields.
-- [ ] T093 [P] [US2] In `library/book/test_delete.py`, add that a book with a loan or a reservation
+- [x] T093 [P] [US2] In `library/book/test_delete.py`, add that a book with a loan or a reservation
   cannot be deleted in any channel (FR-024):
   - the ORM raises `ProtectedError`;
   - the web shows the history message;
@@ -823,7 +823,7 @@ other phases.
 
 ### Implementation for User Story 2 (PR 4)
 
-- [ ] T094 [US2] In `library/order/models.py`, add `ReservationState` (TextChoices `active`, `issued`,
+- [x] T094 [US2] In `library/order/models.py`, add `ReservationState` (TextChoices `active`, `issued`,
   `cancelled`, `expired`), `RESERVATION_HOURS = 48`, the guarded `ReservationQuerySet`, and
   `Reservation`.
   - **Fields**, as in data-model.md §1:
@@ -846,17 +846,17 @@ other phases.
   - **Methods**: `effective_state(now)`, and one transition method that allows only the changes in
     FR-014.
   - **Loans**: change `Order.book` to `on_delete=models.PROTECT`.
-- [ ] T095 [US2] Run `python manage.py makemigrations order` to create
+- [x] T095 [US2] Run `python manage.py makemigrations order` to create
   `library/order/migrations/0004_reservation.py`. Confirm that it holds only the new model, with its
   constraints and indexes, and the `Order.book` change (FR-022).
-- [ ] T096 [P] [US2] In `library/order/admin.py`, add a read-only `ReservationAdmin` showing the reader,
+- [x] T096 [P] [US2] In `library/order/admin.py`, add a read-only `ReservationAdmin` showing the reader,
   the book, the state, the creation time and the deadline, with no add, change or delete.
-- [ ] T097 [US2] Make deleting a book refuse in every channel:
+- [x] T097 [US2] Make deleting a book refuse in every channel:
   - In `library/book/views.py`, make `book_delete` catch `ProtectedError` instead of querying loans,
     with the message "This book cannot be deleted because it has borrowing or reservation history.".
   - In `library/book/api_views.py`, make `BookViewSet.destroy` answer 409 with the same message, and
     document the 409 with `extend_schema`.
-- [ ] T098 [P] [US2] Create `docs/adr/0001-reservations-hold-a-unit-of-stock.md`. It ships with the
+- [x] T098 [P] [US2] Create `docs/adr/0001-reservations-hold-a-unit-of-stock.md`. It ships with the
   reservation model (FR-008, FR-057), and covers:
   - the context and the decision;
   - the rejected alternative of tracking physical copies;
@@ -864,7 +864,7 @@ other phases.
   - the states and the transitions.
 
   Add it to `docs/adr/README.md`, creating the index if it does not exist yet.
-- [ ] T099 [US2] Verify and prepare the pull request:
+- [x] T099 [US2] Verify and prepare the pull request:
   - run quickstart.md §4: migrate a seeded `main` database and compare the counts, and check that
     deletion is refused in every channel;
   - run lint, format and the diff coverage;

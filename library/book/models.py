@@ -60,6 +60,10 @@ class Book(models.Model):
     NAME_MAX_LEN = 128
     DESCRIPTION_MAX_LEN = 256
     DEFAULT_COUNT = 10
+    # Loans and reservations protect a book (FR-024); every channel says so.
+    DELETION_REFUSAL = (
+        "This book cannot be deleted because it has borrowing or reservation history."
+    )
 
     name = models.CharField(blank=True, max_length=NAME_MAX_LEN)
     description = models.CharField(blank=True, max_length=DESCRIPTION_MAX_LEN)

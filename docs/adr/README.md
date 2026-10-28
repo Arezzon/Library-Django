@@ -9,5 +9,6 @@ are under review.
 
 | Record | Decision | Status |
 |---|---|---|
+| [0001](0001-reservations-hold-a-unit-of-stock.md) | Reservations hold a unit of stock, not a particular copy | Accepted, 2026-10-28 |
 | [0002](0002-audit-trail.md) | An audit trail written with each critical change | Accepted, 2026-10-28 |
 | [0003](0003-database-backups.md) | Database backups: a sidecar on the database image | Accepted, 2026-10-28 |
