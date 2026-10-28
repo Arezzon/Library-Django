@@ -13,7 +13,7 @@ from django.conf import settings
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import path
 
-from .models import CustomUser
+from .models import ROLE_LIBRARIAN, ROLE_VISITOR, CustomUser
 
 # Settings inputs; a developer's .env must not leak into the checks below.
 SETTINGS_ENV = (
@@ -224,6 +224,184 @@ class ProxyLoginTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
         self.assertNotIn("_auth_user_id", self.client.session)
+
+
+class AccountWebAccessTests(TestCase):
+    """Sign-up, the profile page and refusals on the web (spec Story 1)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.reader = CustomUser.objects.create_user(
+            email="web-reader@example.com",
+            password="web-password",
+            first_name="Web",
+            middle_name="",
+            last_name="Reader",
+            is_active=True,
+        )
+        cls.librarian = CustomUser.objects.create_user(
+            email="web-librarian@example.com",
+            password="web-password",
+            first_name="Web",
+            middle_name="",
+            last_name="Librarian",
+            role=ROLE_LIBRARIAN,
+            is_active=True,
+        )
+
+    def update_url(self, user):
+        return f"/authentication/users/{user.pk}/update/"
+
+    def test_sign_up_offers_no_role_or_status_and_creates_an_active_reader(self):
+        form = self.client.get("/authentication/register/").context["form"]
+        self.assertNotIn("role", form.fields)
+        self.assertNotIn("is_active", form.fields)
+        response = self.client.post(
+            "/authentication/register/",
+            {
+                "first_name": "New",
+                "middle_name": "M",
+                "last_name": "Visitor",
+                "email": "new-visitor@example.com",
+                "password": "new-visitor-pass",
+                "confirm_password": "new-visitor-pass",
+                "role": ROLE_LIBRARIAN,
+                "is_active": "false",
+            },
+        )
+        self.assertRedirects(response, "/", fetch_redirect_response=False)
+        user = CustomUser.objects.get(email="new-visitor@example.com")
+        self.assertEqual(user.role, ROLE_VISITOR)
+        self.assertTrue(user.is_active)
+
+    def test_reader_cannot_change_own_role_or_status(self):
+        self.client.force_login(self.reader)
+        names = {"first_name": "Changed", "middle_name": "M", "last_name": "Reader"}
+        for field, value in (("role", ROLE_LIBRARIAN), ("is_active", "false")):
+            with self.subTest(field=field):
+                response = self.client.post(
+                    self.update_url(self.reader), {**names, field: value}
+                )
+                self.assertContains(
+                    response, "You don't have permission to do this.", status_code=403
+                )
+                self.reader.refresh_from_db()
+                self.assertEqual(
+                    (self.reader.first_name, self.reader.role, self.reader.is_active),
+                    ("Web", ROLE_VISITOR, True),
+                )
+
+    def test_reader_profile_page_saves_names_only(self):
+        self.client.force_login(self.reader)
+        form = self.client.get(self.update_url(self.reader)).context["form"]
+        self.assertEqual(
+            sorted(form.fields), ["first_name", "last_name", "middle_name"]
+        )
+        response = self.client.post(
+            self.update_url(self.reader),
+            {"first_name": "Renamed", "middle_name": "Q", "last_name": "Reader"},
+        )
+        self.assertRedirects(
+            response,
+            f"/authentication/users/{self.reader.pk}/",
+            fetch_redirect_response=False,
+        )
+        self.reader.refresh_from_db()
+        self.assertEqual(self.reader.first_name, "Renamed")
+        self.assertEqual(
+            (self.reader.role, self.reader.is_active), (ROLE_VISITOR, True)
+        )
+
+    def test_librarian_changes_role_and_status(self):
+        self.client.force_login(self.librarian)
+        response = self.client.post(
+            self.update_url(self.reader),
+            {
+                "first_name": "Web",
+                "middle_name": "M",
+                "last_name": "Reader",
+                "role": ROLE_LIBRARIAN,
+                # An unchecked "active" box is absent from the form data.
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.reader.refresh_from_db()
+        self.assertEqual(
+            (self.reader.role, self.reader.is_active), (ROLE_LIBRARIAN, False)
+        )
+
+    def test_anonymous_callers_are_sent_to_sign_in_and_told_why(self):
+        for url in (
+            "/authentication/users/",
+            f"/authentication/users/{self.reader.pk}/",
+            "/book/",
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertRedirects(
+                    response,
+                    f"/authentication/login/?next={url}",
+                    fetch_redirect_response=False,
+                )
+                self.assertContains(
+                    self.client.get(response.url), "Sign in to continue."
+                )
+
+    def test_reader_on_a_librarian_page_gets_the_permission_page(self):
+        self.client.force_login(self.reader)
+        for url in (
+            "/authentication/users/",
+            f"/authentication/users/{self.librarian.pk}/",
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertContains(
+                    response, "You don't have permission to do this.", status_code=403
+                )
+                self.assertContains(response, 'href="/"', status_code=403)
+
+    def test_authentication_index_redirects_by_sign_in_state(self):
+        client = Client(raise_request_exception=False)
+        response = client.get("/authentication/")
+        self.assertRedirects(
+            response, "/authentication/login/", fetch_redirect_response=False
+        )
+        client.force_login(self.reader)
+        response = client.get("/authentication/")
+        self.assertRedirects(response, "/", fetch_redirect_response=False)
+
+    def test_only_librarians_get_admin_rights(self):
+        for user, expected in ((self.librarian, True), (self.reader, False)):
+            with self.subTest(email=user.email):
+                self.assertEqual(
+                    (
+                        user.is_staff,
+                        user.is_superuser,
+                        user.has_perm("book.add_book"),
+                        user.has_module_perms("book"),
+                    ),
+                    (expected,) * 4,
+                )
+
+    def test_role_required_refuses_other_roles(self):
+        from django.contrib.auth.models import AnonymousUser
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.core.exceptions import PermissionDenied
+        from django.http import HttpResponse
+        from django.test import RequestFactory
+
+        from .decorators import role_required
+
+        view = role_required(ROLE_LIBRARIAN)(lambda request: HttpResponse("desk"))
+        request = RequestFactory().get("/desk/")
+        request.user, request.session = AnonymousUser(), {}
+        request._messages = FallbackStorage(request)
+        self.assertEqual(view(request).url, "/authentication/login/?next=/desk/")
+        request.user = self.reader
+        with self.assertRaises(PermissionDenied):
+            view(request)
+        request.user = self.librarian
+        self.assertEqual(view(request).content, b"desk")
 
 
 class VersionEndpointTests(SimpleTestCase):

@@ -77,10 +77,14 @@ class BookDeletionViewTests(TestCase):
 
     def test_only_librarian_can_delete_book(self):
         response = self.client.post(self.delete_url(self.book))
-        self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={self.delete_url(self.book)}",
+            fetch_redirect_response=False,
+        )
         self.client.force_login(self.reader)
         response = self.client.post(self.delete_url(self.book))
-        self.assertRedirects(response, reverse("home"), fetch_redirect_response=False)
+        self.assertEqual(response.status_code, 403)
         self.assertTrue(Book.objects.filter(pk=self.book.pk).exists())
 
     def test_books_with_active_or_returned_orders_keep_their_history(self):

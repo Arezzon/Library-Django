@@ -3,6 +3,8 @@ from rest_framework import viewsets
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 
+from authentication.permissions import IsSignedIn, ReadOnlyOrLibrarian
+
 from .embeddings import EmbeddingGenerationError
 from .models import Book
 from .search import search_books, validate_query
@@ -10,6 +12,7 @@ from .serializers import BookSearchSerializer, BookSerializer
 
 
 class BookViewSet(viewsets.ModelViewSet):
+    permission_classes = [ReadOnlyOrLibrarian]
     queryset = (
         Book.objects.with_availability().prefetch_related("authors").order_by("id")
     )
@@ -17,6 +20,7 @@ class BookViewSet(viewsets.ModelViewSet):
 
 
 class BookSearchView(GenericAPIView):
+    permission_classes = [IsSignedIn]
     serializer_class = BookSearchSerializer
 
     @extend_schema(

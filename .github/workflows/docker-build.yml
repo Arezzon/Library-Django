@@ -158,18 +158,32 @@ jobs:
             sleep 1
           done
 
+      # Search needs a signed-in account. The seeded demo reader's password is public.
       - name: Verify key endpoints respond
         run: |
+          base=http://localhost:8000
           echo "== /api/docs/ =="
-          curl -fsS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8000/api/docs/
+          curl -fsS -o /dev/null -w "HTTP %{http_code}\n" "$base/api/docs/"
           echo "== /api/schema/ =="
-          curl -fsS -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8000/api/schema/
+          curl -fsS -o /dev/null -w "HTTP %{http_code}\n" "$base/api/schema/"
           echo "== /api/v1/version/ (must report this commit) =="
-          curl -fsS http://localhost:8000/api/v1/version/ | grep "${{ github.sha }}"
-          echo "== semantic search =="
-          curl -fsS "http://localhost:8000/api/v1/books/search/?q=detective"
+          curl -fsS "$base/api/v1/version/" | grep "${{ github.sha }}"
           echo "== /api/v1/ (API root) =="
-          curl -fsS http://localhost:8000/api/v1/
+          curl -fsS "$base/api/v1/" && echo
+          echo "== semantic search without signing in (must answer 401) =="
+          status=$(curl -sS -o /dev/null -w "%{http_code}" "$base/api/v1/books/search/?q=detective")
+          echo "HTTP $status"
+          test "$status" = 401
+          echo "== semantic search as the demo reader =="
+          jar=$(mktemp)
+          curl -fsS -c "$jar" -b "$jar" -o /dev/null "$base/authentication/login/"
+          curl -fsS -c "$jar" -b "$jar" -o /dev/null -X POST "$base/authentication/login/" \
+            -H "Referer: $base/authentication/login/" \
+            --data-urlencode "csrfmiddlewaretoken=$(awk '$6 == "csrftoken" {print $7}' "$jar")" \
+            --data-urlencode "email=reader@library.com" \
+            --data-urlencode "password=reader123password"
+          grep -q sessionid "$jar" || { echo "::error::The demo reader could not sign in."; exit 1; }
+          curl -fsS -b "$jar" "$base/api/v1/books/search/?q=detective"
 
       - name: Verify real asynchronous event tracking
         run: docker compose -f docker-compose-dev.yml exec -T web python manage.py smoke_test_tracking
@@ -180,7 +194,9 @@ jobs:
       # The whole stack must fit the Raspberry Pi budget; memory does not depend
       # on the CPU, so CI enforces it. Latency is measured on the Pi itself.
       - name: Verify the stack stays within the 4 GiB memory budget
-        run: python scripts/smoke_stack_budget.py --compose-file docker-compose-dev.yml --max-memory-gib 4
+        env:
+          BUDGET_CHECK_PASSWORD: reader123password # the seeded demo reader's public password
+        run: python scripts/smoke_stack_budget.py --compose-file docker-compose-dev.yml --email reader@library.com --max-memory-gib 4
 
       - name: Show the stack logs
         if: failure()
