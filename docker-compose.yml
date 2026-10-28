@@ -97,9 +97,10 @@ services:
     image: ${IMAGE_REPOSITORY:-ghcr.io/arezzon/library-django}:${IMAGE_TAG:-main}
     restart: unless-stopped
     logging: *logging
-    # Web owns migrations, seeding and re-encoding; the worker only runs queued events.
+    # Web owns migrations, seeding and re-encoding. The worker runs queued events and,
+    # through beat, the reservation expiry every 5 minutes (R11).
     entrypoint: ["celery"]
-    command: ["-A", "library", "worker", "--loglevel=${LOG_LEVEL:-INFO}", "--concurrency=2", "--queues=events"]
+    command: ["-A", "library", "worker", "--loglevel=${LOG_LEVEL:-INFO}", "--concurrency=2", "--queues=events", "--beat", "--schedule=/tmp/celerybeat-schedule"]
     environment: *app_environment
     depends_on:
       db:

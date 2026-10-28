@@ -233,6 +233,11 @@ identifiers and search text never appear: they are replaced with `[redacted]`.
 
   Replace `library` with your stack name.
 
+**The reservation expiry.** Every 5 minutes the worker records the expiry of the reservations
+whose 48 hours have ended, and logs `order.tasks: Expired N reservation(s)`. A reservation stops
+holding its copy at its deadline even if this has not run yet. Logs stay in UTC; pages and the
+API show the library's time, Europe/Kyiv.
+
 **Follow one request.** Every response carries an `X-Request-ID` header, and the background
 work a request starts logs the same identifier. To find every line of one request, in the web
 service and in the worker:

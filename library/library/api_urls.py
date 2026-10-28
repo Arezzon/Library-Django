@@ -6,7 +6,7 @@ from authentication.api_views import CustomUserViewSet
 from author.api_views import AuthorViewSet
 from book.api_views import BookSearchView, BookViewSet
 from events.api_views import ClientEventView
-from order.api_views import OrderViewSet, UserOrderViewSet
+from order.api_views import OrderViewSet, ReservationViewSet, UserOrderViewSet
 
 from .api_views import VersionView
 
@@ -26,6 +26,7 @@ router.register(r"user", CustomUserViewSet, basename="user")
 router.register(r"author", AuthorViewSet, basename="author")
 router.register(r"book", BookViewSet, basename="book")
 router.register(r"order", OrderViewSet, basename="order")
+router.register(r"reservation", ReservationViewSet, basename="reservation")
 
 urlpatterns = [
     path("books/search/", BookSearchView.as_view(), name="book-search"),

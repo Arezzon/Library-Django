@@ -26,7 +26,7 @@ class BookAdmin(admin.ModelAdmin):
             self.message_user(request, str(error), level=messages.ERROR)
             return redirect(request.path)
 
-    list_display = ("id", "name", "count", "get_authors", "description")
+    list_display = ("id", "name", "count", "available", "get_authors", "description")
     list_filter = ("id", "name", "authors")
     search_fields = ("id", "name", "authors__name", "authors__surname")
 
@@ -47,6 +47,13 @@ class BookAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         return ("get_authors",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).with_availability()
+
+    @admin.display(description="Available")
+    def available(self, obj):
+        return obj.available_count
 
     def get_deleted_objects(self, objs, request):
         # Loans and reservations protect their book (FR-024): the page lists them, and

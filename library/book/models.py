@@ -3,6 +3,7 @@ from django.db import models, router, transaction
 from django.db.models import Count, Q
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from django.utils import timezone
 from pgvector.django import VectorField
 
 from audit.services import record
@@ -29,16 +30,25 @@ class BookQuerySet(models.QuerySet):
             raise ValueError("Book stock update bypasses the audit trail; use save().")
         return super().bulk_update(objs, fields, batch_size=batch_size)
 
-    def with_availability(self):
-        """Count unreturned orders in SQL, including books with no orders.
+    def with_availability(self, now=None):
+        """Count unreturned orders and reservations active at ``now`` in SQL,
+        including books with neither (FR-009, R12).
 
-        Distinct order IDs prevent author joins from multiplying the count.
-        Annotations are a snapshot; refetch after changing orders.
+        Distinct IDs prevent author joins from multiplying the counts.
+        Annotations are a snapshot; refetch after changing orders or reservations.
         """
+        now = now or timezone.now()
         return self.annotate(
             active_order_count=Count(
                 "order", filter=Q(order__end_at__isnull=True), distinct=True
-            )
+            ),
+            active_reservation_count=Count(
+                "reservations",
+                filter=Q(
+                    reservations__state="active", reservations__expires_at__gt=now
+                ),
+                distinct=True,
+            ),
         )
 
 
@@ -150,15 +160,27 @@ class Book(models.Model):
 
     @property
     def available_count(self):
-        """Derived availability, without a separately persisted stock counter."""
-        active_orders = getattr(self, "active_order_count", None)
-        if active_orders is None:
-            active_orders = 0
-            if self.pk is not None:
-                active_orders = self.order_set.aggregate(
-                    active_count=Count("pk", filter=Q(end_at__isnull=True))
-                )["active_count"]
-        return max(0, self.count - active_orders)
+        """Derived availability: the total, less unreturned orders and active,
+        unexpired reservations, never below 0 and never stored (FR-009)."""
+        held = self.held_count
+        return max(0, self.count - held)
+
+    @property
+    def held_count(self):
+        """Copies held by unreturned orders and active, unexpired reservations."""
+        orders = getattr(self, "active_order_count", None)
+        reservations = getattr(self, "active_reservation_count", None)
+        if orders is None or reservations is None:
+            if self.pk is None:
+                return 0
+            # One query, through the same annotation every list uses.
+            orders, reservations = (
+                Book.objects.with_availability()
+                .filter(pk=self.pk)
+                .values_list("active_order_count", "active_reservation_count")
+                .get()
+            )
+        return orders + reservations
 
     @staticmethod
     def get_by_id(book_id):

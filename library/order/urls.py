@@ -8,4 +8,6 @@ urlpatterns = [
     path("create/<int:book_id>/", views.order_create, name="order_create"),
     path("update/<int:order_id>/", views.order_update, name="order_update"),
     path("close/<int:order_id>/", views.order_close, name="order_close"),
+    path("reserve/<int:book_id>/", views.reserve, name="reserve"),
+    path("reservations/", views.reservation_my, name="reservation_my"),
 ]

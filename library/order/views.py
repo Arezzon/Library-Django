@@ -1,26 +1,15 @@
-import datetime
-
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from authentication.decorators import librarian_required, signin_required
 from book.models import Book
 
+from . import services
 from .forms import OrderCreateForm, OrderUpdateForm
-from .models import BookUnavailableError, Order
-
-
-def _check_borrow_eligibility(request: HttpRequest, book: Book) -> bool:
-    """Check if the user is eligible to borrow this book."""
-    if book.available_count <= 0:
-        messages.error(request, f'Book "{book.name}" is currently unavailable.')
-        return False
-    if Order.objects.filter(user=request.user, book=book, end_at__isnull=True).exists():
-        messages.error(request, f'You already have an active order for "{book.name}".')
-        return False
-    return True
+from .models import BookUnavailableError, Order, Reservation, ReservationState
 
 
 def _close_order(request: HttpRequest, order_id: int) -> None:
@@ -53,26 +42,60 @@ def order_all(request: HttpRequest) -> HttpResponse:
 @signin_required
 def order_create(request: HttpRequest, book_id: int) -> HttpResponse:
     book = get_object_or_404(Book, pk=book_id)
-    if not _check_borrow_eligibility(request, book):
+    refused = services.eligibility(request.user, book, timezone.now(), lending=True)
+    if refused is not None:
+        messages.error(request, refused.message)
         return redirect("book_detail", book_id=book.id)
     if request.method == "POST":
         form = OrderCreateForm(request.POST)
         if form.is_valid():
-            days_count = form.cleaned_data["days"]
-            plated_end_at = timezone.now() + datetime.timedelta(days=days_count)
-            order = Order.create(
-                user=request.user, book=book, plated_end_at=plated_end_at
-            )
-            if order:
-                messages.success(
-                    request, f'Order for "{book.name}" created successfully!'
+            try:
+                # A reservation the reader holds for this book is issued (FR-061).
+                services.lend(
+                    request.user, request.user, book, form.cleaned_data["days"]
                 )
-                return redirect("order_my")
-            else:
-                messages.error(request, "Could not create order. Please try again.")
+            except services.ReservationRefused as refused:
+                messages.error(request, refused.message)
+                return redirect("book_detail", book_id=book.id)
+            messages.success(request, f'Order for "{book.name}" created successfully!')
+            return redirect("order_my")
     else:
         form = OrderCreateForm()
     return render(request, "order/order_create.html", {"book": book, "form": form})
+
+
+@signin_required
+@require_POST
+def reserve(request: HttpRequest, book_id: int) -> HttpResponse:
+    book = get_object_or_404(Book, pk=book_id)
+    try:
+        reservation = services.reserve(request.user, book)
+    except services.ReservationRefused as refused:
+        messages.error(request, refused.message)
+        return redirect("book_detail", book_id=book.id)
+    messages.success(
+        request,
+        f"Reserved “{book.name}”. Collect it from a librarian before "
+        f"{services.local(reservation.expires_at)}.",
+    )
+    return redirect("reservation_my")
+
+
+@signin_required
+def reservation_my(request: HttpRequest) -> HttpResponse:
+    now = timezone.now()
+    reservations = services.listed(
+        Reservation.objects.filter(user=request.user).select_related("book"), now
+    )
+    rows = [
+        {
+            "reservation": reservation,
+            "state": ReservationState(reservation.effective_state(now)),
+            "next_step": services.next_step(reservation, now),
+        }
+        for reservation in reservations
+    ]
+    return render(request, "order/reservation_my.html", {"rows": rows})
 
 
 @librarian_required
