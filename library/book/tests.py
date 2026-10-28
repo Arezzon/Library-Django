@@ -129,7 +129,9 @@ class BookAvailabilityTests(TestCase):
 
     def test_api_list_and_detail_include_availability(self):
         client = APIClient()
-        with self.assertNumQueries(2):
+        client.force_login(self.reader)
+        # The session and the account, then the books and their authors.
+        with self.assertNumQueries(4):
             response = client.get("/api/v1/book/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()[0]["available_count"], 1)
@@ -139,6 +141,17 @@ class BookAvailabilityTests(TestCase):
 
     def test_api_availability_is_read_only_on_create_and_update(self):
         client = APIClient()
+        client.force_login(
+            CustomUser.objects.create_user(
+                email="availability-librarian@example.com",
+                password="test-password",
+                first_name="Test",
+                middle_name="",
+                last_name="Librarian",
+                role=ROLE_LIBRARIAN,
+                is_active=True,
+            )
+        )
         response = client.post(
             "/api/v1/book/",
             {
@@ -764,6 +777,7 @@ class AutomaticBookEmbeddingTests(TestCase):
 
     def test_api_create_and_update_generate_automatically(self):
         client = APIClient()
+        client.force_login(self.librarian())
         response = client.post(
             "/api/v1/book/",
             {
@@ -789,7 +803,9 @@ class AutomaticBookEmbeddingTests(TestCase):
     def test_api_failure_returns_validation_error_and_preserves_text(self):
         book = self.create_book()
         self.model.embed.side_effect = RuntimeError("Model failed")
-        response = APIClient().patch(
+        client = APIClient()
+        client.force_login(self.librarian())
+        response = client.patch(
             f"/api/v1/book/{book.pk}/",
             {
                 "description": "Updated description",

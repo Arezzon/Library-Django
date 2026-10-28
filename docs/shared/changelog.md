@@ -1,3 +1,7 @@
+2026-10-28
+Access by role for every account and API operation (KAN-24, KAN-62)
+Sign-up always creates a visitor account, and only librarians change an account's role or status, on the web and through the API; a visitor's profile page edits the names only. Every API operation declares who may call it, and an operation without a declaration refuses everyone. The API accepts session sign-in only: it answers 401 when signing in is needed, 403 when the account's role does not allow the action, and 404 for another user's record. Web pages that need another role answer 403 with a page that says what to do next, and the sign-in page says why it appeared. The API schema states each operation's audience. CI's endpoint checks and the memory budget script sign in as the demo reader, and the operator guide adds a review of librarian accounts.
+
 2026-10-20
 Remove Render hosting integration
 Removed the Render Blueprint, launcher, Render-only scripts, CI checks, proxy settings and documentation references. Docker Compose remains the deployment path for Raspberry Pi and Portainer.

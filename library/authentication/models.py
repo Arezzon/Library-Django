@@ -107,7 +107,7 @@ class CustomUser(AbstractBaseUser):
     @property
     def is_staff(self):
         """Allows access to admin panel for librarians"""
-        return self.role == self.ROLE_LIBRARIAN
+        return self.is_librarian
 
     @is_staff.setter
     def is_staff(self, value):
@@ -117,7 +117,7 @@ class CustomUser(AbstractBaseUser):
     @property
     def is_superuser(self):
         """Grants all superuser permissions to librarians"""
-        return self.role == self.ROLE_LIBRARIAN
+        return self.is_librarian
 
     @is_superuser.setter
     def is_superuser(self, value):
@@ -126,11 +126,11 @@ class CustomUser(AbstractBaseUser):
 
     def has_perm(self, perm, obj=None):
         """Checks permissions for a specific action"""
-        return self.role == self.ROLE_LIBRARIAN
+        return self.is_librarian
 
     def has_module_perms(self, app_label):
         """Checks permissions for an app/section in the admin panel"""
-        return self.role == self.ROLE_LIBRARIAN
+        return self.is_librarian
 
     def __str__(self):
         if self.first_name and self.last_name:

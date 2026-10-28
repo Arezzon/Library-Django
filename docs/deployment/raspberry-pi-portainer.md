@@ -23,6 +23,7 @@ need to read any application code.
 - [Create the stack](#create-the-stack)
 - [Environment variables](#environment-variables)
 - [Create the first librarian account](#create-the-first-librarian-account)
+- [Review librarian accounts after an update](#review-librarian-accounts-after-an-update)
 - [First deployment checklist](#first-deployment-checklist)
 - [Viewing logs](#viewing-logs)
 - [Backup and restore](#backup-and-restore)
@@ -137,6 +138,30 @@ Replace `library` with your stack name. It asks for an email, first, last and mi
 `-` if there is none) and a password. Sign in at `/authentication/login/` with that email. Other
 users can register on the site; the librarian manages them and the catalog, and `/admin/`
 offers the Django admin.
+
+## Review librarian accounts after an update
+
+Sign-up always creates a visitor account, and only a librarian can make someone a librarian.
+Librarians manage the catalog, the loans and every account, and they reach the Django admin,
+so only the people who run the library should hold the role. Review the librarian accounts
+right after deploying this release, and again whenever someone leaves the library team.
+
+1. Signed in as a librarian, open `/admin/authentication/customuser/?role__exact=1`, the
+   user list filtered to librarians.
+2. List when each of them last signed in. An account's creation time cannot tell you when it
+   was made, so rely on the email address and the last sign-in:
+
+   ```bash
+   docker exec library-web-1 python manage.py shell -c "from authentication.models import CustomUser
+   for user in CustomUser.objects.filter(role=1).order_by('email'): print(user.email, user.last_login, user.is_active)"
+   ```
+
+   Replace `library` with your stack name.
+3. For every account that does not belong to an authorized librarian, open it in the admin and
+   either set **Role** to `visitor` or untick **Active**. Deactivating keeps the account and its
+   loans, and the person can no longer sign in.
+4. Record the date, the number of accounts reviewed and each change (the email and what you
+   changed), and send the record to the maintainers.
 
 ## First deployment checklist
 
@@ -365,15 +390,20 @@ and deletes a few temporary books named `budget-check-…`.
    ```
 
 2. Run it against your stack (use the stack name from Portainer and the site's port). The
-   catalog should hold books, for example the demo data (`DJANGO_SEED=true`) or your own:
+   catalog should hold books, for example the demo data (`DJANGO_SEED=true`) or your own.
+   Search is open only to signed-in accounts, so the script signs in first: `--email` names
+   an active account, for example your librarian account. It asks for that account's
+   password, or reads it from `BUDGET_CHECK_PASSWORD`; never put the password on the command
+   line, where it would stay in the shell history.
 
    ```bash
    python3 scripts/smoke_stack_budget.py --project-name library \
-     --base-url http://localhost:8000 \
+     --base-url http://localhost:8000 --email librarian@example.com \
      --max-memory-gib 4 --max-search-p95-ms 500 --max-save-ms 2000
    ```
 
-   It prints a JSON summary ending in `"result": "PASS"` or `"result": "FAIL: …"`.
+   It prints a JSON summary ending in `"result": "PASS"` or `"result": "FAIL: …"`. If it stops
+   with "Could not sign in", check the email and the password.
 
 3. If it fails, change one setting in the stack's environment variables, redeploy, and run it
    again:

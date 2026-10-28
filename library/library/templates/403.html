@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}Not Permitted | LibrarySys{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-4 sm:my-10 px-0 sm:px-4">
+    <div class="card">
+        <div class="card-body text-center">
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">You don't have permission to do this.</h1>
+            <p class="text-sm text-slate-600 mt-3">This page is for another account or role. Go back to the home page, or ask a librarian if you need access.</p>
+            <a href="{% url 'home' %}" class="btn-primary mt-6">Go to the home page</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

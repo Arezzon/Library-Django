@@ -6,12 +6,13 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .decorators import librarian_or_owner_required, librarian_required
-from .forms import LoginForm, RegistrationForm, UserUpdateForm
+from .forms import LoginForm, ProfileForm, RegistrationForm, UserUpdateForm
 from .models import CustomUser
+from .services import check_changes, may_change_role, may_change_status, update_account
 
 
 def index(request: HttpRequest) -> HttpResponse:
-    return render(request, "authentication/index.html")
+    return redirect("home" if request.user.is_authenticated else "login")
 
 
 def register(request: HttpRequest) -> HttpResponse:
@@ -54,16 +55,24 @@ def login(request: HttpRequest) -> HttpResponse:
 @librarian_or_owner_required(user_id_param="user_id")
 def user_update(request: HttpRequest, user_id: int) -> HttpResponse:
     target_user = get_object_or_404(CustomUser, pk=user_id)
+    if may_change_role(request.user, target_user) or may_change_status(
+        request.user, target_user
+    ):
+        form_class = UserUpdateForm
+    else:
+        form_class = ProfileForm
     if request.method == "POST":
-        form = UserUpdateForm(request.POST, instance=target_user)
+        # A role or status sent by someone who may not change it is refused whole.
+        check_changes(request.user, target_user, request.POST)
+        form = form_class(request.POST, instance=target_user)
         if form.is_valid():
-            form.save()
+            update_account(request.user, target_user, form.cleaned_data)
             messages.success(
                 request, f"User profile #{target_user.id} updated successfully."
             )
             return redirect("user_detail", user_id=target_user.id)
     else:
-        form = UserUpdateForm(instance=target_user)
+        form = form_class(instance=target_user)
     return render(
         request,
         "authentication/user_update.html",

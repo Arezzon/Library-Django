@@ -1,12 +1,11 @@
 import datetime
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from authentication.decorators import librarian_required
+from authentication.decorators import librarian_required, signin_required
 from book.models import Book
 
 from .forms import OrderCreateForm, OrderUpdateForm
@@ -35,7 +34,7 @@ def _close_order(request: HttpRequest, order_id: int) -> None:
         messages.info(request, f"Order #{order.id} was already closed.")
 
 
-@login_required(login_url="login")
+@signin_required
 def order_my(request: HttpRequest) -> HttpResponse:
     orders = (
         Order.objects.filter(user=request.user)
@@ -51,7 +50,7 @@ def order_all(request: HttpRequest) -> HttpResponse:
     return render(request, "order/order_all.html", {"orders": orders})
 
 
-@login_required(login_url="login")
+@signin_required
 def order_create(request: HttpRequest, book_id: int) -> HttpResponse:
     book = get_object_or_404(Book, pk=book_id)
     if not _check_borrow_eligibility(request, book):
