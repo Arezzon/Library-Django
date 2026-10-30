@@ -63,13 +63,18 @@ def saved_order(sender, instance, created, raw, using, **kwargs):
         ):
             event_type = EventType.ORDER_REASSIGNED
     if event_type:
+        properties = {"order_id": instance.pk, "reader_id": current["user_id"]}
+        reader = None
+        if event_type == EventType.ORDER_CREATED:
+            # The borrow is the reader's; a librarian who started it issued it (FR-023).
+            reader = instance.user
+            if reader.pk != request.user.pk:
+                properties["issued_by"] = request.user.pk
         capture(
             request,
             event_type,
             using=using,
+            user=reader,
             book_id=current["book_id"],
-            properties={
-                "order_id": instance.pk,
-                "reader_id": current["user_id"],
-            },
+            properties=properties,
         )

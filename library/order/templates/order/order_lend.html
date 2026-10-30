@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}Lend Directly | LibrarySys{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-0 sm:px-4 py-4 sm:py-8">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">Lend Directly</h1>
+            <p class="text-xs text-slate-500">Lend a book at the desk. If the reader reserved it, the reservation is issued.</p>
+        </div>
+
+        <div class="card-body">
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                {% include 'includes/form_snippet.html' %}
+                <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
+                    <a href="{% url 'reservation_desk' %}" class="btn-secondary w-full sm:w-auto justify-center">Back to Desk</a>
+                    <button type="submit" class="btn-primary w-full sm:w-auto justify-center">Lend Book</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Reservation Desk - Library{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Reservation Desk</h1>
+            <p class="text-slate-500 text-xs sm:text-sm mt-1">Active reservations, the nearest deadline first. Issue the book when its reader collects it.</p>
+        </div>
+        <a href="{% url 'order_lend' %}" class="btn-primary w-full sm:w-auto justify-center">
+            Lend Directly
+        </a>
+    </div>
+
+    {% if messages %}
+        <div class="space-y-2">
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if reservations %}
+        <div class="table-wrapper">
+            <div class="overflow-x-auto">
+                <table class="table-custom">
+                    <thead class="table-thead">
+                        <tr>
+                            <th class="table-th">Reader</th>
+                            <th class="table-th">Book Title</th>
+                            <th class="table-th">Deadline</th>
+                            <th class="table-th">Time Left</th>
+                            <th class="table-th">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for reservation in reservations %}
+                            <tr class="hover:bg-slate-50/75 transition">
+                                <td class="table-td">
+                                    <span class="font-semibold text-slate-900">{{ reservation.user.first_name }} {{ reservation.user.last_name }}</span>
+                                    <span class="block text-xs text-slate-500">{{ reservation.user.email }}</span>
+                                </td>
+                                <td class="table-td font-semibold text-slate-900">
+                                    <a href="{% url 'book_detail' reservation.book.id %}" class="hover:text-indigo-600 transition">
+                                        {{ reservation.book.name }}
+                                    </a>
+                                </td>
+                                <td class="table-td text-slate-500 whitespace-nowrap">{{ reservation.expires_at|date:"j M Y, H:i T" }}</td>
+                                <td class="table-td text-slate-600 whitespace-nowrap">{{ reservation.expires_at|timeuntil:now }}</td>
+                                <td class="table-td whitespace-nowrap">
+                                    <div class="flex gap-2">
+                                        <a href="{% url 'reservation_issue' reservation.id %}" class="btn-primary">Issue</a>
+                                        <a href="{% url 'reservation_cancel' reservation.id %}" class="btn-secondary">Cancel</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center space-y-2">
+                <p class="font-semibold text-slate-900">No active reservations.</p>
+                <p class="text-sm text-slate-500">A reservation appears here until it is issued, cancelled or expires.</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -124,12 +124,14 @@
                         {# Reader Menu #}
                         {% if request.user.is_visitor %}
                             <a href="/order/my/" class="nav-link">My Orders</a>
+                            <a href="{% url 'reservation_my' %}" class="nav-link">My Reservations</a>
                         {% endif %}
 
                         {# Librarian Menu #}
                         {% if request.user.is_librarian %}
                             <a href="/author/" class="nav-link">Authors</a>
                             <a href="/authentication/users/" class="nav-link">Users</a>
+                            <a href="{% url 'reservation_desk' %}" class="nav-link">Desk</a>
                             <a href="/order/all/" class="nav-link">All Orders</a>
                             <a href="{% url 'events_dashboard' %}" class="nav-link">Analytics</a>
                         {% endif %}
@@ -205,10 +207,18 @@
                             <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
                             My Orders
                         </a>
+                        <a href="{% url 'reservation_my' %}" class="mobile-nav-link">
+                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            My Reservations
+                        </a>
                     {% endif %}
 
                     {# Librarian Menu #}
                     {% if request.user.is_librarian %}
+                        <a href="{% url 'reservation_desk' %}" class="mobile-nav-link">
+                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Reservation Desk
+                        </a>
                         <a href="{% url 'events_dashboard' %}" class="mobile-nav-link">
                             <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 16v-5m5 5V7m5 9v-8"></path></svg>
                             Analytics
@@ -241,6 +251,24 @@
 
     <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
+        {# Reservations the library cancelled, until the reader dismisses them (FR-017). #}
+        {% if request.reservation_notices %}
+            <div role="status" class="mb-6 space-y-2">
+                {% for notice in request.reservation_notices %}
+                    <div class="alert-error flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <p class="font-medium">The library cancelled your reservation of “{{ notice.book.name }}” on {{ notice.cancelled_at|date:"j M Y, H:i T" }}.</p>
+                            <p>Reason: {{ notice.cancel_reason }}</p>
+                        </div>
+                        <form method="post" action="{% url 'reservation_notice_dismiss' notice.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="btn-secondary w-full sm:w-auto justify-center">Dismiss</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         {% block content %}
         {% endblock %}
     </main>

@@ -147,8 +147,10 @@ class EventTests(FakeEncoderMixin, TestCase):
                 )
                 self.publish.assert_not_called()
             self.assertEqual(self.payload()["event_type"], EventType.ORDER_CREATED)
-            self.assertEqual(self.payload()["user_id"], librarian.pk)
+            # The borrow is the reader's; the librarian is who issued it (FR-023).
+            self.assertEqual(self.payload()["user_id"], self.user.pk)
             self.assertEqual(self.payload()["properties"]["reader_id"], self.user.pk)
+            self.assertEqual(self.payload()["properties"]["issued_by"], librarian.pk)
             self.publish.reset_mock()
             with self.captureOnCommitCallbacks(execute=True):
                 order.end_at = timezone.now()
@@ -160,6 +162,46 @@ class EventTests(FakeEncoderMixin, TestCase):
             self.publish.assert_not_called()
         finally:
             current_request.reset(token)
+
+    def test_a_loan_a_librarian_starts_counts_as_the_readers_borrow(self):
+        librarian = account("lender-events@example.com", ROLE_LIBRARIAN)
+        client = Client()
+        client.force_login(librarian)
+        self.publish.reset_mock()
+        with self.captureOnCommitCallbacks(execute=True):
+            response = client.post(
+                "/order/lend/",
+                {"reader": self.user.pk, "book": self.book.pk, "days": 14},
+            )
+        self.assertEqual(response.status_code, 302)
+        loan = Order.objects.get(user=self.user)
+        payload = self.payload()
+        self.assertEqual(
+            (payload["event_type"], payload["user_id"], payload["properties"]),
+            (
+                EventType.ORDER_CREATED,
+                self.user.pk,
+                {
+                    "order_id": loan.pk,
+                    "reader_id": self.user.pk,
+                    "issued_by": librarian.pk,
+                },
+            ),
+        )
+        persist_event(payload)  # what the worker does with it
+        summary = client.get("/events/").context["summary"]
+        self.assertEqual((summary["borrows"], summary["users"]), (1, 1))
+        event = UserEvent.objects.get(event_type=EventType.ORDER_CREATED)
+        self.assertEqual(event.user, self.user)
+        # A librarian borrowing for themselves issued it to nobody else.
+        self.publish.reset_mock()
+        with self.captureOnCommitCallbacks(execute=True):
+            client.post(
+                "/order/lend/",
+                {"reader": librarian.pk, "book": self.book.pk, "days": 14},
+            )
+        self.assertEqual(self.payload()["user_id"], librarian.pk)
+        self.assertNotIn("issued_by", self.payload()["properties"])
 
     def test_reopen_and_reassignment_are_tracked(self):
         order = Order.objects.create(

@@ -116,8 +116,15 @@ class Command(BaseCommand):
             wait(lambda: UserEvent.objects.filter(pk=event_id).exists(), "client event")
             if UserEvent.objects.filter(pk=event_id).count() != 1:
                 raise CommandError("Client event was counted twice.")
+            # The account is a librarian, so it lends the book to itself at the desk.
             request(
-                f"/order/create/{book.pk}/", {"days": 14, "csrfmiddlewaretoken": token}
+                "/order/lend/",
+                {
+                    "reader": user.pk,
+                    "book": book.pk,
+                    "days": 14,
+                    "csrfmiddlewaretoken": token,
+                },
             )
             order = Order.objects.filter(user=user, book=book).first()
             if order is None:

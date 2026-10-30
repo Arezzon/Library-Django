@@ -1033,9 +1033,9 @@ themselves or by reserving (FR-061).
 
 ### Tests for User Story 3 (PR 6)
 
-- [ ] T115 [US3] Create branch `feat/kan-57-issue-at-the-desk`, either from a freshly fetched
+- [x] T115 [US3] Create branch `feat/kan-57-issue-at-the-desk`, either from a freshly fetched
   `origin/main` with PR 5 merged, or from PR 5's verified branch. (Jira) Move KAN-57 to In Progress.
-- [ ] T116 [P] [US3] In `library/order/test_reservations.py`, add Story 3's scenarios:
+- [x] T116 [P] [US3] In `library/order/test_reservations.py`, add Story 3's scenarios:
   - Issuing creates exactly one loan with the chosen period (14 days by default, 1 to 30) and leaves
     the available count unchanged (scenario 1).
   - A second issue, and two librarians issuing at once in a `TransactionTestCase` race, leave one
@@ -1053,18 +1053,18 @@ themselves or by reserving (FR-061).
   - The overdue rule does not block reopening or reassigning a loan.
   - A loan that a reader started before this PR can still be returned.
   - Issuing and cancelling work while the event broker is unavailable.
-- [ ] T117 [US3] In `library/order/test_reservations.py`, add the notice (FR-017, R15):
+- [x] T117 [US3] In `library/order/test_reservations.py`, add the notice (FR-017, R15):
   - after a librarian's cancellation, the reader's next page shows the book, the time and the reason;
   - GET requests write nothing;
   - the Dismiss POST sets `cancellation_seen_at`, and the notice disappears;
   - a reader's own cancellation shows no notice.
-- [ ] T118 [P] [US3] In `library/events/tests.py`, add that a loan started by a librarian records
+- [x] T118 [P] [US3] In `library/events/tests.py`, add that a loan started by a librarian records
   `order_created` for the reader, with `properties.issued_by` set to the librarian's id, and that the
   dashboard counts it as the reader's borrow (FR-023, scenario 10).
 
 ### Implementation for User Story 3 (PR 6)
 
-- [ ] T119 [US3] In `library/order/services.py`:
+- [x] T119 [US3] In `library/order/services.py`:
   - add `issue(actor, reservation, days, *, now=None)` (FR-015):
     1. lock the reservation row, then the reader, then the book;
     2. check the state, the deadline at commit, and the overdue block;
@@ -1078,12 +1078,12 @@ themselves or by reserving (FR-061).
     - it records `cancelled_by`, `cancelled_at` and `cancel_reason`, and audits
       `reservation_cancelled` with the reason.
   - make `lend()` librarian-only, under the same availability rule (FR-016).
-- [ ] T120 [US3] In `library/order/forms.py`, add:
+- [x] T120 [US3] In `library/order/forms.py`, add:
   - `IssueForm`: `days`, from 1 to 30, initial 14;
   - `CancelForm`: `reason`, up to 500 characters, required when a librarian cancels someone else's
     reservation;
   - `LendForm`: reader, book and days.
-- [ ] T121 [US3] In `library/order/views.py` and `library/order/urls.py`, add:
+- [x] T121 [US3] In `library/order/views.py` and `library/order/urls.py`, add:
   - the desk list `/order/reservations/desk/`, for librarians: active reservations by deadline, with
     the reader, the book and the time left;
   - issue `/order/reservations/<id>/issue/`, for librarians: the form on GET, the issue on POST;
@@ -1094,20 +1094,20 @@ themselves or by reserving (FR-061).
 
   Make `/order/create/<book_id>/` redirect readers to the book page, and librarians to
   `/order/lend/?book=<id>`.
-- [ ] T122 [US3] Add the desk pages:
+- [x] T122 [US3] Add the desk pages:
   - create `library/order/templates/order/reservation_desk.html`, `reservation_issue.html`,
     `reservation_cancel.html` and `order_lend.html`;
   - in `library/library/templates/base.html`, add navigation to My reservations, and to the desk for
     librarians;
   - in `library/book/templates/book/book_detail.html`, remove the reader's self-loan link and offer
     librarians "Lend directly".
-- [ ] T123 [US3] Create `library/order/middleware.py` with `ReservationNoticeMiddleware`, after
+- [x] T123 [US3] Create `library/order/middleware.py` with `ReservationNoticeMiddleware`, after
   `MessageMiddleware` in settings.
   - It sets a lazy `request.reservation_notices` for signed-in readers: their reservations with state
     `cancelled`, a `cancelled_by` other than themselves, and no `cancellation_seen_at`.
   - In `base.html`, show the notices in a `role="status"` region, each with the book, the time, the
     reason and a Dismiss form (POST with CSRF).
-- [ ] T124 [US3] In `library/order/api_views.py` and `library/order/serializers.py`:
+- [x] T124 [US3] In `library/order/api_views.py` and `library/order/serializers.py`:
   - add two `ReservationViewSet` actions, documented with `extend_schema` (400, 409):
     - `cancel`: POST, for a signed-in owner or a librarian, with the reason rules; answers 200;
     - `issue`: POST, `IsLibrarian`, with `days` from 1 to 30 (default 14); answers 201 with the
@@ -1115,13 +1115,13 @@ themselves or by reserving (FR-061).
   - make loan creation in `OrderViewSet` and `UserOrderViewSet` librarian-only, and route it through
     `services.lend()`;
   - update the API concurrency test in `library/order/tests.py` to sign in as a librarian.
-- [ ] T125 [US3] In `library/events/signals.py`, record `ORDER_CREATED` for the loan's reader (`user=`
+- [x] T125 [US3] In `library/events/signals.py`, record `ORDER_CREATED` for the loan's reader (`user=`
   the reader), and add `issued_by`, the signed-in librarian's id, to its properties when the two
   differ.
-- [ ] T126 [P] [US3] Document the librarian's side in `docs/features/reservations.md`: the desk,
+- [x] T126 [P] [US3] Document the librarian's side in `docs/features/reservations.md`: the desk,
   issuing, lending directly, cancelling with a reason, the overdue block and corrections. Update the
   README's "Features" for issuing by librarians.
-- [ ] T127 [US3] Verify and prepare the pull request:
+- [x] T127 [US3] Verify and prepare the pull request:
   - run quickstart.md §6, lint, format and the diff coverage;
   - add the changelog entry;
   - use the title `feat(order): issue and cancel reservations at the desk (KAN-57)`.

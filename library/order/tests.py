@@ -149,7 +149,8 @@ class AtomicIssuanceTests(FakeEncoderMixin, TestCase):
 
     def test_both_api_create_routes_reject_exhausted_stock(self):
         client = APIClient()
-        client.force_login(self.user)
+        client.force_login(reader("api-lender@example.com", ROLE_LIBRARIAN))
+        second = reader("api-second@example.com")
         payload = {
             "user": self.user.pk,
             "book": self.book.pk,
@@ -157,11 +158,13 @@ class AtomicIssuanceTests(FakeEncoderMixin, TestCase):
         }
         response = client.post("/api/v1/order/", payload, format="json")
         self.assertEqual(response.status_code, 201)
-        for url in ("/api/v1/order/", f"/api/v1/user/{self.user.pk}/order/"):
+        for url in ("/api/v1/order/", f"/api/v1/user/{second.pk}/order/"):
             with self.subTest(url=url):
-                response = client.post(url, payload, format="json")
-                self.assertEqual(response.status_code, 400)
-                self.assertIn("book", response.json())
+                response = client.post(
+                    url, {**payload, "user": second.pk}, format="json"
+                )
+                self.assertEqual(response.status_code, 409)
+                self.assertEqual(response.json()["code"], "no_copy_available")
         self.assertEqual(Order.objects.count(), 1)
 
     def test_api_reopening_is_rejected_without_changing_history(self):
@@ -177,11 +180,12 @@ class AtomicIssuanceTests(FakeEncoderMixin, TestCase):
         self.assertIsNotNone(closed.end_at)
 
     def test_web_form_issues_one_copy(self):
-        self.client.force_login(self.user)
-        url = f"/order/create/{self.book.pk}/"
-        self.assertRedirects(self.client.post(url, {"days": 14}), "/order/my/")
-        response = self.client.post(url, {"days": 14})
-        self.assertEqual(response.status_code, 302)
+        self.client.force_login(reader("web-lender@example.com", ROLE_LIBRARIAN))
+        form = {"reader": self.user.pk, "book": self.book.pk, "days": 14}
+        self.assertRedirects(self.client.post("/order/lend/", form), "/order/all/")
+        second = reader("web-second@example.com")
+        response = self.client.post("/order/lend/", {**form, "reader": second.pk})
+        self.assertContains(response, "No copy of “Single copy” is available.")
         self.assertEqual(Order.objects.count(), 1)
 
     def test_admin_rejects_unavailable_book_with_message(self):
@@ -191,7 +195,7 @@ class AtomicIssuanceTests(FakeEncoderMixin, TestCase):
         response = self.client.post(
             "/admin/order/order/add/",
             {
-                "user": self.user.pk,
+                "user": reader("admin-second@example.com").pk,
                 "book": self.book.pk,
                 "plated_end_at_0": "2026-10-20",
                 "plated_end_at_1": "12:00:00",
@@ -203,8 +207,10 @@ class AtomicIssuanceTests(FakeEncoderMixin, TestCase):
         self.assertRedirects(
             response, "/admin/order/order/add/", fetch_redirect_response=False
         )
+        # The desk's rules and message, as on the lend page (FR-012).
         self.assertIn(
-            "No copies of this book are currently available.",
+            "No copy of “Single copy” is available. A reservation may be holding the "
+            "last one.",
             [str(message) for message in get_messages(response.wsgi_request)],
         )
         self.assertEqual(Order.objects.count(), 1)
@@ -215,6 +221,7 @@ class ConcurrentIssuanceTests(FakeEncoderMixin, TransactionTestCase):
     def setUp(self):
         self.book = Book.objects.create(name="Last copy", count=1)
         self.users = [reader(f"reader{i}@example.com") for i in range(2)]
+        self.librarian = reader("lender@example.com", ROLE_LIBRARIAN)
 
     def worker(self, user_id, barrier=None, backend_queue=None, api=False):
         close_old_connections()
@@ -222,9 +229,10 @@ class ConcurrentIssuanceTests(FakeEncoderMixin, TransactionTestCase):
             book = Book.objects.get(pk=self.book.pk)
             client = None
             if api:
-                # Each borrower signs in before the barrier, so both requests race.
+                # Each request signs in before the barrier, so both requests race;
+                # only librarians start loans (FR-015).
                 client = APIClient()
-                client.force_login(CustomUser.objects.get(pk=user_id))
+                client.force_login(self.librarian)
             if backend_queue is not None:
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT pg_backend_pid()")
@@ -261,7 +269,7 @@ class ConcurrentIssuanceTests(FakeEncoderMixin, TransactionTestCase):
         )
         self.assertEqual(self.book.available_count, 0)
 
-    def test_parallel_api_requests_return_created_and_bad_request(self):
+    def test_parallel_api_requests_return_created_and_conflict(self):
         barrier = Barrier(2)
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = [
@@ -269,7 +277,7 @@ class ConcurrentIssuanceTests(FakeEncoderMixin, TransactionTestCase):
                 for user in self.users
             ]
             self.assertCountEqual(
-                [future.result(timeout=15) for future in futures], [201, 400]
+                [future.result(timeout=15) for future in futures], [201, 409]
             )
         self.assertEqual(Order.objects.count(), 1)
 
@@ -357,16 +365,18 @@ class LoanChangeTests(FakeEncoderMixin, TestCase):
     # Start
 
     def test_start_on_the_web(self):
-        url = reverse("order_create", args=[self.other_book.pk])
-        refused = self.signed_in().post(url, {"days": 14})
+        url = reverse("order_lend")
+        form = {"reader": self.borrower.pk, "book": self.other_book.pk, "days": 14}
+        refused = self.signed_in().post(url, form)
         self.assertRedirects(
             refused,
             f"/authentication/login/?next={url}",
             fetch_redirect_response=False,
         )
+        self.assertEqual(self.signed_in(self.borrower).post(url, form).status_code, 403)
         self.assertFalse(Order.objects.filter(book=self.other_book).exists())
-        response = self.signed_in(self.borrower).post(url, {"days": 14})
-        self.assertRedirects(response, reverse("order_my"))
+        response = self.signed_in(self.librarian).post(url, form)
+        self.assertRedirects(response, reverse("order_all"))
         loan = Order.objects.get(book=self.other_book)
         self.assertEqual((loan.user, loan.end_at), (self.borrower, None))
 
@@ -377,24 +387,34 @@ class LoanChangeTests(FakeEncoderMixin, TestCase):
         other_route = f"/api/v1/user/{self.other.pk}/order/"
         refused = [
             self.api(
-                self.borrower, "post", "/api/v1/order/", {**body, "user": self.other.pk}
-            ),
-            self.api(self.borrower, "post", other_route, body),
-        ]
-        self.assertEqual([response.status_code for response in refused], [403, 404])
-        self.assertFalse(Order.objects.filter(book=self.other_book).exists())
-        started = [
-            self.api(
                 self.borrower,
                 "post",
                 "/api/v1/order/",
                 {**body, "user": self.borrower.pk},
             ),
+            self.api(
+                self.borrower, "post", "/api/v1/order/", {**body, "user": self.other.pk}
+            ),
             self.api(self.borrower, "post", own_route, body),
+            self.api(self.borrower, "post", other_route, body),
+        ]
+        self.assertEqual(
+            [response.status_code for response in refused], [403, 403, 403, 404]
+        )
+        self.assertFalse(Order.objects.filter(book=self.other_book).exists())
+        started = [
+            self.api(
+                self.librarian,
+                "post",
+                "/api/v1/order/",
+                {**body, "user": self.borrower.pk},
+            ),
+            self.api(self.librarian, "post", other_route, body),
         ]
         self.assertEqual([response.status_code for response in started], [201, 201])
-        self.assertEqual(
-            Order.objects.filter(book=self.other_book, user=self.borrower).count(), 2
+        loans = Order.objects.filter(book=self.other_book)
+        self.assertCountEqual(
+            [loan.user for loan in loans], [self.borrower, self.other]
         )
 
     def test_start_in_the_admin_site(self):
@@ -406,6 +426,44 @@ class LoanChangeTests(FakeEncoderMixin, TestCase):
         self.assertEqual(response.status_code, 302)
         loan = Order.objects.get(book=self.other_book)
         self.assertEqual((loan.user, loan.end_at), (self.borrower, None))
+
+    def test_a_new_loan_through_the_api_needs_its_due_date(self):
+        body = {"user": self.borrower.pk, "book": self.other_book.pk}
+        for path in ("/api/v1/order/", f"/api/v1/user/{self.borrower.pk}/order/"):
+            with self.subTest(path=path):
+                response = self.api(self.librarian, "post", path, body)
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("plated_end_at", response.json())
+        self.assertFalse(Order.objects.filter(book=self.other_book).exists())
+
+    def test_a_loan_recorded_as_returned_is_saved_as_given(self):
+        # A record of a loan that already ended takes no copy, so no rule applies.
+        ended = timezone.now() - timedelta(days=1)
+        response = self.api(
+            self.librarian,
+            "post",
+            "/api/v1/order/",
+            {
+                "user": self.borrower.pk,
+                "book": self.other_book.pk,
+                "plated_end_at": (ended - timedelta(days=13)).isoformat(),
+                "end_at": ended.isoformat(),
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            self.fresh(Order.objects.get(pk=response.json()["id"])).end_at, ended
+        )
+        url = "/admin/order/order/add/"
+        form = self.admin_form(
+            book=self.other_book.pk, end_at_0="2030-01-20", end_at_1="12:00:00"
+        )
+        self.assertEqual(
+            self.signed_in(self.librarian).post(url, form).status_code, 302
+        )
+        self.assertEqual(
+            Order.objects.filter(book=self.other_book, end_at__isnull=False).count(), 2
+        )
 
     # Return
 

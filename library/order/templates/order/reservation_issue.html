@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Issue Reservation | LibrarySys{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-0 sm:px-4 py-4 sm:py-8">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">Issue Reservation</h1>
+            <p class="text-xs text-slate-500 truncate">{{ reservation.book.name }}</p>
+        </div>
+
+        <div class="card-body">
+            <dl class="mb-5 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm text-slate-600 space-y-1">
+                <div><dt class="inline font-semibold text-slate-900">Reader:</dt> <dd class="inline">{{ reservation.user.first_name }} {{ reservation.user.last_name }} ({{ reservation.user.email }})</dd></div>
+                <div><dt class="inline font-semibold text-slate-900">Book:</dt> <dd class="inline">{{ reservation.book.name }}</dd></div>
+                <div><dt class="inline font-semibold text-slate-900">Deadline:</dt> <dd class="inline">{{ reservation.expires_at|date:"j M Y, H:i T" }}</dd></div>
+            </dl>
+
+            <p class="mb-5 text-sm text-slate-600">Issuing starts the loan with the copy this reservation holds.</p>
+
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                {% include 'includes/form_snippet.html' %}
+                <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
+                    <a href="{% url 'reservation_desk' %}" class="btn-secondary w-full sm:w-auto justify-center">Back to Desk</a>
+                    <button type="submit" class="btn-primary w-full sm:w-auto justify-center">Issue Book</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2,6 +2,7 @@ from django.contrib import admin, messages
 from django.shortcuts import redirect
 from django.utils import timezone
 
+from . import services
 from .models import BookUnavailableError, Order, Reservation, ReservationState
 
 
@@ -10,10 +11,21 @@ class OrderAdmin(admin.ModelAdmin):
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         try:
             return super().changeform_view(request, object_id, form_url, extra_context)
-        except BookUnavailableError as error:
+        except (BookUnavailableError, services.ReservationRefused) as error:
             # The admin's enclosing transaction rolls back before this handler.
             self.message_user(request, str(error), level=messages.ERROR)
             return redirect(request.path)
+
+    def save_model(self, request, obj, form, change):
+        if change or obj.end_at is not None:
+            # A correction, or a loan recorded as already returned (spec edge case).
+            super().save_model(request, obj, form, change)
+            return
+        # A new loan follows the desk's rules, and issues the reader's reservation of
+        # the book if they hold one (FR-012, FR-016).
+        loan = services.lend(request.user, obj.user, obj.book, due=obj.plated_end_at)
+        obj.pk, obj.created_at = loan.pk, loan.created_at
+        obj._state.adding = False
 
     list_display = ("id", "user", "book", "created_at", "plated_end_at", "end_at")
     list_filter = ("book__id", "book__name", "book__authors", "created_at", "end_at")

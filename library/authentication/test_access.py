@@ -45,7 +45,9 @@ AUTHOR = {"name": "Taras", "surname": "Shevchenko"}
 LOAN = {"book": "{book}", "plated_end_at": DUE}
 LOAN_FOR_READER = {"user": "{reader}", **LOAN}
 LOAN_FOR_OTHER = {"user": "{other}", **LOAN}
+LOAN_FOR_LIBRARIAN = {"user": "{librarian}", **LOAN}
 WHOLE_LOAN = {**LOAN_FOR_READER, "end_at": None}
+REASON = {"reason": "Copy damaged"}
 EVENT = {"event_type": "book_click", "book_id": "{book}", "path": "/book/"}
 
 # (method, path, body, anonymous, reader, librarian): contracts/access-control.md,
@@ -83,26 +85,45 @@ OPERATIONS = [
     ("get", "/api/v1/order/", None, 401, 200, 200),
     ("get", "/api/v1/order/{own_loan}/", None, 401, 200, 200),
     ("get", "/api/v1/order/{other_loan}/", None, 401, 404, 200),
-    ("post", "/api/v1/order/", LOAN_FOR_READER, 401, 201, 201),
-    ("post", "/api/v1/order/", LOAN_FOR_OTHER, 401, 403, 201),
+    # Only librarians start a loan; the fixture readers' loans are overdue, so the
+    # rules refuse a loan to them after the access check (409).
+    ("post", "/api/v1/order/", LOAN_FOR_READER, 401, 403, 409),
+    ("post", "/api/v1/order/", LOAN_FOR_OTHER, 401, 403, 409),
+    ("post", "/api/v1/order/", LOAN_FOR_LIBRARIAN, 401, 403, 201),
     ("put", "/api/v1/order/{own_loan}/", WHOLE_LOAN, 401, 403, 200),
     ("patch", "/api/v1/order/{own_loan}/", {"plated_end_at": DUE}, 401, 403, 200),
     ("delete", "/api/v1/order/{own_loan}/", None, 401, 403, 204),
     ("get", "/api/v1/user/{reader}/order/", None, 401, 200, 200),
     ("get", "/api/v1/user/{other}/order/", None, 401, 404, 200),
-    ("post", "/api/v1/user/{reader}/order/", LOAN, 401, 201, 201),
-    ("post", "/api/v1/user/{other}/order/", LOAN, 401, 404, 201),
+    ("post", "/api/v1/user/{reader}/order/", LOAN, 401, 403, 409),
+    ("post", "/api/v1/user/{other}/order/", LOAN, 401, 404, 409),
+    ("post", "/api/v1/user/{librarian}/order/", LOAN, 401, 404, 201),
     ("get", "/api/v1/user/{reader}/order/{own_loan}/", None, 401, 200, 200),
     ("get", "/api/v1/user/{other}/order/{other_loan}/", None, 401, 404, 200),
     ("put", "/api/v1/user/{reader}/order/{own_loan}/", WHOLE_LOAN, 401, 403, 200),
     ("patch", "/api/v1/user/{reader}/order/{own_loan}/", LOAN, 401, 403, 200),
     ("delete", "/api/v1/user/{reader}/order/{own_loan}/", None, 401, 403, 204),
+    # Changing a loan is refused for readers whoever's account the route names.
+    (
+        "patch",
+        "/api/v1/user/{other}/order/{other_loan}/",
+        {"plated_end_at": DUE},
+        401,
+        403,
+        200,
+    ),
     ("post", "/api/v1/events/", EVENT, 401, 202, 202),
     ("get", "/api/v1/reservation/", None, 401, 200, 200),
     ("get", "/api/v1/reservation/{own_reservation}/", None, 401, 200, 200),
     ("get", "/api/v1/reservation/{other_reservation}/", None, 401, 404, 200),
     # The reader may reserve, but their loan is overdue, so the rules refuse it.
     ("post", "/api/v1/reservation/", {"book": "{free_book}"}, 401, 409, 201),
+    ("post", "/api/v1/reservation/{own_reservation}/cancel/", REASON, 401, 200, 200),
+    ("post", "/api/v1/reservation/{other_reservation}/cancel/", REASON, 401, 404, 200),
+    # A librarian cancelling someone else's reservation gives a reason.
+    ("post", "/api/v1/reservation/{own_reservation}/cancel/", None, 401, 200, 400),
+    # The reservation's reader has an overdue loan, so the rules refuse to issue it.
+    ("post", "/api/v1/reservation/{own_reservation}/issue/", None, 401, 403, 409),
 ]
 
 # A sample of operations with the audience the contract gives them.
@@ -120,13 +141,16 @@ SCHEMA_AUDIENCES = {
     ("/api/v1/user/{id}/", "delete"): "librarian",
     ("/api/v1/order/", "get"): "signed-in",
     ("/api/v1/order/{id}/", "get"): "signed-in",
+    ("/api/v1/order/", "post"): "librarian",
     ("/api/v1/order/{id}/", "put"): "librarian",
-    ("/api/v1/user/{user_id}/order/", "post"): "self-or-librarian",
+    ("/api/v1/user/{user_id}/order/", "post"): "librarian",
     ("/api/v1/user/{user_id}/order/{id}/", "get"): "self-or-librarian",
     ("/api/v1/user/{user_id}/order/{id}/", "delete"): "librarian",
     ("/api/v1/reservation/", "get"): "signed-in",
     ("/api/v1/reservation/", "post"): "signed-in",
     ("/api/v1/reservation/{id}/", "get"): "signed-in",
+    ("/api/v1/reservation/{id}/cancel/", "post"): "signed-in",
+    ("/api/v1/reservation/{id}/issue/", "post"): "librarian",
 }
 
 
@@ -231,6 +255,7 @@ class OperationAccessTests(FakeEncoderMixin, TestCase):
         return {
             "reader": self.reader.pk,
             "other": self.other.pk,
+            "librarian": self.librarian.pk,
             "book": self.book.pk,
             "free_book": self.free_book.pk,
             "author": self.author.pk,
@@ -316,8 +341,8 @@ class OperationAccessTests(FakeEncoderMixin, TestCase):
         for user, method, path in (
             (self.reader, "patch", f"/api/v1/user/{self.reader.pk}/"),
             (self.librarian, "patch", f"/api/v1/user/{self.reader.pk}/"),
-            (self.reader, "post", "/api/v1/order/"),
-            (self.reader, "post", f"/api/v1/user/{self.reader.pk}/order/"),
+            (self.librarian, "post", "/api/v1/order/"),
+            (self.librarian, "post", f"/api/v1/user/{self.reader.pk}/order/"),
         ):
             for body in ([{"role": ROLE_LIBRARIAN}], 5):
                 with self.subTest(user=user.email, method=method, body=body):
@@ -338,20 +363,24 @@ class OperationAccessTests(FakeEncoderMixin, TestCase):
         self.assertNotEqual(self.reader.password, "fresh-reader-pass-1")
         self.assertTrue(self.reader.check_password("fresh-reader-pass-1"))
 
-    def test_reader_starts_a_loan_only_for_themselves(self, _publish):
+    def test_only_librarians_start_a_loan(self, _publish):
         client = self.api(self.reader)
-        response = self.call(client, "post", "/api/v1/order/", LOAN_FOR_OTHER)
-        self.assertEqual(response.status_code, 403)
-        response = client.post(
-            "/api/v1/order/",
-            {"user": self.reader.pk, "book": self.book.pk, "plated_end_at": DUE},
-            format="json",
+        loan = {"book": self.book.pk, "plated_end_at": DUE}
+        for path, body in (
+            ("/api/v1/order/", {**loan, "user": self.reader.pk}),
+            ("/api/v1/order/", {**loan, "user": self.other.pk}),
+            (f"/api/v1/user/{self.reader.pk}/order/", loan),
+        ):
+            with self.subTest(path=path, body=body):
+                response = client.post(path, body, format="json")
+                self.assertEqual(response.status_code, 403)
+                self.assertRefusedWithoutData(response)
+        self.assertEqual(Order.objects.count(), 2)
+        response = self.api(self.librarian).post(
+            "/api/v1/order/", {**loan, "user": self.librarian.pk}, format="json"
         )
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(
-            Order.objects.filter(user=self.reader).count(), 2, response.json()
-        )
-        self.assertEqual(Order.objects.filter(user=self.other).count(), 1)
+        self.assertEqual(response.status_code, 201, response.json())
+        self.assertEqual(Order.objects.filter(user=self.librarian).count(), 1)
 
 
 class SchemaAudienceTests(TestCase):
