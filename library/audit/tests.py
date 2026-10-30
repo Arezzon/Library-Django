@@ -261,7 +261,10 @@ class LoanEntryTests(AuditTestCase):
 
         changes = {
             "web": lambda: self.send(
-                "web", "post", f"/order/create/{book.pk}/", {"days": 14}, self.reader
+                "web",
+                "post",
+                "/order/lend/",
+                {"reader": self.reader.pk, "book": book.pk, "days": 14},
             ),
             "api": lambda: self.send(
                 "api",
@@ -288,15 +291,12 @@ class LoanEntryTests(AuditTestCase):
             return {}, after
 
         for channel, change in changes.items():
-            # A reader starts their own loan on the web until KAN-57.
-            actor = self.reader if channel == "web" else None
             self.check(
                 "loan_started",
                 channel,
                 change,
                 expected,
                 lambda: Order.objects.get(book=book).pk,
-                actor,
             )
 
     def test_returning_a_loan(self):

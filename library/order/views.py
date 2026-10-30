@@ -1,15 +1,22 @@
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from authentication.decorators import librarian_required, signin_required
+from authentication.permissions import is_librarian
 from book.models import Book
 
 from . import services
-from .forms import OrderCreateForm, OrderUpdateForm
+from .forms import CancelForm, IssueForm, LendForm, OrderUpdateForm
 from .models import BookUnavailableError, Order, Reservation, ReservationState
+
+
+def _name(user) -> str:
+    return f"{user.first_name} {user.last_name}"
 
 
 def _close_order(request: HttpRequest, order_id: int) -> None:
@@ -41,27 +48,38 @@ def order_all(request: HttpRequest) -> HttpResponse:
 
 @signin_required
 def order_create(request: HttpRequest, book_id: int) -> HttpResponse:
+    """Every loan starts with a librarian (FR-015): readers reserve on the book page,
+    and librarians lend directly."""
     book = get_object_or_404(Book, pk=book_id)
-    refused = services.eligibility(request.user, book, timezone.now(), lending=True)
-    if refused is not None:
-        messages.error(request, refused.message)
-        return redirect("book_detail", book_id=book.id)
+    if is_librarian(request.user):
+        return redirect(f"{reverse('order_lend')}?book={book.pk}")
+    return redirect("book_detail", book_id=book.pk)
+
+
+@librarian_required
+def order_lend(request: HttpRequest) -> HttpResponse:
+    """Lend directly, with or without a reservation (FR-016). A reservation the reader
+    holds for the book is issued."""
     if request.method == "POST":
-        form = OrderCreateForm(request.POST)
+        form = LendForm(request.POST)
         if form.is_valid():
+            data = form.cleaned_data
             try:
-                # A reservation the reader holds for this book is issued (FR-061).
-                services.lend(
-                    request.user, request.user, book, form.cleaned_data["days"]
+                loan = services.lend(
+                    request.user, data["reader"], data["book"], data["days"]
                 )
             except services.ReservationRefused as refused:
-                messages.error(request, refused.message)
-                return redirect("book_detail", book_id=book.id)
-            messages.success(request, f'Order for "{book.name}" created successfully!')
-            return redirect("order_my")
+                form.add_error(None, refused.message)
+            else:
+                messages.success(
+                    request,
+                    f"Lent “{loan.book.name}” to {_name(loan.user)}, due "
+                    f"{services.local(loan.plated_end_at, services.DATE)}.",
+                )
+                return redirect("order_all")
     else:
-        form = OrderCreateForm()
-    return render(request, "order/order_create.html", {"book": book, "form": form})
+        form = LendForm(initial={"book": request.GET.get("book")})
+    return render(request, "order/order_lend.html", {"form": form})
 
 
 @signin_required
@@ -96,6 +114,114 @@ def reservation_my(request: HttpRequest) -> HttpResponse:
         for reservation in reservations
     ]
     return render(request, "order/reservation_my.html", {"rows": rows})
+
+
+@librarian_required
+def reservation_desk(request: HttpRequest) -> HttpResponse:
+    """Active reservations by deadline, with the reader, the book and the time left
+    (FR-019)."""
+    now = timezone.now()
+    reservations = (
+        Reservation.objects.filter(state=ReservationState.ACTIVE, expires_at__gt=now)
+        .select_related("user", "book")
+        .order_by("expires_at")
+    )
+    return render(
+        request,
+        "order/reservation_desk.html",
+        {"reservations": reservations, "now": now},
+    )
+
+
+@librarian_required
+def reservation_issue(request: HttpRequest, reservation_id: int) -> HttpResponse:
+    reservation = get_object_or_404(
+        Reservation.objects.select_related("user", "book"), pk=reservation_id
+    )
+    if request.method == "POST":
+        form = IssueForm(request.POST)
+        if form.is_valid():
+            try:
+                loan = services.issue(
+                    request.user, reservation, form.cleaned_data["days"]
+                )
+            except services.ReservationRefused as refused:
+                messages.error(request, refused.message)
+            else:
+                messages.success(
+                    request,
+                    f"Issued “{reservation.book.name}” to {_name(reservation.user)} "
+                    f"as loan #{loan.pk}, due "
+                    f"{services.local(loan.plated_end_at, services.DATE)}.",
+                )
+            return redirect("reservation_desk")
+    else:
+        form = IssueForm()
+    return render(
+        request,
+        "order/reservation_issue.html",
+        {"reservation": reservation, "form": form},
+    )
+
+
+@signin_required
+def reservation_cancel(request: HttpRequest, reservation_id: int) -> HttpResponse:
+    """The reservation's reader cancels without a reason; a librarian cancelling
+    someone else's gives one (FR-017, FR-018). Another reader's answers 404."""
+    reservations = Reservation.objects.select_related("user", "book")
+    if not is_librarian(request.user):
+        reservations = reservations.filter(user=request.user)
+    reservation = get_object_or_404(reservations, pk=reservation_id)
+    own = reservation.user_id == request.user.pk
+    back = "reservation_my" if own else "reservation_desk"
+    if request.method == "POST":
+        form = CancelForm(request.POST, reason_required=not own)
+        if form.is_valid():
+            try:
+                services.cancel(request.user, reservation, form.cleaned_data["reason"])
+            except services.ReservationRefused as refused:
+                messages.error(request, refused.message)
+            else:
+                book = reservation.book.name
+                messages.success(
+                    request,
+                    (
+                        f"Cancelled your reservation of “{book}”."
+                        if own
+                        else f"Cancelled the reservation of “{book}” for "
+                        f"{_name(reservation.user)}. They will see your reason the next "
+                        "time they open the site."
+                    ),
+                )
+            return redirect(back)
+    else:
+        form = CancelForm(reason_required=not own)
+    return render(
+        request,
+        "order/reservation_cancel.html",
+        {"reservation": reservation, "form": form, "own": own, "back": back},
+    )
+
+
+@signin_required
+@require_POST
+def reservation_notice_dismiss(
+    request: HttpRequest, reservation_id: int
+) -> HttpResponse:
+    """Hide the library's cancellation notice; only its reader can (R15)."""
+    reservation = get_object_or_404(Reservation, pk=reservation_id, user=request.user)
+    if (
+        reservation.state == ReservationState.CANCELLED
+        and reservation.cancellation_seen_at is None
+    ):
+        reservation.cancellation_seen_at = timezone.now()
+        reservation.save(update_fields=["cancellation_seen_at"])
+    target = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(
+        target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        target = reverse("reservation_my")
+    return redirect(target)
 
 
 @librarian_required

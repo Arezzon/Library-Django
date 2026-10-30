@@ -1,15 +1,16 @@
-"""Reserving and lending: one implementation of the rules for every channel (FR-011,
-FR-012, research R13).
+"""Reserving, lending, issuing and cancelling: one implementation of the rules for
+every channel (FR-011, FR-012, FR-015 to FR-018, research R13).
 
-Each operation runs in one transaction and locks the reader's account row, then the
-book row, so simultaneous requests from one reader, or for one book, are checked one
-after another. The rules run in R13's order, the first that fails is reported, and a
-refusal changes nothing.
+Each operation runs in one transaction. Issuing and cancelling lock the reservation's
+row first; reserving, lending and issuing lock the reader's account row and then the
+book row, so simultaneous requests from one reader, for one book or on one reservation
+are checked one after another. The rules run in R13's order, the first that fails is
+reported, and a refusal changes nothing.
 """
 
 from datetime import timedelta
 
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Case, F, Q, Value, When
 from django.utils import dateformat, timezone
@@ -29,6 +30,8 @@ from .models import (
 )
 
 RESERVATION_LIMIT = 3
+REASON_LENGTH = 500
+REASON_RULE = "Give a reason of 1 to 500 characters. The reader will see it."
 DATE = "j M Y"
 DATE_AND_TIME = "j M Y, H:i T"
 
@@ -58,6 +61,16 @@ MESSAGES = {
         "No copy of “{book}” is available right now. Try again later or choose "
         "another book.",
         "No copy of “{book}” is available. A reservation may be holding the last one.",
+    ),
+    "reservation_expired": (
+        None,
+        "This reservation expired at {deadline}. You can lend the book directly only "
+        "if a copy is available.",
+    ),
+    "already_issued": (None, "This reservation was already issued as loan #{loan}."),
+    "not_active": (
+        "This reservation is no longer active.",
+        "This reservation is {state}; nothing was changed.",
     ),
 }
 
@@ -91,8 +104,11 @@ def active_reservations(reader, now):
     )
 
 
-def check(reader, book, now, *, reserving, librarian=False, availability=True):
-    """The first of R13's rules that refuses, or None."""
+def check(
+    reader, book, now, *, reserving, librarian=False, availability=True, own_loan=None
+):
+    """The first of R13's rules that refuses, or None. ``own_loan`` is the loan of the
+    reservation being issued, which does not count as the book already on loan."""
     name = f"{reader.first_name} {reader.last_name}"
     overdue = (
         Order.objects.filter(user=reader, end_at__isnull=True, plated_end_at__lt=now)
@@ -112,7 +128,8 @@ def check(reader, book, now, *, reserving, librarian=False, availability=True):
                 "due": timezone.localtime(overdue.plated_end_at).isoformat(),
             },
         )
-    if Order.objects.filter(user=reader, book=book, end_at__isnull=True).exists():
+    on_loan = Order.objects.filter(user=reader, book=book, end_at__isnull=True)
+    if on_loan.exclude(pk=own_loan).exists():
         return refusal(
             "already_on_loan", librarian=librarian, book=book.name, reader=name
         )
@@ -152,19 +169,16 @@ def next_step(reservation, now):
     return "Cancelled."
 
 
-def eligibility(reader, book, now, *, lending=False):
-    """Why ``reader`` may not reserve, or borrow, ``book`` now, or None: the same
-    rules without locks, for pages to show (FR-020)."""
-    if lending:
-        held = active_reservations(reader, now).filter(book=book).exists()
-        return check(reader, book, now, reserving=False, availability=not held)
+def eligibility(reader, book, now):
+    """Why ``reader`` may not reserve ``book`` now, or None: the same rules without
+    locks, for pages to show (FR-020)."""
     return check(reader, book, now, reserving=True)
 
 
-def lock(reader, book):
+def lock(reader_id, book_id):
     """The reader's account row, then the book row (R13)."""
-    reader = CustomUser.objects.select_for_update().get(pk=reader.pk)
-    book = Book.objects.select_for_update().get(pk=book.pk)
+    reader = CustomUser.objects.select_for_update().get(pk=reader_id)
+    book = Book.objects.select_for_update().get(pk=book_id)
     return reader, book
 
 
@@ -200,7 +214,7 @@ def reserve(reader, book, *, now=None):
     """Reserve ``book`` for ``reader`` for 48 hours, or raise ReservationRefused."""
     now = now or timezone.now()
     with transaction.atomic():
-        reader, book = lock(reader, book)
+        reader, book = lock(reader.pk, book.pk)
         expire_due(now, reader=reader, book=book)
         refused = check(reader, book, now, reserving=True)
         if refused is not None:
@@ -221,50 +235,141 @@ def reserve(reader, book, *, now=None):
     return reservation
 
 
-def lend(actor, reader, book, days, *, now=None):
-    """Lend ``book`` to ``reader`` for ``days`` days, or raise ReservationRefused.
+def start_loan(reader, book, due, held, now):
+    """Start the loan, issuing ``held``, the reservation whose copy it takes, if there
+    is one. The caller holds the locks."""
+    if held is not None:
+        # Issued first, so the copy it held is free for the loan's own check.
+        held.change_state(ReservationState.ISSUED, now)
+        held.save(update_fields=["state"])
+    loan = Order(user=reader, book=book, plated_end_at=due)
+    try:
+        loan.save()
+    except BookUnavailableError:
+        raise refusal("no_copy_available", librarian=True, book=book.name) from None
+    if held is not None:
+        held.loan = loan
+        held.save(update_fields=["loan"])
+        record(
+            "reservation_issued",
+            "reservation",
+            held.pk,
+            held.audit_label(),
+            {"state": ReservationState.ACTIVE},
+            {"state": ReservationState.ISSUED, "loan": loan.pk},
+        )
+    return loan
+
+
+def lend(actor, reader, book, days=None, *, due=None, now=None):
+    """Lend ``book`` to ``reader`` until ``due``, or for ``days`` days, or raise
+    ReservationRefused. Only librarians lend (FR-015, FR-016).
 
     If the reader holds an active reservation of the book, it is issued, and the copy
-    it held becomes the lent one (R13). Until issuing moves to librarians (KAN-57), a
-    reader may lend only to themselves."""
-    if not is_librarian(actor) and actor.pk != reader.pk:
-        raise PermissionDenied("Readers may borrow only for themselves.")
-    librarian = actor.pk != reader.pk
+    it held becomes the lent one (R13)."""
+    if not is_librarian(actor):
+        raise PermissionDenied("Only librarians lend books.")
     now = now or timezone.now()
     with transaction.atomic():
-        reader, book = lock(reader, book)
+        # The reservation's row first, in issue()'s order, so a loan and an issue of
+        # the same reservation wait for each other instead of deadlocking (R13).
+        held = (
+            active_reservations(reader, now)
+            .filter(book=book)
+            .select_for_update()
+            .first()
+        )
+        reader, book = lock(reader.pk, book.pk)
         expire_due(now, reader=reader, book=book)
-        held = active_reservations(reader, now).filter(book=book).first()
         refused = check(
             reader,
             book,
             now,
             reserving=False,
-            librarian=librarian,
+            librarian=True,
             availability=held is None,
         )
         if refused is not None:
             raise refused
-        if held is not None:
-            # Issued first, so the copy it held is free for the loan's own check.
-            held.change_state(ReservationState.ISSUED, now)
-            held.save(update_fields=["state"])
-        loan = Order(user=reader, book=book, plated_end_at=now + timedelta(days=days))
-        try:
-            loan.save()
-        except BookUnavailableError:
+        return start_loan(reader, book, due or now + timedelta(days=days), held, now)
+
+
+def issue(actor, reservation, days, *, now=None):
+    """Issue ``reservation`` as a loan of ``days`` days in one step, or raise
+    ReservationRefused (FR-015). A repeated request finds it issued and starts no
+    second loan."""
+    if not is_librarian(actor):
+        raise PermissionDenied("Only librarians issue reservations.")
+    with transaction.atomic():
+        # The reservation's row, then the reader's, then the book's (R13).
+        reservation = Reservation.objects.select_for_update().get(pk=reservation.pk)
+        reader, book = lock(reservation.user_id, reservation.book_id)
+        # Read once the rows are held, so the deadline is checked as the issue commits.
+        now = now or timezone.now()
+        refused = check(
+            reader,
+            book,
+            now,
+            reserving=False,
+            librarian=True,
+            availability=False,
+            own_loan=reservation.loan_id,
+        )
+        if refused is not None:
+            raise refused
+        state = reservation.effective_state(now)
+        if state == ReservationState.EXPIRED:
             raise refusal(
-                "no_copy_available", librarian=librarian, book=book.name
-            ) from None
-        if held is not None:
-            held.loan = loan
-            held.save(update_fields=["loan"])
-            record(
-                "reservation_issued",
-                "reservation",
-                held.pk,
-                held.audit_label(),
-                {"state": ReservationState.ACTIVE},
-                {"state": ReservationState.ISSUED, "loan": loan.pk},
+                "reservation_expired",
+                librarian=True,
+                deadline=local(reservation.expires_at),
             )
-    return loan
+        if state == ReservationState.ISSUED and reservation.loan_id is not None:
+            raise refusal(
+                "already_issued",
+                librarian=True,
+                loan=reservation.loan_id,
+                context={"loan": reservation.loan_id},
+            )
+        if state != ReservationState.ACTIVE:
+            raise refusal("not_active", librarian=True, state=state)
+        return start_loan(reader, book, now + timedelta(days=days), reservation, now)
+
+
+def cancel(actor, reservation, reason="", *, now=None):
+    """Cancel ``reservation``, or raise ReservationRefused if it is no longer active.
+
+    Its reader cancels without a reason; a librarian cancelling someone else's gives
+    one of 1 to 500 characters, which the reader will see (FR-017, FR-018). Nobody
+    else may cancel it."""
+    own = actor.pk == reservation.user_id
+    librarian = is_librarian(actor)
+    if not (own or librarian):
+        raise PermissionDenied("Only the reader or a librarian may cancel this.")
+    reason = reason.strip()
+    if len(reason) > REASON_LENGTH or not (own or reason):
+        raise ValidationError({"reason": REASON_RULE})
+    with transaction.atomic():
+        reservation = Reservation.objects.select_for_update().get(pk=reservation.pk)
+        now = now or timezone.now()
+        state = reservation.effective_state(now)
+        if state != ReservationState.ACTIVE:
+            raise refusal("not_active", librarian=librarian, state=state)
+        reservation.change_state(ReservationState.CANCELLED, now)
+        reservation.cancelled_by = actor
+        reservation.cancelled_at = now
+        reservation.cancel_reason = reason
+        reservation.save(
+            update_fields=["state", "cancelled_by", "cancelled_at", "cancel_reason"]
+        )
+        record(
+            "reservation_cancelled",
+            "reservation",
+            reservation.pk,
+            reservation.audit_label(),
+            {"state": ReservationState.ACTIVE},
+            {"state": ReservationState.CANCELLED},
+            reason=reason,
+            occurred_at=now,
+        )
+    return reservation

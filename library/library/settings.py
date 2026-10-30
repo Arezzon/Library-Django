@@ -122,6 +122,7 @@ MIDDLEWARE = [
     "audit.middleware.AuditContextMiddleware",
     "events.middleware.EventTrackingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "order.middleware.ReservationNoticeMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 

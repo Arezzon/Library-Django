@@ -56,6 +56,9 @@
                                 <td class="table-td text-slate-500 whitespace-nowrap">{{ row.reservation.expires_at|date:"j M Y, H:i T" }}</td>
                                 <td class="table-td text-slate-600">
                                     {{ row.next_step }}
+                                    {% if row.state == 'active' %}
+                                        <a href="{% url 'reservation_cancel' row.reservation.id %}" class="ml-1 text-rose-600 hover:text-rose-700 font-medium">Cancel</a>
+                                    {% endif %}
                                     {% if row.reservation.cancelled_at %}
                                         {{ row.reservation.cancelled_at|date:"j M Y, H:i T" }}{% if row.reservation.cancel_reason %}: {{ row.reservation.cancel_reason }}{% endif %}
                                     {% endif %}

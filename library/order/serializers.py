@@ -29,6 +29,8 @@ class OrderSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "created_at": {"read_only": True},
             "end_at": {"required": False, "allow_null": True},
+            # The database has no default for it, so a new loan must give it.
+            "plated_end_at": {"required": True},
         }
 
 

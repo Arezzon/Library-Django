@@ -13,12 +13,13 @@ from django.utils import timezone
 from author.models import Author
 from book.models import Book
 from book.testing import FakeEncoderMixin
-from order.models import Order
+from order.models import Order, Reservation
 
 from .models import ROLE_LIBRARIAN, CustomUser
 
 PAGE = 200
 FORBIDDEN = 403
+NOT_FOUND = 404
 SIGN_IN = "sign in"  # /authentication/login/?next=<the route>
 LOGIN = "/authentication/login/"
 HOME = "/"
@@ -44,8 +45,43 @@ ROUTES = [
     ("get", "/author/update/{author}/", SIGN_IN, FORBIDDEN, PAGE),
     ("post", "/author/delete/{author}/", SIGN_IN, FORBIDDEN, "/author/"),
     ("get", "/order/my/", SIGN_IN, PAGE, PAGE),
-    ("get", "/order/create/{free_book}/", SIGN_IN, PAGE, PAGE),
+    # Every loan starts with a librarian: readers reserve on the book page.
+    (
+        "get",
+        "/order/create/{free_book}/",
+        SIGN_IN,
+        "/book/{free_book}/",
+        "/order/lend/?book={free_book}",
+    ),
+    ("get", "/order/lend/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/order/reservations/", SIGN_IN, PAGE, PAGE),
+    ("get", "/order/reservations/desk/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/order/reservations/{reservation}/issue/", SIGN_IN, FORBIDDEN, PAGE),
+    # Without a loan period the form comes back with the error.
+    ("post", "/order/reservations/{reservation}/issue/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/order/reservations/{reservation}/cancel/", SIGN_IN, PAGE, PAGE),
+    (
+        "get",
+        "/order/reservations/{other_reservation}/cancel/",
+        SIGN_IN,
+        NOT_FOUND,
+        PAGE,
+    ),
+    # The reader cancels their own without a reason; a librarian must give one.
+    (
+        "post",
+        "/order/reservations/{reservation}/cancel/",
+        SIGN_IN,
+        "/order/reservations/",
+        PAGE,
+    ),
+    (
+        "post",
+        "/order/reservations/{reservation}/notice/dismiss/",
+        SIGN_IN,
+        "/order/reservations/",
+        NOT_FOUND,
+    ),
     (
         "post",
         "/order/reserve/{free_book}/",
@@ -92,6 +128,13 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
             book=cls.book,
             plated_end_at=timezone.now() + timedelta(days=14),
         )
+        reserved_book = Book.objects.create(name="Reserved book", count=2)
+        cls.reservation = Reservation.objects.create(
+            user=cls.reader, book=reserved_book
+        )
+        cls.other_reservation = Reservation.objects.create(
+            user=cls.other, book=reserved_book
+        )
 
     def ids(self):
         return {
@@ -101,6 +144,8 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
             "free_book": self.free_book.pk,
             "author": self.author.pk,
             "loan": self.loan.pk,
+            "reservation": self.reservation.pk,
+            "other_reservation": self.other_reservation.pk,
         }
 
     def signed_in(self, user=None):
@@ -129,7 +174,7 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
             ):
                 with self.subTest(caller=caller, method=method.upper(), route=route):
                     response = self.call(client, method, route)
-                    if outcome in (PAGE, FORBIDDEN):
+                    if outcome in (PAGE, FORBIDDEN, NOT_FOUND):
                         self.assertEqual(response.status_code, outcome)
                     else:
                         target = (
@@ -142,7 +187,7 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
                         )
 
     def test_every_protected_route_has_a_permitted_and_a_refused_caller(self):
-        refusals = {SIGN_IN, LOGIN, FORBIDDEN, ADMIN_SIGN_IN}
+        refusals = {SIGN_IN, LOGIN, FORBIDDEN, NOT_FOUND, ADMIN_SIGN_IN}
         for _method, route, *expected in ROUTES:
             if route in ("/authentication/login/", "/authentication/register/"):
                 continue  # open to everyone; signed-in callers are sent home

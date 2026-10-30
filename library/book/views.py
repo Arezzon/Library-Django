@@ -61,9 +61,8 @@ def book_detail(request: HttpRequest, book_id: int) -> HttpResponse:
     )
     context = {"book": book}
     if request.user.is_visitor:
-        # Why the reader cannot reserve or borrow, if they cannot (FR-020).
+        # Why the reader cannot reserve, if they cannot (FR-020).
         context["reserve_refusal"] = eligibility(request.user, book, now)
-        context["lend_refusal"] = eligibility(request.user, book, now, lending=True)
     return render(request, "book/book_detail.html", context)
 
 

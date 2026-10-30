@@ -8,7 +8,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import (
     IntegrityError,
     close_old_connections,
@@ -32,7 +32,14 @@ from .models import (
     ReservationState,
     ReservationStateError,
 )
-from .services import ReservationRefused, eligibility, lend, reserve
+from .services import (
+    ReservationRefused,
+    cancel,
+    eligibility,
+    issue,
+    lend,
+    reserve,
+)
 from .tasks import expire_reservations
 
 ACTIVE = ReservationState.ACTIVE
@@ -391,6 +398,7 @@ class ReservingTests(ReservationTestCase):
     def setUpTestData(cls):
         super().setUpTestData()
         cls.other = account("reserving-other@example.com")
+        cls.librarian = account("reserving-librarian@example.com", ROLE_LIBRARIAN)
 
     def signed_in(self, user=None):
         self.client.force_login(user or self.reader)
@@ -580,16 +588,15 @@ class ReservingTests(ReservationTestCase):
         held.refresh_from_db()
         self.assertEqual(held.state, ACTIVE)
 
-    def test_a_readers_own_loan_of_a_reserved_book_issues_the_reservation(self):
+    def test_lending_a_reserved_book_to_its_reader_issues_the_reservation(self):
         last = Book.objects.create(name="Last copy", count=1)
         held = reserve(self.reader, last)
-        client = self.signed_in()
-        self.assertEqual(
-            client.get(reverse("order_create", args=[last.pk])).status_code, 200
+        response = self.signed_in(self.librarian).post(
+            reverse("order_lend"),
+            {"reader": self.reader.pk, "book": last.pk, "days": 14},
         )
-        response = client.post(reverse("order_create", args=[last.pk]), {"days": 14})
         self.assertRedirects(
-            response, reverse("order_my"), fetch_redirect_response=False
+            response, reverse("order_all"), fetch_redirect_response=False
         )
         loan = Order.objects.get(user=self.reader, book=last)
         held.refresh_from_db()
@@ -602,14 +609,9 @@ class ReservingTests(ReservationTestCase):
         last = Book.objects.create(name="Last copy", count=1)
         reserve(self.other, last)
         with self.assertRaises(ReservationRefused) as refused:
-            lend(self.reader, self.reader, last, 14)
+            lend(self.librarian, self.reader, last, 14)
         self.assertEqual(refused.exception.code, "no_copy_available")
         self.assertFalse(Order.objects.filter(book=last).exists())
-
-    def test_readers_lend_only_to_themselves(self):
-        with self.assertRaises(PermissionDenied):
-            lend(self.reader, self.other, self.book, 14)
-        self.assertFalse(Order.objects.exists())
 
     def test_reserving_works_while_the_event_broker_is_unavailable(self):
         from kombu.exceptions import OperationalError as BrokerError
@@ -680,17 +682,21 @@ class ReservingTests(ReservationTestCase):
         held = reserve(self.reader, last)
         last.count = 0
         last.save()
-        client = self.signed_in()
-        self.assertEqual(
-            client.get(reverse("order_create", args=[last.pk])).status_code, 200
+        refusal = (
+            "No copy of “Lost copy” is available. A reservation may be holding the last "
+            "one."
         )
+        client = self.signed_in(self.librarian)
         response = client.post(
-            reverse("order_create", args=[last.pk]), {"days": 14}, follow=True
+            reverse("reservation_issue", args=[held.pk]), {"days": 14}, follow=True
         )
-        self.assertEqual(
-            response.redirect_chain, [(reverse("book_detail", args=[last.pk]), 302)]
+        self.assertEqual(response.redirect_chain, [(reverse("reservation_desk"), 302)])
+        self.assertContains(response, refusal)
+        response = client.post(
+            reverse("order_lend"),
+            {"reader": self.reader.pk, "book": last.pk, "days": 14},
         )
-        self.assertContains(response, "No copy of “Lost copy” is available right now.")
+        self.assertContains(response, refusal)
         held.refresh_from_db()
         self.assertEqual((held.state, held.loan), (ACTIVE, None))
         self.assertFalse(Order.objects.filter(book=last).exists())
@@ -751,13 +757,562 @@ class ScheduledExpiryTests(ReservationTestCase):
         self.assertEqual(settings.TIME_ZONE, "Europe/Kyiv")
 
 
+class DeskTests(ReservationTestCase):
+    """Story 3: librarians issue, lend and cancel with a reason; readers cancel their
+    own reservations (contracts/reservations-api.md, PR 6)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.other = account("desk-other@example.com")
+        cls.librarian = account("desk-librarian@example.com", ROLE_LIBRARIAN)
+
+    def signed_in(self, user):
+        self.client.force_login(user)
+        return self.client
+
+    def api(self, user, path, body=None):
+        return self.signed_in(user).post(
+            path, body or {}, content_type="application/json"
+        )
+
+    def overdue(self):
+        """A loan of the reader's that was due yesterday."""
+        return Order.objects.create(
+            user=self.reader,
+            book=Book.objects.create(name="Overdue book", count=1),
+            plated_end_at=timezone.now() - timedelta(days=1),
+        )
+
+    def available(self, book=None):
+        return Book.objects.get(pk=(book or self.book).pk).available_count
+
+    def test_issuing_starts_one_loan_for_the_chosen_period(self):
+        held = reserve(self.reader, self.book)
+        self.assertEqual(self.available(), 1)
+        client = self.signed_in(self.librarian)
+        url = reverse("reservation_issue", args=[held.pk])
+        page = client.get(url)
+        self.assertContains(page, 'value="14"')
+        self.assertContains(page, "reservation-reader@example.com")
+        before = timezone.now()
+        response = client.post(url, {"days": 7})
+        self.assertRedirects(
+            response, reverse("reservation_desk"), fetch_redirect_response=False
+        )
+        held.refresh_from_db()
+        loan = Order.objects.get(book=self.book)
+        self.assertEqual(
+            (held.state, held.loan, loan.user), (ISSUED, loan, self.reader)
+        )
+        self.assertGreaterEqual(loan.plated_end_at, before + timedelta(days=7))
+        self.assertLessEqual(loan.plated_end_at, timezone.now() + timedelta(days=7))
+        self.assertEqual(self.available(), 1)
+        entry = AuditEntry.objects.get(action="reservation_issued", target_id=held.pk)
+        self.assertEqual(
+            (entry.actor_id, entry.after),
+            (self.librarian.pk, {"state": "issued", "loan": loan.pk}),
+        )
+
+    def test_the_api_issues_for_14_days_unless_told_otherwise(self):
+        held = reserve(self.reader, self.book)
+        path = f"/api/v1/reservation/{held.pk}/issue/"
+        for days in (0, 31, "soon"):
+            with self.subTest(days=days):
+                response = self.api(self.librarian, path, {"days": days})
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("days", response.json())
+        before = timezone.now()
+        response = self.api(self.librarian, path)
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        loan = Order.objects.get(book=self.book)
+        self.assertEqual(
+            (body["reservation"]["state"], body["reservation"]["loan"]),
+            ("issued", loan.pk),
+        )
+        self.assertEqual(
+            (body["loan"]["id"], body["loan"]["user"]), (loan.pk, self.reader.pk)
+        )
+        self.assertGreaterEqual(loan.plated_end_at, before + timedelta(days=14))
+        self.assertLessEqual(loan.plated_end_at, timezone.now() + timedelta(days=14))
+
+    def test_a_repeated_issue_starts_no_second_loan(self):
+        held = reserve(self.reader, self.book)
+        loan = issue(self.librarian, held, 14)
+        with self.assertRaises(ReservationRefused) as refused:
+            issue(self.librarian, held, 14)
+        self.assertEqual(
+            (refused.exception.code, refused.exception.context),
+            ("already_issued", {"loan": loan.pk}),
+        )
+        detail = f"This reservation was already issued as loan #{loan.pk}."
+        response = self.api(self.librarian, f"/api/v1/reservation/{held.pk}/issue/")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            response.json(),
+            {"code": "already_issued", "detail": detail, "loan": loan.pk},
+        )
+        page = self.signed_in(self.librarian).post(
+            reverse("reservation_issue", args=[held.pk]), {"days": 14}, follow=True
+        )
+        self.assertContains(page, detail)
+        self.assertEqual(Order.objects.filter(book=self.book).count(), 1)
+
+    def test_an_expired_reservation_is_not_issued(self):
+        lapsed = self.reserve(created_at=timezone.now() - timedelta(hours=49))
+        with self.assertRaises(ReservationRefused) as refused:
+            issue(self.librarian, lapsed, 14)
+        self.assertEqual(refused.exception.code, "reservation_expired")
+        self.assertEqual(
+            refused.exception.message,
+            f"This reservation expired at {in_kyiv(lapsed.expires_at)}. You can lend "
+            "the book directly only if a copy is available.",
+        )
+        response = self.api(self.librarian, f"/api/v1/reservation/{lapsed.pk}/issue/")
+        self.assertEqual(
+            (response.status_code, response.json()["code"]),
+            (409, "reservation_expired"),
+        )
+        self.assertFalse(Order.objects.exists())
+
+    def test_issuing_one_second_before_the_deadline_succeeds_and_at_it_is_refused(self):
+        early = reserve(self.reader, self.book)
+        issue(self.librarian, early, 14, now=early.expires_at - timedelta(seconds=1))
+        early.refresh_from_db()
+        self.assertEqual(early.state, ISSUED)
+        late = reserve(self.other, self.book)
+        with self.assertRaises(ReservationRefused) as refused:
+            issue(self.librarian, late, 14, now=late.expires_at)
+        self.assertEqual(refused.exception.code, "reservation_expired")
+        self.assertFalse(Order.objects.filter(user=self.other).exists())
+
+    def test_a_cancelled_reservation_is_not_issued(self):
+        held = reserve(self.reader, self.book)
+        cancel(self.reader, held)
+        with self.assertRaises(ReservationRefused) as refused:
+            issue(self.librarian, held, 14)
+        self.assertEqual(
+            (refused.exception.code, refused.exception.message),
+            ("not_active", "This reservation is cancelled; nothing was changed."),
+        )
+        self.assertFalse(Order.objects.exists())
+
+    def test_a_librarian_cancels_with_a_reason_and_the_copy_is_free_at_once(self):
+        last = Book.objects.create(name="Damaged copy", count=1)
+        held = reserve(self.reader, last)
+        self.assertEqual(self.available(last), 0)
+        client = self.signed_in(self.librarian)
+        url = reverse("reservation_cancel", args=[held.pk])
+        self.assertContains(client.get(url), 'name="reason"')
+        for reason in ("", "   ", "x" * 501):
+            with self.subTest(reason=reason[:5]):
+                self.assertEqual(client.post(url, {"reason": reason}).status_code, 200)
+                held.refresh_from_db()
+                self.assertEqual(held.state, ACTIVE)
+        response = client.post(url, {"reason": "Copy damaged"})
+        self.assertRedirects(
+            response, reverse("reservation_desk"), fetch_redirect_response=False
+        )
+        held.refresh_from_db()
+        self.assertEqual(
+            (held.state, held.cancelled_by, held.cancel_reason),
+            (CANCELLED, self.librarian, "Copy damaged"),
+        )
+        self.assertEqual(self.available(last), 1)
+        entry = AuditEntry.objects.get(
+            action="reservation_cancelled", target_id=held.pk
+        )
+        self.assertEqual(
+            (entry.actor_id, entry.reason, entry.occurred_at),
+            (self.librarian.pk, "Copy damaged", held.cancelled_at),
+        )
+        self.assertEqual(
+            (entry.before, entry.after), ({"state": "active"}, {"state": "cancelled"})
+        )
+
+    def test_the_service_refuses_a_librarians_cancellation_without_a_reason(self):
+        held = reserve(self.reader, self.book)
+        for reason in ("", "  ", "x" * 501):
+            with self.subTest(reason=reason[:5]):
+                with self.assertRaises(ValidationError):
+                    cancel(self.librarian, held, reason)
+        held.refresh_from_db()
+        self.assertEqual(held.state, ACTIVE)
+
+    def test_the_api_asks_a_librarian_for_a_reason(self):
+        held = reserve(self.reader, self.book)
+        path = f"/api/v1/reservation/{held.pk}/cancel/"
+        for body in ({}, {"reason": ""}, {"reason": "x" * 501}):
+            with self.subTest(body=str(body)[:20]):
+                response = self.api(self.librarian, path, body)
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("reason", response.json())
+        response = self.api(self.librarian, path, {"reason": "x" * 500})
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(
+            (body["state"], body["cancel_reason"], body["cancelled_by"]),
+            ("cancelled", "x" * 500, self.librarian.pk),
+        )
+        self.assertTrue(body["cancelled_by_library"])
+        again = self.api(self.librarian, path, {"reason": "Twice"})
+        self.assertEqual(again.status_code, 409)
+        self.assertEqual(
+            again.json(),
+            {
+                "code": "not_active",
+                "detail": "This reservation is cancelled; nothing was changed.",
+            },
+        )
+
+    def test_a_reader_cancels_their_own_without_a_reason(self):
+        mine = reserve(self.reader, self.book)
+        theirs = reserve(self.other, self.book)
+        client = self.signed_in(self.reader)
+        url = reverse("reservation_cancel", args=[mine.pk])
+        self.assertContains(client.get(reverse("reservation_my")), f'href="{url}"')
+        self.assertNotContains(client.get(url), 'name="reason"')
+        other_url = reverse("reservation_cancel", args=[theirs.pk])
+        self.assertEqual(client.get(other_url).status_code, 404)
+        self.assertEqual(client.post(other_url).status_code, 404)
+        api = self.api(self.reader, f"/api/v1/reservation/{theirs.pk}/cancel/")
+        self.assertEqual(api.status_code, 404)
+        response = self.client.post(url)
+        self.assertRedirects(
+            response, reverse("reservation_my"), fetch_redirect_response=False
+        )
+        mine.refresh_from_db()
+        self.assertEqual(
+            (mine.state, mine.cancelled_by, mine.cancel_reason),
+            (CANCELLED, self.reader, ""),
+        )
+        theirs.refresh_from_db()
+        self.assertEqual(theirs.state, ACTIVE)
+        again = self.client.post(url, follow=True)
+        self.assertContains(again, "This reservation is no longer active.")
+        third = reserve(self.reader, Book.objects.create(name="Another", count=1))
+        response = self.api(self.reader, f"/api/v1/reservation/{third.pk}/cancel/")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(
+            (body["state"], body["cancelled_by_library"]), ("cancelled", False)
+        )
+        self.assertNotIn("cancelled_by", body)
+        entry = AuditEntry.objects.get(
+            action="reservation_cancelled", target_id=mine.pk
+        )
+        self.assertEqual((entry.actor_id, entry.reason), (self.reader.pk, ""))
+
+    def test_readers_cannot_lend_issue_or_cancel_someone_elses(self):
+        theirs = reserve(self.other, self.book)
+        due = (timezone.now() + timedelta(days=14)).isoformat()
+        client = self.signed_in(self.reader)
+        lend_form = {"reader": self.reader.pk, "book": self.book.pk, "days": 14}
+        issue_url = reverse("reservation_issue", args=[theirs.pk])
+        refused = {
+            "lend page": client.get(reverse("order_lend")).status_code,
+            "lend": client.post(reverse("order_lend"), lend_form).status_code,
+            "desk": client.get(reverse("reservation_desk")).status_code,
+            "issue page": client.get(issue_url).status_code,
+            "issue": client.post(issue_url, {"days": 14}).status_code,
+            "cancel": client.post(
+                reverse("reservation_cancel", args=[theirs.pk])
+            ).status_code,
+        }
+        loan = {"book": self.book.pk, "plated_end_at": due}
+        for name, path, body in (
+            ("api loan", "/api/v1/order/", {**loan, "user": self.reader.pk}),
+            ("api own loan", f"/api/v1/user/{self.reader.pk}/order/", loan),
+            ("api issue", f"/api/v1/reservation/{theirs.pk}/issue/", None),
+            ("api cancel", f"/api/v1/reservation/{theirs.pk}/cancel/", None),
+        ):
+            refused[name] = self.api(self.reader, path, body).status_code
+        self.assertEqual(
+            refused,
+            {
+                "lend page": 403,
+                "lend": 403,
+                "desk": 403,
+                "issue page": 403,
+                "issue": 403,
+                "cancel": 404,
+                "api loan": 403,
+                "api own loan": 403,
+                "api issue": 403,
+                "api cancel": 404,
+            },
+        )
+        for call in (
+            partial(lend, self.reader, self.reader, self.book, 14),
+            partial(issue, self.reader, theirs, 14),
+            partial(cancel, self.reader, theirs),
+        ):
+            with self.subTest(call=call.func.__name__):
+                with self.assertRaises(PermissionDenied):
+                    call()
+        theirs.refresh_from_db()
+        self.assertEqual(theirs.state, ACTIVE)
+        self.assertFalse(Order.objects.exists())
+
+    def test_an_overdue_reader_is_neither_issued_nor_lent_a_book(self):
+        held = reserve(self.reader, self.book)
+        late = self.overdue()
+        message = (
+            "Test Reader has an overdue loan: “Overdue book”, due "
+            f"{in_kyiv(late.plated_end_at, 'j M Y')}. It must be returned first."
+        )
+        free = Book.objects.create(name="Free book", count=1)
+        for call in (
+            partial(issue, self.librarian, held, 14),
+            partial(lend, self.librarian, self.reader, free, 14),
+        ):
+            with self.subTest(call=call.func.__name__):
+                with self.assertRaises(ReservationRefused) as refused:
+                    call()
+                self.assertEqual(
+                    (refused.exception.code, refused.exception.message),
+                    ("overdue_loan", message),
+                )
+        client = self.signed_in(self.librarian)
+        page = client.post(
+            reverse("reservation_issue", args=[held.pk]), {"days": 14}, follow=True
+        )
+        self.assertContains(page, message)
+        page = client.post(
+            reverse("order_lend"),
+            {"reader": self.reader.pk, "book": free.pk, "days": 14},
+        )
+        self.assertContains(page, message)
+        response = self.api(self.librarian, f"/api/v1/reservation/{held.pk}/issue/")
+        self.assertEqual(response.json()["code"], "overdue_loan")
+        self.assertEqual(Order.objects.filter(user=self.reader).count(), 1)
+
+    def test_the_overdue_rule_does_not_block_correcting_a_loan(self):
+        late = self.overdue()
+        returned = Order.objects.create(
+            user=self.reader,
+            book=self.book,
+            plated_end_at=timezone.now() + timedelta(days=7),
+            end_at=timezone.now(),
+        )
+        client = self.signed_in(self.librarian)
+        due = timezone.localtime(timezone.now() + timedelta(days=7))
+        response = client.post(
+            reverse("order_update", args=[returned.pk]),
+            {"plated_end_at": due.strftime("%Y-%m-%d %H:%M"), "end_at": ""},
+        )
+        self.assertRedirects(response, reverse("order_all"))
+        returned.refresh_from_db()
+        self.assertIsNone(returned.end_at)
+        right_book = Book.objects.create(name="Right book", count=1)
+        response = client.patch(
+            f"/api/v1/order/{late.pk}/",
+            {"book": right_book.pk},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        late.refresh_from_db()
+        self.assertEqual(late.book, right_book)
+
+    def test_a_loan_a_reader_started_before_can_still_be_returned(self):
+        earlier = self.lend()  # as readers lent to themselves until this change
+        response = self.signed_in(self.librarian).post(
+            reverse("order_close", args=[earlier.pk])
+        )
+        self.assertRedirects(response, reverse("order_all"))
+        earlier.refresh_from_db()
+        self.assertIsNotNone(earlier.end_at)
+
+    def test_issuing_and_cancelling_work_while_the_event_broker_is_unavailable(self):
+        from kombu.exceptions import OperationalError as BrokerError
+
+        held = reserve(self.reader, self.book)
+        other = reserve(self.other, self.book)
+        client = self.signed_in(self.librarian)
+        with (
+            patch(
+                "events.services.persist_event.apply_async",
+                side_effect=BrokerError("broker down"),
+            ),
+            self.assertLogs("events.services", level="ERROR"),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            issued = client.post(
+                reverse("reservation_issue", args=[held.pk]), {"days": 14}
+            )
+            cancelled = client.post(
+                reverse("reservation_cancel", args=[other.pk]),
+                {"reason": "Copy damaged"},
+            )
+        self.assertEqual((issued.status_code, cancelled.status_code), (302, 302))
+        held.refresh_from_db()
+        other.refresh_from_db()
+        self.assertEqual((held.state, other.state), (ISSUED, CANCELLED))
+
+    def test_the_desk_lists_active_reservations_by_deadline(self):
+        now = timezone.now()
+        later = self.reserve(created_at=now - timedelta(hours=1))
+        sooner = self.reserve(user=self.other, created_at=now - timedelta(hours=2))
+        self.reserve(
+            book=Book.objects.create(name="Lapsed book", count=1),
+            created_at=now - timedelta(hours=49),
+        )
+        self.reserve(
+            book=Book.objects.create(name="Issued book", count=1), state=ISSUED
+        )
+        page = self.signed_in(self.librarian).get(reverse("reservation_desk"))
+        self.assertEqual(
+            [row.pk for row in page.context["reservations"]], [sooner.pk, later.pk]
+        )
+        self.assertNotContains(page, "Lapsed book")
+        self.assertNotContains(page, "Issued book")
+        for text in (
+            "desk-other@example.com",
+            in_kyiv(sooner.expires_at),
+            "1\xa0day",  # the time left, as Django's timeuntil writes it
+            reverse("reservation_issue", args=[sooner.pk]),
+            reverse("reservation_cancel", args=[sooner.pk]),
+        ):
+            with self.subTest(text=text):
+                self.assertContains(page, text)
+
+    def test_the_old_borrow_route_sends_readers_to_reserve_and_librarians_to_lend(self):
+        url = reverse("order_create", args=[self.book.pk])
+        book_page = reverse("book_detail", args=[self.book.pk])
+        client = self.signed_in(self.reader)
+        for response in (client.get(url), client.post(url, {"days": 14})):
+            self.assertRedirects(response, book_page, fetch_redirect_response=False)
+        self.assertFalse(Order.objects.exists())
+        lend_url = f"{reverse('order_lend')}?book={self.book.pk}"
+        response = self.signed_in(self.librarian).get(url)
+        self.assertRedirects(response, lend_url, fetch_redirect_response=False)
+        form = self.client.get(lend_url).context["form"]
+        self.assertEqual(str(form["book"].value()), str(self.book.pk))
+        self.assertEqual(str(form["days"].value()), "14")
+
+    def test_lending_directly_under_the_availability_rule(self):
+        last = Book.objects.create(name="Last copy", count=1)
+        reserve(self.other, last)
+        client = self.signed_in(self.librarian)
+        page = client.post(
+            reverse("order_lend"),
+            {"reader": self.reader.pk, "book": last.pk, "days": 14},
+        )
+        self.assertContains(
+            page,
+            "No copy of “Last copy” is available. A reservation may be holding the last one.",
+        )
+        response = client.post(
+            reverse("order_lend"),
+            {"reader": self.reader.pk, "book": self.book.pk, "days": 21},
+        )
+        self.assertRedirects(
+            response, reverse("order_all"), fetch_redirect_response=False
+        )
+        loan = Order.objects.get(user=self.reader)
+        self.assertEqual(loan.book, self.book)
+        self.assertGreater(loan.plated_end_at, timezone.now() + timedelta(days=20))
+        self.assertEqual(self.client.post(reverse("order_lend"), {}).status_code, 200)
+        self.assertEqual(Order.objects.count(), 1)
+
+    def test_the_book_page_offers_librarians_a_direct_loan_and_readers_reserving(self):
+        reader_page = self.signed_in(self.reader).get(
+            reverse("book_detail", args=[self.book.pk])
+        )
+        self.assertContains(reader_page, "Reserve for 48 Hours")
+        self.assertNotContains(
+            reader_page, reverse("order_create", args=[self.book.pk])
+        )
+        self.assertNotContains(reader_page, "Lend Directly")
+        librarian_page = self.signed_in(self.librarian).get(
+            reverse("book_detail", args=[self.book.pk])
+        )
+        self.assertContains(
+            librarian_page, f"{reverse('order_lend')}?book={self.book.pk}"
+        )
+        self.assertContains(librarian_page, "Lend Directly")
+
+    def test_the_navigation_leads_to_my_reservations_and_the_desk(self):
+        reader_page = self.signed_in(self.reader).get(reverse("book_list"))
+        self.assertContains(reader_page, reverse("reservation_my"))
+        self.assertNotContains(reader_page, reverse("reservation_desk"))
+        librarian_page = self.signed_in(self.librarian).get(reverse("book_list"))
+        self.assertContains(librarian_page, reverse("reservation_desk"))
+
+
+class CancellationNoticeTests(ReservationTestCase):
+    """The reader sees the library's cancellation on their next page until they dismiss
+    it, and showing it writes nothing (FR-017, R15)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.librarian = account("notice-librarian@example.com", ROLE_LIBRARIAN)
+
+    def cancelled_by_the_library(self):
+        held = reserve(self.reader, self.book)
+        cancel(self.librarian, held, "Copy damaged")
+        held.refresh_from_db()
+        return held
+
+    def notice(self, held):
+        return (
+            "The library cancelled your reservation of “Reserved book” on "
+            f"{in_kyiv(held.cancelled_at)}."
+        )
+
+    def test_the_reader_sees_the_cancellation_until_dismissing_it(self):
+        held = self.cancelled_by_the_library()
+        self.client.force_login(self.reader)
+        entries = AuditEntry.objects.count()
+        page = self.client.get(reverse("book_list"))
+        self.assertContains(page, 'role="status"')
+        self.assertContains(page, self.notice(held))
+        self.assertContains(page, "Copy damaged")
+        dismiss = reverse("reservation_notice_dismiss", args=[held.pk])
+        self.assertContains(page, f'action="{dismiss}"')
+        held.refresh_from_db()
+        self.assertIsNone(held.cancellation_seen_at)
+        self.assertEqual(AuditEntry.objects.count(), entries)
+        response = self.client.post(dismiss, {"next": reverse("book_list")})
+        self.assertRedirects(
+            response, reverse("book_list"), fetch_redirect_response=False
+        )
+        held.refresh_from_db()
+        self.assertIsNotNone(held.cancellation_seen_at)
+        self.assertNotContains(self.client.get(reverse("book_list")), "Copy damaged")
+
+    def test_only_the_reader_dismisses_and_only_by_post(self):
+        held = self.cancelled_by_the_library()
+        dismiss = reverse("reservation_notice_dismiss", args=[held.pk])
+        self.client.force_login(account("notice-other@example.com"))
+        self.assertEqual(self.client.post(dismiss).status_code, 404)
+        self.client.force_login(self.reader)
+        self.assertEqual(self.client.get(dismiss).status_code, 405)
+        response = self.client.post(dismiss, {"next": "https://elsewhere.example/"})
+        self.assertRedirects(
+            response, reverse("reservation_my"), fetch_redirect_response=False
+        )
+        held.refresh_from_db()
+        self.assertIsNotNone(held.cancellation_seen_at)
+
+    def test_a_readers_own_cancellation_shows_no_notice(self):
+        held = reserve(self.reader, self.book)
+        cancel(self.reader, held)
+        self.client.force_login(self.reader)
+        self.assertNotContains(
+            self.client.get(reverse("book_list")), "The library cancelled"
+        )
+
+
 class ReservationRaceTests(FakeEncoderMixin, TransactionTestCase):
     """Simultaneous requests never hold or lend more copies than exist, nor more than 3
     reservations for one reader (FR-011, FR-012, SC-002)."""
 
     def race(self, calls):
         """Run each call on its own thread and connection, all released at once;
-        return which succeeded."""
+        return True for each that succeeded and the code of each refusal."""
         barrier = Barrier(len(calls))
 
         def contend(call):
@@ -766,8 +1321,8 @@ class ReservationRaceTests(FakeEncoderMixin, TransactionTestCase):
                 barrier.wait(timeout=10)
                 try:
                     call()
-                except ReservationRefused:
-                    return False
+                except ReservationRefused as refused:
+                    return refused.code
                 return True
             finally:
                 connections.close_all()
@@ -786,6 +1341,7 @@ class ReservationRaceTests(FakeEncoderMixin, TransactionTestCase):
                 self.assertEqual(Reservation.objects.filter(book=book).count(), 1)
 
     def test_a_reservation_racing_a_loan_of_the_last_copy_succeeds_exactly_once(self):
+        librarian = account("lender@example.com", ROLE_LIBRARIAN)
         for run in range(10):
             with self.subTest(run=run):
                 holder = account(f"holder{run}@example.com")
@@ -794,7 +1350,7 @@ class ReservationRaceTests(FakeEncoderMixin, TransactionTestCase):
                 results = self.race(
                     [
                         partial(reserve, holder, book),
-                        partial(lend, borrower, borrower, book, 14),
+                        partial(lend, librarian, borrower, book, 14),
                     ]
                 )
                 self.assertEqual(results.count(True), 1)
@@ -813,3 +1369,36 @@ class ReservationRaceTests(FakeEncoderMixin, TransactionTestCase):
                 results = self.race([partial(reserve, reader, book) for book in books])
                 self.assertEqual(results.count(True), 3)
                 self.assertEqual(Reservation.objects.filter(user=reader).count(), 3)
+
+    def test_two_librarians_issuing_one_reservation_start_one_loan(self):
+        librarians = [account(f"desk{n}@example.com", ROLE_LIBRARIAN) for n in range(2)]
+        for run in range(20):
+            with self.subTest(run=run):
+                reader = account(f"collector{run}@example.com")
+                book = Book.objects.create(name=f"Collected {run}", count=1)
+                held = reserve(reader, book)
+                results = self.race(
+                    [partial(issue, who, held, 14) for who in librarians]
+                )
+                self.assertCountEqual(results, [True, "already_issued"])
+                self.assertEqual(Order.objects.filter(book=book).count(), 1)
+
+    def test_a_loan_racing_an_issue_of_the_same_reservation_starts_one_loan(self):
+        librarians = [
+            account(f"counter{n}@example.com", ROLE_LIBRARIAN) for n in range(2)
+        ]
+        for run in range(20):
+            with self.subTest(run=run):
+                reader = account(f"visitor{run}@example.com")
+                book = Book.objects.create(name=f"Held copy {run}", count=1)
+                held = reserve(reader, book)
+                results = self.race(
+                    [
+                        partial(issue, librarians[0], held, 14),
+                        partial(lend, librarians[1], reader, book, 14),
+                    ]
+                )
+                self.assertEqual(results.count(True), 1)
+                self.assertEqual(Order.objects.filter(book=book).count(), 1)
+                held.refresh_from_db()
+                self.assertEqual(held.state, ISSUED)

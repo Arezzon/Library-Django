@@ -59,8 +59,8 @@ before using the `venv` setup.
 | Area | Included |
 | --- | --- |
 | Catalog | Books, descriptions, stock counts and authors |
-| Borrowing | Create, return, reopen and reassign orders |
-| Reservations | A reader reserves an available book for 48 hours, active at once; the copy stays held until it is collected or the deadline passes. At most 3 at a time, and none while a loan is overdue ([reader's guide](docs/features/reservations.md)) |
+| Borrowing | Librarians lend at the desk; return, reopen and reassign orders. Every loan starts with a librarian, and none while the reader has an overdue loan |
+| Reservations | A reader reserves an available book for 48 hours, active at once; the copy stays held until it is collected or the deadline passes. At most 3 at a time, and none while a loan is overdue. Librarians issue reserved books at the desk in one step, or cancel with a reason that the reader sees; readers cancel their own ([guide](docs/features/reservations.md)) |
 | Accounts | Email-based users, profiles and visitor/librarian roles; sign-up always creates a visitor, and only librarians change roles and account status |
 | Administration | Django admin and librarian-only management screens |
 | API | Endpoints under `/api/v1/`, each open only to its stated audience, plus Swagger and ReDoc |
@@ -427,9 +427,9 @@ changes. Each operation is open only to its audience:
 | `/api/v1/book/` | Books | Signed-in accounts read; librarians create, change and delete |
 | `/api/v1/author/` | Authors | Signed-in accounts read; librarians create, change and delete |
 | `/api/v1/user/` | Accounts | Librarians list, create, change and delete; a visitor reads and renames only their own account |
-| `/api/v1/order/` | Orders (loans) | Librarians read and change every order; a visitor reads their own and may start one for themselves |
-| `/api/v1/user/<id>/order/` | Orders for one user | That user or a librarian; only librarians change or delete |
-| `/api/v1/reservation/` | Reservations | Signed-in accounts reserve for themselves and read their own; librarians read every reservation |
+| `/api/v1/order/` | Orders (loans) | Librarians start, read and change every order; a visitor reads their own |
+| `/api/v1/user/<id>/order/` | Orders for one user | That user or a librarian reads; only librarians start, change or delete |
+| `/api/v1/reservation/` | Reservations | Signed-in accounts reserve for themselves, and read and cancel their own; librarians read every reservation, issue it (`<id>/issue/`) or cancel it with a reason (`<id>/cancel/`) |
 | `/api/v1/events/` | Queue an activity event | Signed-in accounts |
 
 A request that is not signed in gets `401` with `WWW-Authenticate: Session`. A signed-in
@@ -437,8 +437,9 @@ account without the right role gets `403`, and so does a visitor who sends `role
 `is_active`, `email` or `password` for their own account. A visitor who asks for another
 user's record gets `404`, the same answer as for a record that does not exist. Deleting an
 author who is attached to a book, or a book that has loans or reservations, gets `409`, and
-nothing changes; the web pages and the admin site refuse it too. A reservation that a rule
-refuses gets `409` with a `code` and a message that says what to do next. The schema states
+nothing changes; the web pages and the admin site refuse it too. A reservation, an issue or
+a loan that a rule refuses gets `409` with a `code` and a message that says what to do next.
+The schema states
 each operation's audience in its description and in `x-audience`.
 
 API datetimes carry the library's offset, Europe/Kyiv (`+02:00` or `+03:00`), for the same

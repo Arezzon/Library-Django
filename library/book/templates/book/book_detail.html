@@ -71,6 +71,9 @@
                 <a href="{% url 'book_update' book.id %}" class="btn-secondary w-full sm:w-auto justify-center">
                     Edit Book
                 </a>
+                <a href="{% url 'order_lend' %}?book={{ book.id }}" class="btn-primary w-full sm:w-auto justify-center">
+                    Lend Directly
+                </a>
                 {% endif %}
 
                 {% if request.user.is_visitor %}
@@ -83,11 +86,6 @@
                             Reserve for 48 Hours
                         </button>
                     </form>
-                    {% endif %}
-                    {% if not lend_refusal %}
-                    <a href="{% url 'order_create' book.id %}" class="btn-secondary w-full sm:w-auto justify-center">
-                        Borrow This Book
-                    </a>
                     {% endif %}
                 {% endif %}
             </div>
