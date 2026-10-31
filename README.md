@@ -424,7 +424,7 @@ changes. Each operation is open only to its audience:
 | `/api/v1/` | Index of the API | Anyone |
 | `/api/v1/version/` | Commit of the running image | Anyone |
 | `/api/v1/books/search/?q=` | Semantic search | Signed-in accounts |
-| `/api/v1/books/recommendations/?limit=10` | Available books ranked for the current account; [algorithm](docs/ba/recommendations.md) | Signed-in accounts, own signals only |
+| `/api/v1/books/recommendations/?limit=10` | Available books ranked for the current account with a per-book reason; [algorithm](docs/ba/recommendations.md) | Signed-in accounts, own signals only |
 | `/api/v1/book/` | Books | Signed-in accounts read; librarians create, change and delete |
 | `/api/v1/author/` | Authors | Signed-in accounts read; librarians create, change and delete |
 | `/api/v1/user/` | Accounts | Librarians list, create, change and delete; a visitor reads and renames only their own account |

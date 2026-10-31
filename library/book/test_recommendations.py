@@ -293,6 +293,7 @@ class RecommendationTests(FakeEncoderMixin, TestCase):
                 "count",
                 "available_count",
                 "authors",
+                "reason",
             },
         )
         self.assertGreater(response.json()[0]["available_count"], 0)
