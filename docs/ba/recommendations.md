@@ -1,11 +1,12 @@
 # Personalized book recommendations (KAN-31)
 
 `GET /api/v1/books/recommendations/?limit=10` returns an array of existing book
-representations (`id`, `name`, `description`, `count`, `available_count`, `authors`).
+representations (`id`, `name`, `description`, `count`, `available_count`, `authors`) plus a read-only `reason` string.
 The session account is the only signal owner, including for librarians. Anonymous
 requests receive 401; inactive accounts are refused. Only `limit` is accepted;
 account selectors such as `user_id` receive 400. `limit` defaults to 10 and must
-be an integer from 1 to 20. No event history, reader IDs or vectors are returned.
+be an integer from 1 to 20. No raw event records, reader IDs or vectors are returned. A reason may quote only
+the current account's contributing book title or search text.
 The reader interface may also call `book.recommendations.recommend_books(user, limit)`.
 
 ## Baseline ranking
@@ -49,16 +50,54 @@ KAN-30 and the KAN-55–58 reservation models are present. The shared [KAN-50 in
 `BookEmbedding` vectors, and the shared `Book.objects.with_availability(now)` stock
 rule. KAN-31 calls `read_history`, `available_candidates` and `fallback_candidates` from
 `book.recommendation_data`. The public ranking service is `recommend_books(user, limit)`; its output contains no
-personal signal payload. KAN-51 owns completing search persistence and adding explicit
+raw personal signal records; KAN-32 adds a reason based on the caller's own signal. KAN-51 owns completing search persistence and adding explicit
 likes/favorites; this ticket consumes existing recorded catalog searches only.
 Favorites/likes (KAN-51) and rating models (KAN-59–61) are not present in this base. They are not invented
 or inferred from event JSON: explicit positive/negative feedback needs integration
 when those schemas and their agreed semantics are available. KAN-59 owns rating
 CRUD and its scale, KAN-60 owns its UI, and KAN-61 owns connecting that separate
 signal to this ranking, including changed/deleted ratings. No rating is inferred
-from a like or from an arbitrary event JSON value. Recommendation explanations
-(KAN-32) remain outside this baseline. The alphabetical fallback and weights are the
+from a like or from an arbitrary event JSON value. KAN-32 supplies deterministic explanations as described below. The alphabetical fallback and weights are the
 baseline rules proposed for review, rather than a claim that another ticket defined them.
+
+## Reasons (KAN-32)
+
+Every returned book has a nonempty Ukrainian `reason` string. It is plain text,
+not HTML. The explanation reuses the signals actually included in the profile:
+for each candidate it selects the largest **positive weight × cosine similarity**
+contribution. Normalizing the total profile divides all contributions by the same
+constant, so the selected factor reflects the ranking rather than a fabricated
+post-hoc similarity. It is one main factor, not an exhaustive account of all signals.
+Equal contributions use the profile's stable source order (book IDs, then retained
+searches). Ranking, result limits and availability rules are unchanged.
+
+- A book action names its current title and the strongest recorded action. Views,
+  clicks and borrowing intent do not claim that the reader borrowed or read a book.
+  A loan says the reader borrowed it; a return says they returned it. Even a loan
+  or return is not treated as proof that the book was read.
+- A search quotes only the current account's successfully encoded search text.
+  Failed/invalid search encodings, deleted books and incompatible seed vectors do
+  not become named reasons.
+- A ranked candidate with no positive individual contribution has the neutral
+  reason `Рекомендовано за сукупністю ваших інтересів.`
+- Empty-history fallback and alphabetical padding explicitly say
+  `Доступна книга із запасного списку рекомендацій.` They do not invent a personal
+  connection, including when the rest of the response is personalized.
+
+Example fragment after a real book-view event:
+
+```json
+{
+  "name": "1984",
+  "reason": "Рекомендовано, бо ви переглядали «Clean Code: A Handbook of Agile Software Craftsmanship»."
+}
+```
+
+Titles and exact order depend on the catalog and the history. Explanation generation
+uses no LLM, additional inference, persisted reason, or per-result database lookup.
+Source titles and candidate vectors are joined in bulk. Other catalog and search
+responses do not gain the recommendation-only field. Session isolation and refusal
+of account selectors continue to apply, including to librarians.
 
 ## Verification
 

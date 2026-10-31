@@ -11,7 +11,12 @@ from .embeddings import EmbeddingGenerationError
 from .models import Book
 from .recommendations import recommend_books
 from .search import search_books, validate_query
-from .serializers import BookSearchSerializer, BookSerializer, RecommendationParameters
+from .serializers import (
+    BookRecommendationSerializer,
+    BookSearchSerializer,
+    BookSerializer,
+    RecommendationParameters,
+)
 
 
 class BookViewSet(viewsets.ModelViewSet):
@@ -73,7 +78,7 @@ class BookSearchView(GenericAPIView):
 
 class BookRecommendationsView(GenericAPIView):
     permission_classes = [IsSignedIn]
-    serializer_class = BookSerializer
+    serializer_class = BookRecommendationSerializer
 
     @extend_schema(
         parameters=[
@@ -81,8 +86,8 @@ class BookRecommendationsView(GenericAPIView):
                 "limit", int, description="Number of books, 1–20 (default 10)."
             )
         ],
-        responses={200: BookSerializer(many=True)},
-        description="Available book recommendations for the signed-in account only.",
+        responses={200: BookRecommendationSerializer(many=True)},
+        description="Available book recommendations with a personal, evidence-based reason for the signed-in account only.",
     )
     def get(self, request):
         if set(request.query_params) - {"limit"}:
