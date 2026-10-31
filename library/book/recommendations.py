@@ -17,6 +17,7 @@ from . import embeddings
 from .embedding_config import resolve
 from .embeddings import normalized_vector
 from .models import Book, BookEmbedding
+from .preferences import read_book_preferences
 
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 20
@@ -24,6 +25,7 @@ HISTORY_LIMIT = 200
 HISTORY_DAYS = 90
 SEARCH_LIMIT = 3
 SEARCH_WEIGHT = 1
+EXPLICIT_PREFERENCE_WEIGHT = 5
 # A stronger action replaces weaker/repeated actions on the same book.
 EVENT_WEIGHTS = {
     EventType.BOOK_VIEW: 1,
@@ -37,6 +39,8 @@ EVENT_WEIGHTS = {
 FALLBACK_REASON = "Доступна книга із запасного списку рекомендацій."
 PROFILE_REASON = "Рекомендовано за сукупністю ваших інтересів."
 BOOK_REASONS = {
+    "liked": "Рекомендовано, бо вам подобається «{title}».",
+    "favorite": "Рекомендовано, бо ви додали «{title}» до обраного.",
     EventType.BOOK_VIEW: "Рекомендовано, бо ви переглядали «{title}».",
     EventType.BOOK_CLICK: "Рекомендовано, бо ви цікавилися книгою «{title}».",
     EventType.BORROW_INTENT: "Рекомендовано, бо ви хотіли взяти «{title}».",
@@ -99,6 +103,9 @@ def _profile(user, now):
         elif EVENT_WEIGHTS[event_type] > weights.get(book_id, 0):
             weights[book_id] = EVENT_WEIGHTS[event_type]
             actions[book_id] = event_type
+    for preference in read_book_preferences(user):
+        weights[preference.book_id] = EXPLICIT_PREFERENCE_WEIGHT
+        actions[preference.book_id] = "liked" if preference.liked else "favorite"
     spec = resolve()
     vectors = BookEmbedding.objects.filter(
         book_id__in=weights, model=spec.repository, model_revision=spec.tag

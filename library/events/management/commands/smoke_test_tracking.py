@@ -93,7 +93,21 @@ class Command(BaseCommand):
                 },
             )
             wait(lambda: recorded(EventType.LOGIN), "login event")
-            _, html = request("/book/?q=tracking")
+            search_path = f"/book/?q=tracking&search_id={identity}"
+            _, html = request(search_path)
+            request(search_path)
+            search_event_id = uuid.uuid5(
+                uuid.NAMESPACE_URL, f"library-search:{user.pk}:{uuid.UUID(identity)}"
+            )
+            wait(
+                lambda: UserEvent.objects.filter(pk=search_event_id).exists(),
+                "search event",
+            )
+            if (
+                UserEvent.objects.filter(user=user, event_type=EventType.SEARCH).count()
+                != 1
+            ):
+                raise CommandError("Search retry was counted more than once.")
             token = csrf(html)
             request(f"/book/{book.pk}/")
             client_data = {

@@ -230,6 +230,9 @@ jobs:
           echo "== recommendations without signing in (must answer 401) =="
           test "$(curl -sS -o /dev/null -w '%{http_code}' "$base/api/v1/books/recommendations/")" = 401
 
+      - name: Verify durable reader preferences over HTTP
+        run: python scripts/smoke_reader_preferences.py
+
       # SC-002: 100 simultaneous reservations of a book's one copy succeed exactly once,
       # in each of 20 runs. The script removes its temporary accounts and books.
       - name: Verify a burst of reservations holds exactly one copy

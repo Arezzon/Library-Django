@@ -6,6 +6,8 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 
 from authentication.permissions import IsSignedIn, ReadOnlyOrLibrarian
+from events.searches import record_search, search_identity
+from events.services import EventQueueUnavailable
 
 from .embeddings import EmbeddingGenerationError
 from .models import Book
@@ -54,17 +56,23 @@ class BookSearchView(GenericAPIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
+                "search_id",
+                str,
+                description="UUID for one search action; reuse on retries, change for a new submission.",
+            ),
+            OpenApiParameter(
                 "q",
                 str,
                 required=True,
                 description="Semantic query (1–512 characters). Returns up to 20 books ranked by cosine similarity.",
-            )
+            ),
         ],
         responses={200: BookSearchSerializer(many=True)},
     )
     def get(self, request):
         try:
             query = validate_query(request.query_params.get("q", ""))
+            identity = search_identity(request.query_params.get("search_id"))
         except ValueError:
             return Response({"q": "Invalid query parameter."}, status=400)
         try:
@@ -73,7 +81,23 @@ class BookSearchView(GenericAPIView):
             )
         except EmbeddingGenerationError as _error:
             return Response({"detail": "Service temporarily unavailable."}, status=503)
-        return Response(self.get_serializer(books, many=True).data)
+        data = self.get_serializer(books, many=True).data
+        headers = {
+            "X-Search-Event-ID": str(identity),
+            "Cache-Control": "private, no-store",
+        }
+        try:
+            record_search(request, identity, query)
+        except EventQueueUnavailable:
+            headers["Retry-After"] = "5"
+            return Response(
+                {
+                    "detail": "Search history is temporarily unavailable. Retry with the same search_id."
+                },
+                status=503,
+                headers=headers,
+            )
+        return Response(data, headers=headers)
 
 
 class BookRecommendationsView(GenericAPIView):
