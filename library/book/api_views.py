@@ -9,8 +9,9 @@ from authentication.permissions import IsSignedIn, ReadOnlyOrLibrarian
 
 from .embeddings import EmbeddingGenerationError
 from .models import Book
+from .recommendations import recommend_books
 from .search import search_books, validate_query
-from .serializers import BookSearchSerializer, BookSerializer
+from .serializers import BookSearchSerializer, BookSerializer, RecommendationParameters
 
 
 class BookViewSet(viewsets.ModelViewSet):
@@ -67,4 +68,28 @@ class BookSearchView(GenericAPIView):
             )
         except EmbeddingGenerationError as _error:
             return Response({"detail": "Service temporarily unavailable."}, status=503)
+        return Response(self.get_serializer(books, many=True).data)
+
+
+class BookRecommendationsView(GenericAPIView):
+    permission_classes = [IsSignedIn]
+    serializer_class = BookSerializer
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "limit", int, description="Number of books, 1–20 (default 10)."
+            )
+        ],
+        responses={200: BookSerializer(many=True)},
+        description="Available book recommendations for the signed-in account only.",
+    )
+    def get(self, request):
+        if set(request.query_params) - {"limit"}:
+            return Response(
+                {"detail": "Only the limit parameter is accepted."}, status=400
+            )
+        parameters = RecommendationParameters(data=request.query_params)
+        parameters.is_valid(raise_exception=True)
+        books = recommend_books(request.user, parameters.validated_data["limit"])
         return Response(self.get_serializer(books, many=True).data)

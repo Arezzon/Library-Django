@@ -224,6 +224,11 @@ jobs:
             --data-urlencode "password=reader123password"
           grep -q sessionid "$jar" || { echo "::error::The demo reader could not sign in."; exit 1; }
           curl -fsS -b "$jar" "$base/api/v1/books/search/?q=detective"
+          echo "== own available book recommendations =="
+          curl -fsS -b "$jar" "$base/api/v1/books/recommendations/?limit=3" \
+            | python -c 'import json,sys; books=json.load(sys.stdin); assert 0 < len(books) <= 3; assert all(b["available_count"] > 0 for b in books)'
+          echo "== recommendations without signing in (must answer 401) =="
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$base/api/v1/books/recommendations/")" = 401
 
       # SC-002: 100 simultaneous reservations of a book's one copy succeed exactly once,
       # in each of 20 runs. The script removes its temporary accounts and books.
