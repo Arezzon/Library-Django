@@ -312,3 +312,55 @@ class BookEmbedding(models.Model):  # noqa: DJ008
     model = models.CharField(max_length=100)
     model_revision = models.CharField(max_length=40)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class BookLike(models.Model):
+    """A private current like, not a rating or an analytics event."""
+
+    user = models.ForeignKey(
+        "authentication.CustomUser", on_delete=models.CASCADE, related_name="book_likes"
+    )
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="likes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-book_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "book"], name="one_like_per_reader_book"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="book_like_user_recent")
+        ]
+
+    def __str__(self):
+        return f"Like(book={self.book_id})"
+
+
+class FavoriteBook(models.Model):
+    """A private saved book, independent of liking or rating it."""
+
+    user = models.ForeignKey(
+        "authentication.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="book_favorites",
+    )
+    book = models.ForeignKey(
+        Book, on_delete=models.CASCADE, related_name="favorite_entries"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-book_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "book"], name="one_favorite_per_reader_book"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="book_fav_user_recent")
+        ]
+
+    def __str__(self):
+        return f"Favorite(book={self.book_id})"

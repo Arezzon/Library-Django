@@ -18,7 +18,9 @@ The reader interface may also call `book.recommendations.recommend_books(user, l
    text, malformed payloads and client-origin search events are ignored.
 2. Use the strongest action per book: view **1**, click **2**, borrow intent **3**,
    borrowed or returned **4**. Repeated actions on a book do not accumulate weight.
-   These baseline weights express intent; they are not learned or calibrated ratings.
+   Current likes/favorites (KAN-51) override the behavioral weight with **5**,
+   once per book even if both flags are set. These weights express intent; they
+   are not learned or calibrated ratings.
 3. Take up to the three latest distinct nonempty search texts (case-insensitive
    deduplication; at most 200 characters each). Encode them with the existing shared
    model and its configured query prefix; each has weight **1**. No separate model,
@@ -33,7 +35,8 @@ The reader interface may also call `book.recommendations.recommend_books(user, l
 
 The baseline fallback uses no other reader's history, popularity, random sampling or
 personal data. Ranking is stable for unchanged catalog, events, model and availability.
-No new ML model, persisted profile, queue job or migration is needed. Book-only
+The ranking needs no new ML model or persisted profile. KAN-51 adds preference
+tables; search events reuse the existing queue. Book-only
 profiles need no inference; search profiles reuse the existing process-local encoder.
 Only compatible model/revision vectors contribute to the profile and cosine ranking.
 
@@ -49,15 +52,12 @@ Results describe availability at request time and do not reserve a copy.
 KAN-30 and the KAN-55–58 reservation models are present. The baseline input contract, to be aligned with KAN-50, is `UserEvent` restricted to the caller, configured compatible
 `BookEmbedding` vectors, and the shared `Book.objects.with_availability(now)` stock
 rule. The public service is `recommend_books(user, limit)`; its output contains no
-raw personal signal records; KAN-32 adds a reason based on the caller's own signal. KAN-51 owns completing search persistence and adding explicit
-likes/favorites; this ticket consumes existing recorded catalog searches only.
-Favorites/likes (KAN-51) and rating models (KAN-59–61) are not present in this base. They are not invented
-or inferred from event JSON: explicit positive/negative feedback needs integration
-when those schemas and their agreed semantics are available. KAN-59 owns rating
-CRUD and its scale, KAN-60 owns its UI, and KAN-61 owns connecting that separate
-signal to this ranking, including changed/deleted ratings. No rating is inferred
-from a like or from an arbitrary event JSON value. KAN-32 supplies deterministic explanations as described below. The alphabetical fallback and weights are the
-baseline rules proposed for review, rather than a claim that another ticket defined them.
+raw personal signal records. KAN-32 adds a reason based on the caller's own signal.
+KAN-51 adds durable current likes/favorites through `read_book_preferences(user)`
+and records successful catalog/API searches with retry-safe identities. Numerical
+ratings remain separate: KAN-59 owns CRUD/scale, KAN-60 the UI, and KAN-61 ranking
+integration. No rating is inferred from a like or arbitrary event JSON. The
+alphabetical fallback and weights remain transparent baseline rules.
 
 ## Reasons (KAN-32)
 
@@ -105,3 +105,11 @@ Docker Build smoke-test matrix against PostgreSQL. It checks personalization fro
 strength, bounded inference, repeat suppression, stable Top-N, missing history/vectors, current loan and
 reservation stock, expiry, API validation and account isolation. The CI HTTP check
 also requests recommendations as a seeded reader and verifies anonymous refusal.
+
+## Persistent explicit signals (KAN-51)
+
+Likes and favorites are now available as independent owned states. Either gives
+weight 5, with no double boost for both. Current state is read on each request;
+removal drops the explicit signal while other history can remain. See
+[the preference contract](reader-preferences.md) for API routes, search identities,
+privacy and failure handling. Numerical ratings remain a separate future stage.

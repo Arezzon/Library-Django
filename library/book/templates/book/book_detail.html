@@ -51,6 +51,24 @@
                 {% endif %}
             </div>
 
+            <section aria-label="Your book preferences" class="flex flex-wrap gap-3 items-center">
+                <form method="post" action="{% url 'book_preference_update' book.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="{% if preferences.liked %}unlike{% else %}like{% endif %}">
+                    <button type="submit" aria-pressed="{{ preferences.liked|yesno:'true,false' }}" class="btn-secondary">
+                        {% if preferences.liked %}Unlike{% else %}Like{% endif %}
+                    </button>
+                </form>
+                <form method="post" action="{% url 'book_preference_update' book.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="{% if preferences.favorite %}unfavorite{% else %}favorite{% endif %}">
+                    <button type="submit" aria-pressed="{{ preferences.favorite|yesno:'true,false' }}" class="btn-secondary">
+                        {% if preferences.favorite %}Remove from favorites{% else %}Save to favorites{% endif %}
+                    </button>
+                </form>
+                <a href="{% url 'my_book_preferences' %}" class="text-indigo-600">My saved books</a>
+            </section>
+
             <!-- Description Section -->
             <div>
                 <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h3>

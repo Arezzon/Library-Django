@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}My Saved Books - Library{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <h1 class="text-2xl font-bold">My Saved Books</h1>
+    <p class="text-slate-600">Keep books you like and want to find again in your private collection.</p>
+    <nav aria-label="Filter saved books" class="flex gap-4">
+        <a href="{% url 'my_book_preferences' %}" class="btn-secondary" {% if kind == 'all' %}aria-current="page"{% endif %}>All saved books</a>
+        <a href="?kind=likes" class="btn-secondary" {% if kind == 'likes' %}aria-current="page"{% endif %}>Likes</a>
+        <a href="?kind=favorites" class="btn-secondary" {% if kind == 'favorites' %}aria-current="page"{% endif %}>Favorites</a>
+    </nav>
+    {% for book in books %}
+    <article class="card p-5 space-y-3">
+        <a href="{% url 'book_detail' book.pk %}" class="text-lg font-semibold text-indigo-600">{{ book.name }}</a>
+        <p>{{ book.available_count }} of {{ book.count }} copies available</p>
+        <div class="flex flex-wrap gap-3">
+            {% if book.liked %}
+            <form method="post" action="{% url 'book_preference_update' book.pk %}">
+                {% csrf_token %}<input type="hidden" name="action" value="unlike">
+                <button class="btn-secondary" type="submit" aria-label="Unlike {{ book.name }}">Unlike</button>
+            </form>
+            {% endif %}
+            {% if book.favorite %}
+            <form method="post" action="{% url 'book_preference_update' book.pk %}">
+                {% csrf_token %}<input type="hidden" name="action" value="unfavorite">
+                <button class="btn-secondary" type="submit" aria-label="Remove {{ book.name }} from favorites">Remove from favorites</button>
+            </form>
+            {% endif %}
+        </div>
+    </article>
+    {% empty %}
+    <div class="card p-6"><p>No saved books yet. Like a book or save it to favorites from its details page.</p></div>
+    {% endfor %}
+    <a href="{% url 'book_list' %}" class="text-indigo-600">Browse the catalog</a>
+</div>
+{% endblock %}
