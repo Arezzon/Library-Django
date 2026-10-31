@@ -157,22 +157,88 @@ def listed(reservations, now):
     ).order_by("holding", "deadline", "-created_at")
 
 
+def time_left(deadline, now):
+    """The time until ``deadline`` as pages show it, in its two largest units: "1 day
+    3 hours left" (FR-019)."""
+    minutes = max(0, int((deadline - now).total_seconds() // 60))
+    if minutes == 0:
+        return "less than a minute left"
+    days, minutes = divmod(minutes, 24 * 60)
+    hours, minutes = divmod(minutes, 60)
+    units = [(days, "day"), (hours, "hour"), (minutes, "minute")]
+    while units[0][0] == 0:
+        units.pop(0)
+    shown = [f"{n} {unit}{'' if n == 1 else 's'}" for n, unit in units[:2] if n]
+    return " ".join(shown) + " left"
+
+
 def next_step(reservation, now):
-    """What the reader does next, for My reservations (FR-019)."""
+    """What the reader does next, for My reservations (FR-019). An issued reservation
+    reads its loan, so the list selects it."""
     state = reservation.effective_state(now)
     if state == ReservationState.ACTIVE:
         return f"Collect it from a librarian before {local(reservation.expires_at)}."
     if state == ReservationState.ISSUED:
-        return "Collected. It is now on loan; see My orders."
+        loan = reservation.loan
+        if loan is None:
+            return "Collected."
+        if loan.end_at is not None:
+            return f"Returned on {local(loan.end_at, DATE)}."
+        return f"On loan. Return it by {local(loan.plated_end_at, DATE)}."
+    again = "Reserve it again if a copy is available."
     if state == ReservationState.EXPIRED:
-        return "The 48 hours ended. Reserve it again if a copy is available."
-    return "Cancelled."
+        return f"The 48 hours ended. {again}"
+    if reservation.cancelled_by_id == reservation.user_id:
+        return f"You cancelled it. {again}"
+    return f"The library cancelled it on {local(reservation.cancelled_at)}. {again}"
 
 
 def eligibility(reader, book, now):
     """Why ``reader`` may not reserve ``book`` now, or None: the same rules without
     locks, for pages to show (FR-020)."""
     return check(reader, book, now, reserving=True)
+
+
+def issue_refusal(reservation, reader, book, now):
+    """The first rule that refuses issuing ``reservation`` at ``now``, or None. issue()
+    runs it on the locked rows; the issue page runs it without locks (FR-020)."""
+    refused = check(
+        reader,
+        book,
+        now,
+        reserving=False,
+        librarian=True,
+        availability=False,
+        own_loan=reservation.loan_id,
+    )
+    if refused is not None:
+        return refused
+    state = reservation.effective_state(now)
+    if state == ReservationState.EXPIRED:
+        return refusal(
+            "reservation_expired",
+            librarian=True,
+            deadline=local(reservation.expires_at),
+        )
+    if state == ReservationState.ISSUED and reservation.loan_id is not None:
+        return refusal(
+            "already_issued",
+            librarian=True,
+            loan=reservation.loan_id,
+            context={"loan": reservation.loan_id},
+        )
+    if state != ReservationState.ACTIVE:
+        return refusal("not_active", librarian=True, state=state)
+    return None
+
+
+def cancel_refusal(reservation, now, *, librarian):
+    """Why ``reservation`` cannot be cancelled at ``now``, or None. cancel() runs it on
+    the locked row; the cancel page runs it without a lock (FR-020)."""
+    state = reservation.effective_state(now)
+    if state != ReservationState.ACTIVE:
+        return refusal("not_active", librarian=librarian, state=state)
+    return None
 
 
 def lock(reader_id, book_id):
@@ -306,33 +372,9 @@ def issue(actor, reservation, days, *, now=None):
         reader, book = lock(reservation.user_id, reservation.book_id)
         # Read once the rows are held, so the deadline is checked as the issue commits.
         now = now or timezone.now()
-        refused = check(
-            reader,
-            book,
-            now,
-            reserving=False,
-            librarian=True,
-            availability=False,
-            own_loan=reservation.loan_id,
-        )
+        refused = issue_refusal(reservation, reader, book, now)
         if refused is not None:
             raise refused
-        state = reservation.effective_state(now)
-        if state == ReservationState.EXPIRED:
-            raise refusal(
-                "reservation_expired",
-                librarian=True,
-                deadline=local(reservation.expires_at),
-            )
-        if state == ReservationState.ISSUED and reservation.loan_id is not None:
-            raise refusal(
-                "already_issued",
-                librarian=True,
-                loan=reservation.loan_id,
-                context={"loan": reservation.loan_id},
-            )
-        if state != ReservationState.ACTIVE:
-            raise refusal("not_active", librarian=True, state=state)
         return start_loan(reader, book, now + timedelta(days=days), reservation, now)
 
 
@@ -352,9 +394,9 @@ def cancel(actor, reservation, reason="", *, now=None):
     with transaction.atomic():
         reservation = Reservation.objects.select_for_update().get(pk=reservation.pk)
         now = now or timezone.now()
-        state = reservation.effective_state(now)
-        if state != ReservationState.ACTIVE:
-            raise refusal("not_active", librarian=librarian, state=state)
+        refused = cancel_refusal(reservation, now, librarian=librarian)
+        if refused is not None:
+            raise refused
         reservation.change_state(ReservationState.CANCELLED, now)
         reservation.cancelled_by = actor
         reservation.cancelled_at = now

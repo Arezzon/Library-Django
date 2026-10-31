@@ -670,9 +670,9 @@ class ReservingTests(ReservationTestCase):
         for text in (
             "Collect it from a librarian before",
             "The 48 hours ended. Reserve it again if a copy is available.",
-            "Collected. It is now on loan; see My orders.",
-            "Cancelled.",
-            "Copy damaged",
+            "Collected.",
+            "The library cancelled it on",
+            "Reason: Copy damaged",
         ):
             with self.subTest(text=text):
                 self.assertContains(page, text)
@@ -687,10 +687,10 @@ class ReservingTests(ReservationTestCase):
             "one."
         )
         client = self.signed_in(self.librarian)
+        # The issue page comes back with the refusal.
         response = client.post(
-            reverse("reservation_issue", args=[held.pk]), {"days": 14}, follow=True
+            reverse("reservation_issue", args=[held.pk]), {"days": 14}
         )
-        self.assertEqual(response.redirect_chain, [(reverse("reservation_desk"), 302)])
         self.assertContains(response, refusal)
         response = client.post(
             reverse("order_lend"),
@@ -910,7 +910,11 @@ class DeskTests(ReservationTestCase):
                 self.assertEqual(client.post(url, {"reason": reason}).status_code, 200)
                 held.refresh_from_db()
                 self.assertEqual(held.state, ACTIVE)
-        response = client.post(url, {"reason": "Copy damaged"})
+        confirmation = client.post(url, {"reason": "Copy damaged"})
+        self.assertContains(confirmation, "Confirm Cancellation")
+        held.refresh_from_db()
+        self.assertEqual(held.state, ACTIVE)
+        response = client.post(url, {"reason": "Copy damaged", "confirm": "yes"})
         self.assertRedirects(
             response, reverse("reservation_desk"), fetch_redirect_response=False
         )
@@ -1143,7 +1147,7 @@ class DeskTests(ReservationTestCase):
             )
             cancelled = client.post(
                 reverse("reservation_cancel", args=[other.pk]),
-                {"reason": "Copy damaged"},
+                {"reason": "Copy damaged", "confirm": "yes"},
             )
         self.assertEqual((issued.status_code, cancelled.status_code), (302, 302))
         held.refresh_from_db()
@@ -1170,7 +1174,7 @@ class DeskTests(ReservationTestCase):
         for text in (
             "desk-other@example.com",
             in_kyiv(sooner.expires_at),
-            "1\xa0day",  # the time left, as Django's timeuntil writes it
+            "1 day 21 hours left",
             reverse("reservation_issue", args=[sooner.pk]),
             reverse("reservation_cancel", args=[sooner.pk]),
         ):
@@ -1304,6 +1308,248 @@ class CancellationNoticeTests(ReservationTestCase):
         self.assertNotContains(
             self.client.get(reverse("book_list")), "The library cancelled"
         )
+
+
+class TimeLeftTests(SimpleTestCase):
+    """The time left, as pages show it: its two largest units (FR-019)."""
+
+    def test_the_time_left_reads_in_days_hours_and_minutes(self):
+        from .services import time_left
+
+        now = datetime(2026, 10, 31, 12, 0, tzinfo=UTC)
+        for left, text in (
+            (timedelta(days=1, hours=3, minutes=20), "1 day 3 hours left"),
+            (timedelta(hours=47, minutes=59, seconds=59), "1 day 23 hours left"),
+            (timedelta(days=2), "2 days left"),
+            (timedelta(days=1, minutes=30), "1 day left"),
+            (timedelta(hours=3), "3 hours left"),
+            (timedelta(hours=1, minutes=1), "1 hour 1 minute left"),
+            (timedelta(minutes=45, seconds=30), "45 minutes left"),
+            (timedelta(seconds=30), "less than a minute left"),
+        ):
+            with self.subTest(left=left):
+                self.assertEqual(time_left(now + left, now), text)
+
+
+class ReservationPageTests(ReservationTestCase):
+    """The finished pages: the time left, deadlines with their zone, the next step in
+    each state, a confirmation before cancelling, and the services' messages on every
+    reservation page (FR-019, FR-020, research R17)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.librarian = account("pages-librarian@example.com", ROLE_LIBRARIAN)
+
+    def signed_in(self, user):
+        self.client.force_login(user)
+        return self.client
+
+    def test_pages_that_show_a_deadline_show_the_time_left_and_the_zone(self):
+        held = self.reserve(created_at=timezone.now() - timedelta(hours=20, minutes=30))
+        deadline = in_kyiv(held.expires_at)
+        self.assertRegex(deadline, r" EES?T$")
+        cancel_url = reverse("reservation_cancel", args=[held.pk])
+        pages = (
+            (self.reader, reverse("reservation_my")),
+            (self.reader, cancel_url),
+            (self.librarian, reverse("reservation_desk")),
+            (self.librarian, reverse("reservation_issue", args=[held.pk])),
+            (self.librarian, cancel_url),
+        )
+        for user, url in pages:
+            page = self.signed_in(user).get(url)
+            with self.subTest(user=user.email, url=url):
+                self.assertContains(page, deadline)
+                self.assertContains(page, "1 day 3 hours left")
+
+    def test_an_issued_reservation_says_when_to_return_the_book(self):
+        loan = issue(self.librarian, reserve(self.reader, self.book), 14)
+        client = self.signed_in(self.reader)
+        due = in_kyiv(loan.plated_end_at, "j M Y")
+        self.assertContains(
+            client.get(reverse("reservation_my")), f"On loan. Return it by {due}."
+        )
+        loan.end_at = timezone.now()
+        loan.save()
+        self.assertContains(
+            client.get(reverse("reservation_my")),
+            f"Returned on {in_kyiv(loan.end_at, 'j M Y')}.",
+        )
+
+    def test_a_cancellation_says_who_cancelled_it(self):
+        mine = reserve(self.reader, self.book)
+        cancel(self.reader, mine)
+        theirs = reserve(self.reader, Book.objects.create(name="Second book", count=1))
+        cancel(self.librarian, theirs, "Copy damaged")
+        theirs.refresh_from_db()
+        page = self.signed_in(self.reader).get(reverse("reservation_my"))
+        for text in (
+            "You cancelled it. Reserve it again if a copy is available.",
+            f"The library cancelled it on {in_kyiv(theirs.cancelled_at)}. Reserve it "
+            "again if a copy is available.",
+            "Reason: Copy damaged",
+        ):
+            with self.subTest(text=text):
+                self.assertContains(page, text)
+
+    def test_a_librarian_confirms_the_reason_before_the_reservation_is_cancelled(self):
+        held = reserve(self.reader, self.book)
+        client = self.signed_in(self.librarian)
+        url = reverse("reservation_cancel", args=[held.pk])
+        confirmation = client.post(url, {"reason": "  Copy damaged "})
+        self.assertContains(confirmation, "Confirm Cancellation")
+        self.assertContains(
+            confirmation, '<input type="hidden" name="reason" value="Copy damaged">'
+        )
+        self.assertContains(confirmation, 'name="confirm" value="yes"')
+        self.assertNotContains(confirmation, "<textarea")
+        edit = client.post(url, {"reason": "Copy damaged", "edit": "yes"})
+        self.assertContains(edit, "Copy damaged</textarea>")
+        self.assertNotContains(edit, "Confirm Cancellation")
+        held.refresh_from_db()
+        self.assertEqual(held.state, ACTIVE)
+        self.assertFalse(
+            AuditEntry.objects.filter(action="reservation_cancelled").exists()
+        )
+        response = client.post(url, {"reason": "Copy damaged", "confirm": "yes"})
+        self.assertRedirects(
+            response, reverse("reservation_desk"), fetch_redirect_response=False
+        )
+        held.refresh_from_db()
+        self.assertEqual((held.state, held.cancel_reason), (CANCELLED, "Copy damaged"))
+
+    def test_the_readers_cancel_page_is_the_confirmation_step(self):
+        held = reserve(self.reader, self.book)
+        page = self.signed_in(self.reader).get(
+            reverse("reservation_cancel", args=[held.pk])
+        )
+        self.assertContains(page, "Yes, Cancel Reservation")
+        self.assertContains(page, "Keep Reservation")
+        held.refresh_from_db()
+        self.assertEqual(held.state, ACTIVE)
+
+    def test_the_issue_page_says_why_it_cannot_issue_and_what_to_do_next(self):
+        now = timezone.now()
+        lapsed = self.reserve(created_at=now - timedelta(hours=49))
+        issued_from = reserve(self.reader, Book.objects.create(name="Issued", count=1))
+        loan = issue(self.librarian, issued_from, 14)
+        cancelled = reserve(self.reader, Book.objects.create(name="Cancelled", count=1))
+        cancel(self.reader, cancelled)
+        late_reader = account("pages-late@example.com")
+        overdue_held = reserve(late_reader, self.book)
+        late = Order.objects.create(
+            user=late_reader,
+            book=Book.objects.create(name="Overdue book", count=1),
+            plated_end_at=now - timedelta(days=1),
+        )
+        cases = (
+            (
+                lapsed,
+                f"This reservation expired at {in_kyiv(lapsed.expires_at)}. You can "
+                "lend the book directly only if a copy is available.",
+                f'href="{reverse("order_lend")}?book={self.book.pk}&amp;reader='
+                f'{self.reader.pk}"',
+            ),
+            (
+                issued_from,
+                f"This reservation was already issued as loan #{loan.pk}.",
+                f'href="{reverse("order_update", args=[loan.pk])}"',
+            ),
+            (
+                cancelled,
+                "This reservation is cancelled; nothing was changed.",
+                "Back to Desk",
+            ),
+            (
+                overdue_held,
+                "Test Reader has an overdue loan: “Overdue book”, due "
+                f"{in_kyiv(late.plated_end_at, 'j M Y')}. It must be returned first.",
+                f'href="{reverse("books_by_user", args=[late_reader.pk])}"',
+            ),
+        )
+        client = self.signed_in(self.librarian)
+        for reservation, message, next_step in cases:
+            url = reverse("reservation_issue", args=[reservation.pk])
+            for page in (client.get(url), client.post(url, {"days": 14})):
+                with self.subTest(url=url, method=page.wsgi_request.method):
+                    self.assertContains(page, message)
+                    self.assertContains(page, next_step)
+                    self.assertNotContains(page, 'name="days"')
+        self.assertEqual(Order.objects.count(), 2)
+
+    def test_the_cancel_page_says_when_a_reservation_is_no_longer_active(self):
+        lapsed = self.reserve(created_at=timezone.now() - timedelta(hours=49))
+        url = reverse("reservation_cancel", args=[lapsed.pk])
+        for user, message in (
+            (self.reader, "This reservation is no longer active."),
+            (self.librarian, "This reservation is expired; nothing was changed."),
+        ):
+            client = self.signed_in(user)
+            for page in (
+                client.get(url),
+                client.post(url, {"reason": "Too late", "confirm": "yes"}),
+            ):
+                with self.subTest(user=user.email, method=page.wsgi_request.method):
+                    self.assertContains(page, message)
+                    self.assertNotContains(page, "Yes, Cancel Reservation")
+        lapsed.refresh_from_db()
+        self.assertEqual(lapsed.state, ACTIVE)  # the scheduled expiry records it
+
+    def test_a_waiting_message_shows_on_every_reservation_page(self):
+        held = reserve(self.reader, self.book)
+        client = self.signed_in(self.librarian)
+        for n, url in enumerate(
+            (
+                reverse("reservation_desk"),
+                reverse("reservation_issue", args=[held.pk]),
+                reverse("reservation_cancel", args=[held.pk]),
+                reverse("order_lend"),
+                reverse("book_detail", args=[self.book.pk]),
+            )
+        ):
+            book = Book.objects.create(name=f"Lent book {n}", count=1)
+            lend_form = {"reader": self.reader.pk, "book": book.pk, "days": 14}
+            client.post(reverse("order_lend"), lend_form)
+            with self.subTest(url=url):
+                self.assertContains(
+                    client.get(url), f"Lent “Lent book {n}” to Test Reader"
+                )
+        client = self.signed_in(self.reader)
+        for n, url in enumerate(
+            (
+                reverse("reservation_cancel", args=[held.pk]),
+                reverse("book_detail", args=[self.book.pk]),
+            )
+        ):
+            book = Book.objects.create(name=f"Wanted book {n}", count=1)
+            client.post(reverse("reserve", args=[book.pk]))
+            with self.subTest(url=url):
+                self.assertContains(client.get(url), f"Reserved “Wanted book {n}”.")
+
+    def test_the_book_page_links_the_next_step_and_counts_held_copies(self):
+        last = Book.objects.create(name="Last copy", count=1)
+        reserve(self.reader, last)
+        page = self.signed_in(self.reader).get(reverse("book_detail", args=[last.pk]))
+        self.assertContains(page, "You already reserved “Last copy”.")
+        self.assertContains(page, "See My Reservations")
+        other = account("pages-other@example.com")
+        client = self.signed_in(other)
+        page = client.get(reverse("book_detail", args=[last.pk]))
+        self.assertContains(page, "0 of 1 Available")
+        self.assertNotContains(page, "Borrowed")
+        catalog = client.get(reverse("book_list"))
+        self.assertContains(catalog, "0 of 1 in stock")
+        self.assertNotContains(catalog, "(All borrowed)")
+        self.assertNotContains(catalog, "(Borrowed)")
+        Order.objects.create(
+            user=other,
+            book=Book.objects.create(name="Overdue book", count=1),
+            plated_end_at=timezone.now() - timedelta(days=1),
+        )
+        page = client.get(reverse("book_detail", args=[self.book.pk]))
+        self.assertContains(page, "was due on")
+        self.assertContains(page, "See My Orders")
 
 
 class ReservationRaceTests(FakeEncoderMixin, TransactionTestCase):

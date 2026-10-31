@@ -38,6 +38,7 @@ need to read any application code.
 - [Create the production GitHub environment](#create-the-production-github-environment)
 - [Rotate the webhook](#rotate-the-webhook)
 - [Measure the stack on the Pi](#measure-the-stack-on-the-pi)
+- [Check reservations under load](#check-reservations-under-load)
 - [Confirm deployments](#confirm-deployments)
 - [What the pipeline messages mean](#what-the-pipeline-messages-mean)
 - [Pin, roll back and unpin](#pin-roll-back-and-unpin)
@@ -628,6 +629,45 @@ and deletes a few temporary books named `budget-check-…`.
    once the targets are met there, or relaxed to the measured values with the project owner's
    sign-off. The catalog timing is also recorded in `specs/003-priority-tech-debt/research.md`,
    under "Measurements".
+
+## Check reservations under load
+
+Do this once after the reservation pages are deployed, at a quiet time. It checks two targets on
+the Pi:
+
+- when 100 readers reserve a book's only copy at the same moment, exactly one reservation holds
+  it;
+- while 30 readers reserve at the same moment, 95% of reservations, issues and cancellations
+  finish within **3 s**.
+
+The check needs Python 3 and Docker on the Pi, like the stack measurement above. Through the web
+container it adds temporary readers named `load-check-…@example.invalid`, one temporary
+librarian and two books named `load-check-…`, and signs the accounts in without passwords. It
+removes them afterwards, even when it stops early, with their reservations, loans and analytics
+events. Their reservations, loans and deletions stay in the audit trail, as every critical change
+does.
+
+1. Get the script, as in [Measure the stack on the Pi](#measure-the-stack-on-the-pi).
+
+2. Run it against your stack (use the stack name from Portainer and the site's port):
+
+   ```bash
+   python3 scripts/smoke_reservation_load.py --project-name library \
+     --base-url http://localhost:8000 --burst 100 --readers 30
+   ```
+
+   It prints a JSON summary ending in `"result": "PASS"` or `"result": "FAIL: …"`:
+   - `burst.successes` and `burst.copies_held` must both read `[1]`; every other attempt is
+     refused with `no_copy_available`. `--runs 20` repeats the burst 20 times, as CI does.
+   - `load.reserve_ms`, `load.issue_ms` and `load.cancel_ms` give each operation's `p95` in
+     milliseconds, which must stay under `max_p95_ms`, 3000.
+   - `removed` counts the temporary accounts, books and analytics events it deleted.
+
+3. If a `p95` is too high, run the check again when nothing else is running, such as a backup or
+   an update. A burst that holds more than one copy is a defect: keep the JSON and report it.
+
+4. **Report the results**: send the JSON summary to the maintainers. It is recorded in
+   `specs/003-priority-tech-debt/research.md`, under "Measurements".
 
 ## Confirm deployments
 

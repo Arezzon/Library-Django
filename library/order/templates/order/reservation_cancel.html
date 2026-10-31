@@ -1,12 +1,23 @@
 {% extends 'base.html' %}
+{% load reservations %}
 
 {% block title %}Cancel Reservation | LibrarySys{% endblock %}
 
 {% block content %}
 <div class="max-w-xl mx-auto px-0 sm:px-4 py-4 sm:py-8">
+    {% if messages %}
+        <div class="space-y-2 mb-5">
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
     <div class="card">
         <div class="card-header">
-            <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">Cancel Reservation</h1>
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">{% if confirming %}Confirm Cancellation{% else %}Cancel Reservation{% endif %}</h1>
             <p class="text-xs text-slate-500 truncate">{{ reservation.book.name }}</p>
         </div>
 
@@ -16,27 +27,49 @@
                 <div><dt class="inline font-semibold text-slate-900">Reader:</dt> <dd class="inline">{{ reservation.user.first_name }} {{ reservation.user.last_name }} ({{ reservation.user.email }})</dd></div>
                 {% endif %}
                 <div><dt class="inline font-semibold text-slate-900">Book:</dt> <dd class="inline">{{ reservation.book.name }}</dd></div>
-                <div><dt class="inline font-semibold text-slate-900">Deadline:</dt> <dd class="inline">{{ reservation.expires_at|date:"j M Y, H:i T" }}</dd></div>
+                <div><dt class="inline font-semibold text-slate-900">Deadline:</dt> <dd class="inline">{{ reservation.expires_at|date:"j M Y, H:i T" }}{% if reservation.state == "active" and reservation.expires_at > now %} ({{ reservation.expires_at|time_left:now }}){% endif %}</dd></div>
             </dl>
 
-            <p class="mb-5 text-sm text-slate-600">
-                {% if own %}
-                    Cancelling frees the copy for other readers at once. This cannot be undone.
-                {% else %}
-                    Cancelling frees the copy at once. The reader sees the cancellation and your reason the next time they open the site.
-                {% endif %}
-            </p>
-
-            <form method="post" class="space-y-5">
-                {% csrf_token %}
-                {% if not own %}
-                    {% include 'includes/form_snippet.html' %}
-                {% endif %}
-                <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
-                    <a href="{% url back %}" class="btn-secondary w-full sm:w-auto justify-center">Keep Reservation</a>
-                    <button type="submit" class="btn-danger w-full sm:w-auto justify-center">Cancel Reservation</button>
+            {% if refusal %}
+                <div class="alert-error mb-5"><span>{{ refusal.message }}</span></div>
+                <div class="pt-4 border-t border-slate-100 flex justify-end">
+                    <a href="{% url back %}" class="btn-secondary w-full sm:w-auto justify-center">{% if own %}Back to My Reservations{% else %}Back to Desk{% endif %}</a>
                 </div>
-            </form>
+            {% elif confirming %}
+                <p class="mb-3 text-sm text-slate-600">Cancelling frees the copy at once. The reader sees the cancellation and this reason the next time they open the site:</p>
+                <blockquote class="mb-5 p-3.5 rounded-xl border border-slate-200 text-sm text-slate-900 whitespace-pre-line">{{ form.cleaned_data.reason }}</blockquote>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="reason" value="{{ form.cleaned_data.reason }}">
+                    <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
+                        <button type="submit" name="edit" value="yes" class="btn-secondary w-full sm:w-auto justify-center">Change Reason</button>
+                        <button type="submit" name="confirm" value="yes" class="btn-danger w-full sm:w-auto justify-center">Yes, Cancel Reservation</button>
+                    </div>
+                </form>
+            {% else %}
+                <p class="mb-5 text-sm text-slate-600">
+                    {% if own %}
+                        Cancel your reservation? Cancelling frees the copy for other readers at once. This cannot be undone.
+                    {% else %}
+                        Cancelling frees the copy at once. Give the reason the reader will see; you confirm it on the next step.
+                    {% endif %}
+                </p>
+
+                <form method="post" class="space-y-5">
+                    {% csrf_token %}
+                    {% if not own %}
+                        {% include 'includes/form_snippet.html' %}
+                    {% endif %}
+                    <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
+                        <a href="{% url back %}" class="btn-secondary w-full sm:w-auto justify-center">Keep Reservation</a>
+                        {% if own %}
+                            <button type="submit" class="btn-danger w-full sm:w-auto justify-center">Yes, Cancel Reservation</button>
+                        {% else %}
+                            <button type="submit" class="btn-primary w-full sm:w-auto justify-center">Continue</button>
+                        {% endif %}
+                    </div>
+                </form>
+            {% endif %}
         </div>
     </div>
 </div>

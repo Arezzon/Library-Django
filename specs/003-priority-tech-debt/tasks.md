@@ -1145,9 +1145,9 @@ themselves or by reserving (FR-061).
 
 ### Tests for User Story 3 (PR 7)
 
-- [ ] T128 [US3] Create branch `feat/kan-58-reservation-pages`, either from a freshly fetched
+- [x] T128 [US3] Create branch `feat/kan-58-reservation-pages`, either from a freshly fetched
   `origin/main` with PR 6 merged, or from PR 6's verified branch. (Jira) Move KAN-58 to In Progress.
-- [ ] T129 [P] [US3] Create `library/order/test_reservation_journeys.py` (FR-021), running these
+- [x] T129 [P] [US3] Create `library/order/test_reservation_journeys.py` (FR-021), running these
   journeys through the web and the API:
   - A reader reserves. A librarian issues it from the desk, the loan appears in the reader's loans,
     the librarian records the return, and the copy is available again.
@@ -1157,12 +1157,12 @@ themselves or by reserving (FR-061).
     records it.
 
   Every form field on these pages has a label.
-- [ ] T130 [P] [US3] In `library/order/test_queries.py`, add the desk list with 1 and 50 active
+- [x] T130 [P] [US3] In `library/order/test_queries.py`, add the desk list with 1 and 50 active
   reservations.
 
 ### Implementation for User Story 3 (PR 7)
 
-- [ ] T131 [US3] Finish the pages in `library/order/templates/order/*.html` and
+- [x] T131 [US3] Finish the pages in `library/order/templates/order/*.html` and
   `library/book/templates/book/book_detail.html` (FR-019, FR-020):
   - the time left, such as "1 day 3 hours left";
   - every deadline with its zone;
@@ -1170,7 +1170,7 @@ themselves or by reserving (FR-061).
   - a confirmation step before cancelling;
   - the services' plain messages, shown on every reservation page;
   - empty states.
-- [ ] T132 [US3] Create `scripts/smoke_reservation_load.py` (R17):
+- [x] T132 [US3] Create `scripts/smoke_reservation_load.py` (R17):
   - **Options**: `--compose-file` or `--project-name`, `--base-url`, `--burst`, `--runs` and
     `--readers`.
   - **Setup**: through `docker exec <web> python manage.py shell -c`, it creates:
@@ -1183,20 +1183,20 @@ themselves or by reserving (FR-061).
     cancelled. It reports each operation's p95 against 3000 ms.
   - **Output and cleanup**: it prints a JSON summary ending in `"result": "PASS"` or `"FAIL: …"`. It
     deletes its accounts, whose reservations and loans go with them, and then its books.
-- [ ] T133 [US3] In `.github/workflows/docker-build.yml`, on the `ubuntu-latest` leg, run `python
+- [x] T133 [US3] In `.github/workflows/docker-build.yml`, on the `ubuntu-latest` leg, run `python
   scripts/smoke_reservation_load.py --compose-file docker-compose-dev.yml --burst 100 --runs 20`
   after the stack starts (SC-002).
-- [ ] T134 [P] [US3] Finish the docs:
+- [x] T134 [P] [US3] Finish the docs:
   - complete `docs/features/reservations.md`: both sides of the desk, the API summary and the refusal
     codes;
   - add "Check reservations under load", with the Pi command, to
     `docs/deployment/raspberry-pi-portainer.md`;
   - update the README.
-- [ ] T135 [US3] Constitution PATCH amendment (R29), in `.specify/memory/constitution.md`. With the
+- [x] T135 [US3] Constitution PATCH amendment (R29), in `.specify/memory/constitution.md`. With the
   handoff set to `blocked`, use `/speckit-constitution` to add the reservation burst to the
   smoke-test in workflow item 4. Add its entry to `docs/shared/changelog.md`, then set the handoff
   back.
-- [ ] T136 [US3] Verify and prepare the pull request:
+- [x] T136 [US3] Verify and prepare the pull request:
   - run quickstart.md §7 steps 1 and 2, lint, format and the diff coverage;
   - add the changelog entry;
   - use the title `feat(order): complete the reservation pages and messages (KAN-58)`.
