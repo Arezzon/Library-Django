@@ -108,6 +108,15 @@ class ReservationListQueryTests(FakeEncoderMixin, TestCase):
         )
         self.assertContains(response, "Reserved title", count=50)
 
+    def test_the_desk(self):
+        response = assert_same_query_count(
+            self,
+            self.signed_in(self.librarian),
+            reverse("reservation_desk"),
+            self.add_reservations,
+        )
+        self.assertEqual(len(response.context["reservations"]), 50)
+
     def test_the_api_list_for_a_reader(self):
         response = assert_same_query_count(
             self,

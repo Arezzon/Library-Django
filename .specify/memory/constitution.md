@@ -167,10 +167,11 @@ single model definition keep local, CI and server builds identical.
    - the `smoke-test` job, on native `linux/amd64` and `linux/arm64` runners: tracking
      JavaScript tests, a backup of the running database restored into a scratch database whose
      table row counts must match, `manage.py test authentication author book order events audit`
-     on PostgreSQL with real-model tests, endpoint checks, the asynchronous tracking smoke test,
-     broker and worker recovery, a check that no service's log or the test output holds the run's
-     secrets, the demo passwords or the search words, and a validity check of
-     `docker-compose.yml`;
+     on PostgreSQL with real-model tests, endpoint checks, a reservation burst on the
+     `ubuntu-latest` leg (100 simultaneous attempts to reserve a book's last copy, exactly 1 of
+     which must succeed, in each of 20 runs), the asynchronous tracking smoke test, broker and
+     worker recovery, a check that no service's log or the test output holds the run's secrets,
+     the demo passwords or the search words, and a validity check of `docker-compose.yml`;
    - CodeQL, with any alert newly raised by the change resolved or dismissed with a recorded
      reason.
 
@@ -210,4 +211,4 @@ single model definition keep local, CI and server builds identical.
   or a component in Technology & Platform Constraints changes, so the rules match what is
   actually enforced.
 
-**Version**: 2.3.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-28
+**Version**: 2.3.1 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-31

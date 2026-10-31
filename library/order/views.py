@@ -78,7 +78,12 @@ def order_lend(request: HttpRequest) -> HttpResponse:
                 )
                 return redirect("order_all")
     else:
-        form = LendForm(initial={"book": request.GET.get("book")})
+        form = LendForm(
+            initial={
+                "book": request.GET.get("book"),
+                "reader": request.GET.get("reader"),
+            }
+        )
     return render(request, "order/order_lend.html", {"form": form})
 
 
@@ -103,7 +108,8 @@ def reserve(request: HttpRequest, book_id: int) -> HttpResponse:
 def reservation_my(request: HttpRequest) -> HttpResponse:
     now = timezone.now()
     reservations = services.listed(
-        Reservation.objects.filter(user=request.user).select_related("book"), now
+        Reservation.objects.filter(user=request.user).select_related("book", "loan"),
+        now,
     )
     rows = [
         {
@@ -113,7 +119,7 @@ def reservation_my(request: HttpRequest) -> HttpResponse:
         }
         for reservation in reservations
     ]
-    return render(request, "order/reservation_my.html", {"rows": rows})
+    return render(request, "order/reservation_my.html", {"rows": rows, "now": now})
 
 
 @librarian_required
@@ -135,9 +141,13 @@ def reservation_desk(request: HttpRequest) -> HttpResponse:
 
 @librarian_required
 def reservation_issue(request: HttpRequest, reservation_id: int) -> HttpResponse:
+    """The loan period form, or why the reservation cannot be issued and what to do
+    instead (FR-020)."""
     reservation = get_object_or_404(
         Reservation.objects.select_related("user", "book"), pk=reservation_id
     )
+    now = timezone.now()
+    refused = None
     if request.method == "POST":
         form = IssueForm(request.POST)
         if form.is_valid():
@@ -145,8 +155,8 @@ def reservation_issue(request: HttpRequest, reservation_id: int) -> HttpResponse
                 loan = services.issue(
                     request.user, reservation, form.cleaned_data["days"]
                 )
-            except services.ReservationRefused as refused:
-                messages.error(request, refused.message)
+            except services.ReservationRefused as refusal:
+                refused = refusal
             else:
                 messages.success(
                     request,
@@ -154,33 +164,40 @@ def reservation_issue(request: HttpRequest, reservation_id: int) -> HttpResponse
                     f"as loan #{loan.pk}, due "
                     f"{services.local(loan.plated_end_at, services.DATE)}.",
                 )
-            return redirect("reservation_desk")
+                return redirect("reservation_desk")
     else:
         form = IssueForm()
+        refused = services.issue_refusal(
+            reservation, reservation.user, reservation.book, now
+        )
     return render(
         request,
         "order/reservation_issue.html",
-        {"reservation": reservation, "form": form},
+        {"reservation": reservation, "form": form, "refusal": refused, "now": now},
     )
 
 
 @signin_required
 def reservation_cancel(request: HttpRequest, reservation_id: int) -> HttpResponse:
-    """The reservation's reader cancels without a reason; a librarian cancelling
-    someone else's gives one (FR-017, FR-018). Another reader's answers 404."""
+    """The reservation's reader cancels without a reason, and this page is their
+    confirmation step. A librarian cancelling someone else's gives a reason, then
+    confirms it on a second step (FR-017, FR-018, R17). Another reader's answers 404."""
     reservations = Reservation.objects.select_related("user", "book")
     if not is_librarian(request.user):
         reservations = reservations.filter(user=request.user)
     reservation = get_object_or_404(reservations, pk=reservation_id)
     own = reservation.user_id == request.user.pk
     back = "reservation_my" if own else "reservation_desk"
+    now = timezone.now()
+    confirming = False
+    refused = None
     if request.method == "POST":
         form = CancelForm(request.POST, reason_required=not own)
-        if form.is_valid():
+        if form.is_valid() and (own or request.POST.get("confirm") == "yes"):
             try:
                 services.cancel(request.user, reservation, form.cleaned_data["reason"])
-            except services.ReservationRefused as refused:
-                messages.error(request, refused.message)
+            except services.ReservationRefused as refusal:
+                refused = refusal
             else:
                 book = reservation.book.name
                 messages.success(
@@ -193,13 +210,27 @@ def reservation_cancel(request: HttpRequest, reservation_id: int) -> HttpRespons
                         "time they open the site."
                     ),
                 )
-            return redirect(back)
+                return redirect(back)
+        elif form.is_valid():
+            # The reason, once more, before the reader sees it; or back to editing it.
+            confirming = "edit" not in request.POST
     else:
         form = CancelForm(reason_required=not own)
+        refused = services.cancel_refusal(
+            reservation, now, librarian=is_librarian(request.user)
+        )
     return render(
         request,
         "order/reservation_cancel.html",
-        {"reservation": reservation, "form": form, "own": own, "back": back},
+        {
+            "reservation": reservation,
+            "form": form,
+            "own": own,
+            "back": back,
+            "now": now,
+            "confirming": confirming,
+            "refusal": refused,
+        },
     )
 
 

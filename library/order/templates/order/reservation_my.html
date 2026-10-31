@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load reservations %}
 
 {% block title %}My Reservations - Library{% endblock %}
 
@@ -53,14 +54,19 @@
                                     {% endif %}
                                 </td>
                                 <td class="table-td text-slate-500 whitespace-nowrap">{{ row.reservation.created_at|date:"j M Y, H:i T" }}</td>
-                                <td class="table-td text-slate-500 whitespace-nowrap">{{ row.reservation.expires_at|date:"j M Y, H:i T" }}</td>
+                                <td class="table-td text-slate-500 whitespace-nowrap">
+                                    {{ row.reservation.expires_at|date:"j M Y, H:i T" }}
+                                    {% if row.state == 'active' %}
+                                        <span class="block text-xs text-amber-700">{{ row.reservation.expires_at|time_left:now }}</span>
+                                    {% endif %}
+                                </td>
                                 <td class="table-td text-slate-600">
                                     {{ row.next_step }}
                                     {% if row.state == 'active' %}
                                         <a href="{% url 'reservation_cancel' row.reservation.id %}" class="ml-1 text-rose-600 hover:text-rose-700 font-medium">Cancel</a>
                                     {% endif %}
-                                    {% if row.reservation.cancelled_at %}
-                                        {{ row.reservation.cancelled_at|date:"j M Y, H:i T" }}{% if row.reservation.cancel_reason %}: {{ row.reservation.cancel_reason }}{% endif %}
+                                    {% if row.reservation.cancel_reason %}
+                                        <span class="block text-xs text-slate-500">Reason: {{ row.reservation.cancel_reason }}</span>
                                     {% endif %}
                                 </td>
                             </tr>

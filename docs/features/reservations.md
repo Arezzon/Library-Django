@@ -13,9 +13,20 @@ directly.
 2. If a copy is available, choose **Reserve for 48 Hours**.
 
 The reservation is active at once; no librarian needs to approve it. **My reservations**
-(`/order/reservations/`) lists it with the time you reserved and its deadline, in Kyiv time with
-the zone, for example "31 Oct 2026, 14:05 EET". While it is active, the copy counts as taken
-everywhere: in the catalog, on the book's page, in search and in the API.
+(`/order/reservations/`) lists it with the time you reserved, its deadline in Kyiv time with the
+zone, for example "31 Oct 2026, 14:05 EET", and the time left, such as "1 day 23 hours left".
+While it is active, the copy counts as taken everywhere: in the catalog, on the book's page, in
+search and in the API.
+
+### What to do next
+
+My reservations says what comes next for each reservation:
+
+- **Active**: collect the book from a librarian before the deadline.
+- **Issued**: the book is on loan; return it by the loan's due date. Once it is back, the date
+  it was returned.
+- **Expired**: reserve it again if a copy is available.
+- **Cancelled**: whether you or the library cancelled it, and the library's reason.
 
 ### The 48 hours
 
@@ -27,8 +38,8 @@ everywhere: in the catalog, on the book's page, in search and in the API.
 
 ### Cancelling
 
-If you no longer need the book, choose **Cancel** next to the reservation in My reservations and
-confirm. You give no reason, and the copy is free for other readers at once.
+If you no longer need the book, choose **Cancel** next to the reservation in My reservations, then
+**Yes, Cancel Reservation**. You give no reason, and the copy is free for other readers at once.
 
 The library can also cancel a reservation, for example when the copy is damaged. The next page you
 open then shows which book it was, when the library cancelled it and why, until you choose
@@ -47,13 +58,15 @@ order and tells you the first that applies:
    another.
 5. **No copy is available.** Try again later, or choose another book.
 
+When the place to act is My reservations or My orders, the book's page links to it.
+
 ## The librarian's side
 
 ### The desk
 
 **Desk** in the navigation (`/order/reservations/desk/`) lists every active reservation, the
-nearest deadline first, with the reader, the book, the deadline and the time left. A reservation
-leaves the list when it is issued, cancelled or expires.
+nearest deadline first, with the reader, the book, the deadline and the time left, such as "1 day
+3 hours left". A reservation leaves the list when it is issued, cancelled or expires.
 
 ### Issuing a reserved book
 
@@ -63,8 +76,15 @@ becomes issued and the loan starts with the copy it held, so the available count
 Issuing the same reservation again, by a double click or from another desk, starts no second loan:
 you are told it was already issued, with the loan's number.
 
-A reservation whose deadline has passed is not issued. You can still lend the book directly if a
-copy is available.
+When a reservation cannot be issued, its issue page says why instead of showing the form, and
+offers the next step:
+
+- **Expired**: **Lend Directly**, with the reader and the book filled in. The loan then needs a
+  free copy.
+- **Already issued**: the loan it became.
+- **The reader has an overdue loan, or already has the book**: the reader's loans, where you
+  record the return.
+- **Cancelled**: back to the desk.
 
 ### Lending directly
 
@@ -75,10 +95,14 @@ reservation holds is not free. Loans started in the admin site follow the same r
 
 ### Cancelling with a reason
 
-Choose **Cancel** next to a reservation on the desk, write a reason of 1 to 500 characters, and
-confirm. The copy is free at once. The reservation records who cancelled it, when and why, and the
-audit trail keeps the same. The reader sees the reason, so write it for them, for example "The copy
-is damaged; please reserve another book."
+1. Choose **Cancel** next to a reservation on the desk.
+2. Write a reason of 1 to 500 characters and choose **Continue**.
+3. Check the reason as the reader will see it, then choose **Yes, Cancel Reservation**, or
+   **Change Reason** to edit it. Nothing changes before this step.
+
+The copy is free at once. The reservation records who cancelled it, when and why, and the audit
+trail keeps the same. The reader sees the reason, so write it for them, for example "The copy is
+damaged; please reserve another book."
 
 ### The overdue block
 
@@ -108,10 +132,32 @@ Sign in first, as the README's REST API section describes.
 | `POST /api/v1/order/` with `{"user", "book", "plated_end_at"}` | Librarian | `201` with the loan. A reservation the reader holds for the book is issued. |
 
 A refusal answers `409` with a `code` and a `detail` message that says what to do next, and nothing
-changes: `overdue_loan` (the body adds `book` and `due`), `already_on_loan`, `already_reserved`,
-`reservation_limit`, `no_copy_available`, `reservation_expired`, `already_issued` (the body adds
-`loan`) or `not_active`, for a reservation that was already cancelled, issued or expired.
+changes. The pages show the same messages.
+
+| `code` | When | The body adds |
+|---|---|---|
+| `overdue_loan` | The reader has a loan past its due date. Reserving, issuing and lending stop; corrections do not. | `book`, `due` |
+| `already_on_loan` | The reader already has the book on loan | |
+| `already_reserved` | The reader already holds an active reservation of the book | |
+| `reservation_limit` | The reader already holds 3 active reservations | |
+| `no_copy_available` | No copy is free; a copy that another reader's reservation holds is not | |
+| `reservation_expired` | Issuing at or after the deadline | |
+| `already_issued` | Issuing a reservation a second time | `loan` |
+| `not_active` | Cancelling or issuing a reservation that was already cancelled, issued or expired | |
 
 `state` is always the current one: an active reservation past its deadline reads `expired`, even
 before the library's scheduled job records it. Times carry the library's offset, `+02:00` or
 `+03:00`.
+
+## Simultaneous requests
+
+Each request checks its rules with the reader's and the book's records locked, so requests that
+arrive together are checked one after another. When 100 readers reserve a book's last copy at the
+same moment, exactly one gets it and the others are told that no copy is available. A double click
+on Issue starts one loan.
+
+`scripts/smoke_reservation_load.py` checks this against a running stack. CI sends 100
+simultaneous reservations for one copy, 20 times, on every pull request, and fails unless exactly
+one succeeds each time. On the Raspberry Pi, the operator also times reserving, issuing and
+cancelling while 30 readers reserve at once; see "Check reservations under load" in the
+[operator guide](../deployment/raspberry-pi-portainer.md#check-reservations-under-load).

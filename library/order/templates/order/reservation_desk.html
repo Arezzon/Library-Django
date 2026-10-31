@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load reservations %}
 
 {% block title %}Reservation Desk - Library{% endblock %}
 
@@ -50,7 +51,7 @@
                                     </a>
                                 </td>
                                 <td class="table-td text-slate-500 whitespace-nowrap">{{ reservation.expires_at|date:"j M Y, H:i T" }}</td>
-                                <td class="table-td text-slate-600 whitespace-nowrap">{{ reservation.expires_at|timeuntil:now }}</td>
+                                <td class="table-td text-slate-600 whitespace-nowrap">{{ reservation.expires_at|time_left:now }}</td>
                                 <td class="table-td whitespace-nowrap">
                                     <div class="flex gap-2">
                                         <a href="{% url 'reservation_issue' reservation.id %}" class="btn-primary">Issue</a>

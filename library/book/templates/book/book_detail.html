@@ -25,7 +25,7 @@
                 {% if book.available_count > 0 %}
                 <span class="badge-success">● {{ book.available_count }} of {{ book.count }} Available</span>
                 {% else %}
-                <span class="badge-danger">● All {{ book.count }} Borrowed</span>
+                <span class="badge-danger">● 0 of {{ book.count }} Available</span>
                 {% endif %}
             </div>
         </div>
@@ -78,7 +78,14 @@
 
                 {% if request.user.is_visitor %}
                     {% if reserve_refusal %}
-                    <p class="text-sm text-slate-600 sm:max-w-sm">{{ reserve_refusal.message }}</p>
+                    <p class="text-sm text-slate-600 sm:max-w-sm">
+                        {{ reserve_refusal.message }}
+                        {% if reserve_refusal.code == "already_reserved" or reserve_refusal.code == "reservation_limit" %}
+                        <a href="{% url 'reservation_my' %}" class="font-medium text-indigo-600 hover:text-indigo-700">See My Reservations</a>
+                        {% elif reserve_refusal.code == "overdue_loan" or reserve_refusal.code == "already_on_loan" %}
+                        <a href="{% url 'order_my' %}" class="font-medium text-indigo-600 hover:text-indigo-700">See My Orders</a>
+                        {% endif %}
+                    </p>
                     {% else %}
                     <form method="post" action="{% url 'reserve' book.id %}" class="w-full sm:w-auto">
                         {% csrf_token %}

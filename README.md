@@ -60,7 +60,7 @@ before using the `venv` setup.
 | --- | --- |
 | Catalog | Books, descriptions, stock counts and authors |
 | Borrowing | Librarians lend at the desk; return, reopen and reassign orders. Every loan starts with a librarian, and none while the reader has an overdue loan |
-| Reservations | A reader reserves an available book for 48 hours, active at once; the copy stays held until it is collected or the deadline passes. At most 3 at a time, and none while a loan is overdue. Librarians issue reserved books at the desk in one step, or cancel with a reason that the reader sees; readers cancel their own ([guide](docs/features/reservations.md)) |
+| Reservations | A reader reserves an available book for 48 hours, active at once; the copy stays held until it is collected or the deadline passes. At most 3 at a time, and none while a loan is overdue. My reservations shows each deadline with the time left and what to do next. Librarians issue reserved books at the desk in one step, or cancel with a reason that they confirm and the reader sees; readers cancel their own. When 100 readers reserve the last copy at once, exactly one gets it ([guide](docs/features/reservations.md)) |
 | Accounts | Email-based users, profiles and visitor/librarian roles; sign-up always creates a visitor, and only librarians change roles and account status |
 | Administration | Django admin and librarian-only management screens |
 | API | Endpoints under `/api/v1/`, each open only to its stated audience, plus Swagger and ReDoc |
@@ -438,7 +438,8 @@ account without the right role gets `403`, and so does a visitor who sends `role
 user's record gets `404`, the same answer as for a record that does not exist. Deleting an
 author who is attached to a book, or a book that has loans or reservations, gets `409`, and
 nothing changes; the web pages and the admin site refuse it too. A reservation, an issue or
-a loan that a rule refuses gets `409` with a `code` and a message that says what to do next.
+a loan that a rule refuses gets `409` with a `code` and a message that says what to do next;
+the [reservations guide](docs/features/reservations.md#through-the-api) lists the codes.
 The schema states
 each operation's audience in its description and in `x-audience`.
 
@@ -501,6 +502,18 @@ node --test scripts/test_tracking_js.cjs
 CI also restores that backup into a scratch database and compares every table's
 row count with the live database; the operator guide's "Restore into a separate
 database" shows the same restore by hand.
+
+CI's `ubuntu-latest` leg also sends 100 simultaneous reservations for a book's
+only copy, 20 times, and fails unless exactly one succeeds each time. The script
+makes its own temporary accounts and books and removes them afterwards. To run it
+against the development stack, from the repository root:
+
+```bash
+python scripts/smoke_reservation_load.py --compose-file docker-compose-dev.yml --burst 100 --runs 20
+```
+
+`--readers 30` adds the load check that the operator guide's "Check reservations
+under load" runs on the Pi.
 
 > **Tip:** If tests fail with `Missing staticfiles manifest entry`, run
 > `python manage.py collectstatic --noinput` before the test command.

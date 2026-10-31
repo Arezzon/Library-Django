@@ -225,6 +225,12 @@ jobs:
           grep -q sessionid "$jar" || { echo "::error::The demo reader could not sign in."; exit 1; }
           curl -fsS -b "$jar" "$base/api/v1/books/search/?q=detective"
 
+      # SC-002: 100 simultaneous reservations of a book's one copy succeed exactly once,
+      # in each of 20 runs. The script removes its temporary accounts and books.
+      - name: Verify a burst of reservations holds exactly one copy
+        if: matrix.runner == 'ubuntu-latest'
+        run: python scripts/smoke_reservation_load.py --compose-file docker-compose-dev.yml --burst 100 --runs 20
+
       # The worker's lines carry the identifier of the requests that queued them (SC-008).
       - name: Verify real asynchronous event tracking
         run: |
