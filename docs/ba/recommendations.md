@@ -45,9 +45,10 @@ active loans and holds even when other copies remain. Returns, cancellations, st
 changes and expiry affect the next request without a result cache or waiting for beat.
 Results describe availability at request time and do not reserve a copy.
 
-KAN-30 and the KAN-55–58 reservation models are present. The baseline input contract, to be aligned with KAN-50, is `UserEvent` restricted to the caller, configured compatible
+KAN-30 and the KAN-55–58 reservation models are present. The shared [KAN-50 input contract](recommendation-data.md) is `UserEvent` restricted to the caller, configured compatible
 `BookEmbedding` vectors, and the shared `Book.objects.with_availability(now)` stock
-rule. The public service is `recommend_books(user, limit)`; its output contains no
+rule. KAN-31 calls `read_history`, `available_candidates` and `fallback_candidates` from
+`book.recommendation_data`. The public ranking service is `recommend_books(user, limit)`; its output contains no
 personal signal payload. KAN-51 owns completing search persistence and adding explicit
 likes/favorites; this ticket consumes existing recorded catalog searches only.
 Favorites/likes (KAN-51) and rating models (KAN-59–61) are not present in this base. They are not invented
