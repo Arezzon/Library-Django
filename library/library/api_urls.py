@@ -4,7 +4,7 @@ from rest_framework.routers import APIRootView, DefaultRouter
 
 from authentication.api_views import CustomUserViewSet
 from author.api_views import AuthorViewSet
-from book.api_views import BookSearchView, BookViewSet
+from book.api_views import BookRecommendationsView, BookSearchView, BookViewSet
 from events.api_views import ClientEventView
 from order.api_views import OrderViewSet, ReservationViewSet, UserOrderViewSet
 
@@ -29,6 +29,11 @@ router.register(r"order", OrderViewSet, basename="order")
 router.register(r"reservation", ReservationViewSet, basename="reservation")
 
 urlpatterns = [
+    path(
+        "books/recommendations/",
+        BookRecommendationsView.as_view(),
+        name="book-recommendations",
+    ),
     path("books/search/", BookSearchView.as_view(), name="book-search"),
     path("events/", ClientEventView.as_view(), name="client-event"),
     path("version/", VersionView.as_view(), name="version"),

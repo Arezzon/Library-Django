@@ -38,3 +38,7 @@ class BookSearchSerializer(BookSerializer):
 
     class Meta(BookSerializer.Meta):
         fields = BookSerializer.Meta.fields + ["similarity"]
+
+
+class RecommendationParameters(serializers.Serializer):
+    limit = serializers.IntegerField(default=10, min_value=1, max_value=20)
