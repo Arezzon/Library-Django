@@ -1,4 +1,8 @@
 2026-10-31
+Evidence-based reasons for recommendations (KAN-32)
+Each recommended book now includes a read-only reason based on the current account's strongest positive weighted contribution to that candidate. The text distinguishes viewing, clicking, borrowing intent, borrowing, returning and searching, rather than claiming that a view proves reading. Empty-history results and fallback padding are labeled as available fallback books; unusable signals are not cited. Reasons reuse the ranking's signals, preserve order and availability, and require no extra inference or per-book queries. Regression tests cover contribution selection, source privacy, fallback, stable output, schema and the unchanged catalog contract. CI checks nonempty reasons in the authenticated recommendation response.
+
+2026-10-31
 Private, available book recommendations (KAN-31)
 Signed-in readers can request a stable Top-N at /api/v1/books/recommendations/. The baseline builds an interest direction from their recent book views, clicks, borrowing intent, loans and search texts, then ranks compatible embeddings by cosine similarity without training a model. Book-only profiles need no inference; up to three distinct searches reuse the existing encoder. Only currently available copies count, including active reservations; current loans, own holds and profile seed books are excluded. Empty histories use a stable alphabetical fallback. The API rejects account selectors and returns no personal signals. Favorites and ratings await their models. Regression tests and an authenticated CI HTTP check cover ranking, availability and access.
 

@@ -42,3 +42,10 @@ class BookSearchSerializer(BookSerializer):
 
 class RecommendationParameters(serializers.Serializer):
     limit = serializers.IntegerField(default=10, min_value=1, max_value=20)
+
+
+class BookRecommendationSerializer(BookSerializer):
+    reason = serializers.CharField(read_only=True)
+
+    class Meta(BookSerializer.Meta):
+        fields = BookSerializer.Meta.fields + ["reason"]
