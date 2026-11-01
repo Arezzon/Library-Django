@@ -1,5 +1,7 @@
 """Owned rating state stored directly in PostgreSQL, independent of event queues."""
 
+from dataclasses import dataclass
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
@@ -80,3 +82,23 @@ def rating_overview(user, book_id):
         ),
         "count": row["vote_count"],
     }
+
+
+RATING_SIGNAL_LIMIT = 200
+
+
+@dataclass(frozen=True)
+class RatingSignal:
+    book_id: int
+    value: int
+
+
+def read_rating_signals(user):
+    """Bounded current state for this account only; no identities or vote history."""
+    require_rating_account(user)
+    return tuple(
+        RatingSignal(book_id, value)
+        for book_id, value in BookRating.objects.filter(user_id=user.pk).values_list(
+            "book_id", "value"
+        )[:RATING_SIGNAL_LIMIT]
+    )

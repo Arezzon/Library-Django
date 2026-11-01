@@ -1,4 +1,8 @@
 2026-11-01
+Current rating signals in personal recommendations (KAN-61)
+Use separate owned rating snapshots with transparent signed weights, neutral handling and immediate update/delete effects. Exclude all currently rated books, preserve current availability and safe fallback, and add controlled ranking/privacy/edge-case tests plus live API exclusion/recovery checks.
+
+2026-11-01
 Book rating controls and aggregate display (KAN-60)
 Show the current private score, keyboard-accessible save/remove controls, clear errors and empty states on book details. Add an aggregate-only mean/count endpoint and tests for sessions, privacy, validation, CSRF and real browser keyboard/axe behavior.
 
