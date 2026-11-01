@@ -121,4 +121,7 @@ class BookRecommendationsView(GenericAPIView):
         parameters = RecommendationParameters(data=request.query_params)
         parameters.is_valid(raise_exception=True)
         books = recommend_books(request.user, parameters.validated_data["limit"])
-        return Response(self.get_serializer(books, many=True).data)
+        return Response(
+            self.get_serializer(books, many=True).data,
+            headers={"Cache-Control": "private, no-store"},
+        )

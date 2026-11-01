@@ -12,8 +12,10 @@ from events.models import EventType
 from . import embeddings
 from .embedding_config import resolve
 from .embeddings import normalized_vector
-from .models import BookEmbedding
+from .models import BookEmbedding, BookRating
 from .preferences import read_book_preferences
+from .rating_rules import rating_weight
+from .ratings import read_rating_signals
 from .recommendation_data import available_candidates, fallback_candidates, read_history
 
 DEFAULT_LIMIT = 10
@@ -25,6 +27,8 @@ EXPLICIT_PREFERENCE_WEIGHT = 5
 FALLBACK_REASON = "Доступна книга із запасного списку рекомендацій."
 PROFILE_REASON = "Рекомендовано за сукупністю ваших інтересів."
 BOOK_REASONS = {
+    "rated_high": "Рекомендовано, бо ви високо оцінили «{title}».",
+    "rated_low": "Рекомендовано з урахуванням вашої низької оцінки «{title}».",
     "liked": "Рекомендовано, бо вам подобається «{title}».",
     "favorite": "Рекомендовано, бо ви додали «{title}» до обраного.",
     EventType.BOOK_VIEW: "Рекомендовано, бо ви переглядали «{title}».",
@@ -73,6 +77,11 @@ def _profile(user, now):
     for preference in read_book_preferences(user):
         weights[preference.book_id] = EXPLICIT_PREFERENCE_WEIGHT
         actions[preference.book_id] = "liked" if preference.liked else "favorite"
+    for rating in read_rating_signals(user):
+        weight = rating_weight(rating.value)
+        if weight:
+            weights[rating.book_id] = weight
+            actions[rating.book_id] = "rated_high" if weight > 0 else "rated_low"
     spec = resolve()
     vectors = BookEmbedding.objects.filter(
         book_id__in=weights, model=spec.repository, model_revision=spec.tag
@@ -147,7 +156,8 @@ def recommend_books(user, limit=DEFAULT_LIMIT):
     ):
         raise ValueError(f"limit must be an integer from 1 to {MAX_LIMIT}.")
     now = timezone.now()
-    books = available_candidates(user, now=now)
+    rated_books = BookRating.objects.filter(user_id=user.pk).values("book_id")
+    books = available_candidates(user, now=now).exclude(pk__in=rated_books)
     profile, seeds, signals = _profile(user, now)
     results = []
     if profile is not None:
@@ -170,7 +180,7 @@ def recommend_books(user, limit=DEFAULT_LIMIT):
                 now=now,
                 exclude_book_ids=(seeds if profile is not None else [])
                 + [book.pk for book in results],
-            )[: limit - len(results)]
+            ).exclude(pk__in=rated_books)[: limit - len(results)]
         )
         for book in fallback:
             book.reason = FALLBACK_REASON

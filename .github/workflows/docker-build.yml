@@ -231,7 +231,7 @@ jobs:
           test "$(curl -sS -o /dev/null -w '%{http_code}' "$base/api/v1/books/recommendations/")" = 401
 
       - name: Verify owned book ratings over HTTP
-        run: python scripts/smoke_ratings.py
+        run: python scripts/smoke_ratings.py --recommendations
 
       - name: Verify durable reader preferences over HTTP
         run: python scripts/smoke_reader_preferences.py

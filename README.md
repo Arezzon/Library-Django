@@ -651,3 +651,6 @@ for ownership, idempotency, constraints and the staged UI/recommendation integra
 
 Book details include a private rating form and aggregate mean/count. The same
 aggregate is available at `/api/v1/books/<id>/rating-summary/` without rater IDs.
+
+Recommendations consume only current own rating signals: 4–5 positive, 1–2
+negative, 3 neutral. Already-rated books are excluded and availability is rechecked.
