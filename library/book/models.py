@@ -223,10 +223,12 @@ class Book(models.Model):
         book.name = name
         book.description = description
         book.count = count
-        if authors is not None:
-            for elem in authors:
-                book.authors.add(elem)
-        book.save()
+        # The book needs a primary key before its authors can be linked, and the
+        # book and its links are written together or not at all (KAN-77).
+        with transaction.atomic():
+            book.save()
+            if authors:
+                book.authors.add(*authors)
         return book
 
     def to_dict(self):

@@ -1,4 +1,8 @@
 2026-11-01
+Book.create links authors after saving the book (KAN-77)
+`Book.create` with a non-empty `authors` list no longer fails with `ValueError`: the book is saved first, then its authors are linked, and both happen in one transaction, so a failed link leaves neither the book nor its embedding behind. New tests cover no authors, an empty list, one and several authors, the rollback and a too-long name.
+
+2026-11-01
 The main pages meet WCAG 2.2 AA (KAN-69)
 The main pages now meet WCAG 2.2 level AA, and CI keeps them there: axe, run through Playwright on the ubuntu-latest leg, finds no level A or AA violation on 39 pages and form states, signed in as the demo reader and librarian. Every page has a skip link, visible keyboard focus, one status region for messages, a link to the signed-in person's profile, and a footer saying times are in Kyiv time (EET/EEST); every formatted time shows its zone, and a template test keeps it so. Form errors name the field and say what to enter, are tied to their fields for screen readers and keep what was typed, and the page title then starts with "Error:". Deleting an author or a book and recording a return now ask first on their own page, which says what will happen. Light grey text and the small red buttons are darker, the catalog's search box and author filter have labels, and the analytics page gives its daily chart as a table and no longer calls Kyiv time UTC. Messages say what happened. The constitution is amended to v2.4.1: the smoke test includes the accessibility check.
 
