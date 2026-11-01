@@ -1,4 +1,8 @@
 2026-10-31
+A shared, private input contract for recommendations (KAN-50)
+Recommendation data preparation is separated from ranking. The history service returns only the current account's supported book signals and bounded search texts, with no raw event properties or reader identifiers. It ignores client-forged server actions and loan events that name another reader. Shared candidate and fallback queries use the existing stock calculation for current loans and unexpired reservations, exclude the reader's own current loans/holds, and keep a stable alphabetical fallback. KAN-31 now consumes these helpers. The documented v1 contract covers missing data, future separate likes/favorites and rating adapters, ownership, storage and control scenarios; it creates no feedback models or new storage. Regression tests cover these rules and the unchanged ranking behavior.
+
+2026-10-31
 Evidence-based reasons for recommendations (KAN-32)
 Each recommended book now includes a read-only reason based on the current account's strongest positive weighted contribution to that candidate. The text distinguishes viewing, clicking, borrowing intent, borrowing, returning and searching, rather than claiming that a view proves reading. Empty-history results and fallback padding are labeled as available fallback books; unusable signals are not cited. Reasons reuse the ranking's signals, preserve order and availability, and require no extra inference or per-book queries. Regression tests cover contribution selection, source privacy, fallback, stable output, schema and the unchanged catalog contract. CI checks nonempty reasons in the authenticated recommendation response.
 
