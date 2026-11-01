@@ -212,21 +212,25 @@ class NaturalCatalogTests(FakeEncoderMixin, TestCase):
         self.assertNotIn("private model path", str(result))
 
     def test_followup_uses_current_stock_and_no_private_question_in_session(self):
-        response = self.client.post("/assistant/", {"q": "Знайди твори Шевченка"})
+        response = self.client.post(
+            "/assistant/", {"q": "Знайди твори Шевченка"}, follow=True
+        )
         self.assertEqual(response.status_code, 200)
         context = self.client.session[KEY]
         self.assertEqual(set(context), {"owner", "time", "books"})
         self.assertNotIn("Шевченка", str(context))
         self.kobzar.count = 0
         self.kobzar.save(update_fields=["count"])
-        response = self.client.post("/assistant/", {"q": "А які з них доступні?"})
+        response = self.client.post(
+            "/assistant/", {"q": "А які з них доступні?"}, follow=True
+        )
         self.assertEqual(
             [b["id"] for b in response.context["result"]["books"]], [self.haidamaky.pk]
         )
         self.client.get("/assistant/")
         self.assertNotIn(KEY, self.client.session)
         response = self.client.post(
-            "/assistant/", {"q": "Which of these are available?"}
+            "/assistant/", {"q": "Which of these are available?"}, follow=True
         )
         self.assertEqual(response.context["result"]["status"], "clarification_required")
 
@@ -254,7 +258,7 @@ class NaturalCatalogTests(FakeEncoderMixin, TestCase):
         )
 
     def test_browser_context_does_not_cross_accounts(self):
-        self.client.post("/assistant/", {"q": "Знайди твори Шевченка"})
+        self.client.post("/assistant/", {"q": "Знайди твори Шевченка"}, follow=True)
         self.assertIn(KEY, self.client.session)
         self.client.logout()
         other = CustomUser.objects.create_user(
@@ -267,7 +271,7 @@ class NaturalCatalogTests(FakeEncoderMixin, TestCase):
         )
         self.client.force_login(other)
         response = self.client.post(
-            "/assistant/", {"q": "Which of these are available?"}
+            "/assistant/", {"q": "Which of these are available?"}, follow=True
         )
         self.assertEqual(response.context["result"]["status"], "clarification_required")
         self.assertEqual(response.context["result"]["books"], [])

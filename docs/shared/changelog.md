@@ -1,3 +1,7 @@
+2026-11-02
+Safe assistant back and refresh navigation
+Redirect successful assistant forms with HTTP 303 to a GET-only result page backed by bounded, account-bound catalog references. Re-read current records and stock without storing question text or replaying semantic queries. Cover back/refresh after CSRF-cookie rotation, repeated questions, expiry, privacy and genuine CSRF rejection in server and browser regressions.
+
 2026-11-01
 Natural Ukrainian and English catalog questions
 Extend the catalog assistant with bounded natural-language interpretation, Ukrainian case and transliteration matching, CPU topic retrieval through the existing semantic model, and account-bound ten-minute availability follow-ups without saving question text. Preserve grounded links, current stock, privacy and read-only operations; add 16 real seeded demo queries to HTTP CI plus grammar, service, session and browser regressions.

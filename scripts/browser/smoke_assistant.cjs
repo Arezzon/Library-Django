@@ -45,6 +45,20 @@ function sql(command) {
     await source.focus();
     await Promise.all([page.waitForNavigation(), page.keyboard.press('Enter')]);
     assert.match(new URL(page.url()).pathname, /^\/book\/\d+\/$/);
+    // The result must be GET history, including after CSRF-cookie rotation.
+    const csrfCookie=(await context.cookies()).find(cookie=>cookie.name==='csrftoken');
+    await context.addCookies([{...csrfCookie,value:'A'.repeat(32)}]);
+    const back=await page.goBack();
+    assert.equal(back.status(),200);
+    assert.equal(back.request().method(),'GET');
+    assert.match(new URL(page.url()).pathname,/^\/assistant\/result\/$/);
+    assert(await page.locator('#assistant-result').isVisible());
+    const refreshed=await page.reload();
+    assert.equal(refreshed.status(),200);
+    assert.equal(refreshed.request().method(),'GET');
+    await page.locator('#id_q').fill('Find books by Shevchenko');
+    const [resubmitted]=await Promise.all([page.waitForNavigation(),page.getByRole('button',{name:'Ask',exact:true}).click()]);
+    assert.equal(resubmitted.status(),200);
     await page.goto(base + '/assistant/');
     await page.locator('#id_q').fill(marker);
     await Promise.all([page.waitForNavigation(), page.getByRole('button',{name:'Ask',exact:true}).click()]);
@@ -73,6 +87,6 @@ function sql(command) {
     const logs = execFileSync('docker', [...compose, 'logs', '--no-color', 'web'], {encoding:'utf8'});
     assert(!logs.includes(marker), 'Private question leaked to logs');
     assert(logs.includes('status=source_unavailable'));
-    console.log('PASS: 16 UA/EN questions, follow-ups, keyboard/source links, axe, source outage, private logs and unchanged loans/holds');
+    console.log('PASS: 16 UA/EN questions, GET back/refresh after CSRF rotation, follow-ups, keyboard/source links, axe, source outage, private logs and unchanged loans/holds');
   } finally { await browser.close(); }
 })().catch(error => {console.error(error); process.exitCode=1;});

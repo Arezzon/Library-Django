@@ -9,9 +9,12 @@ the existing English site; natural Ukrainian and English questions are supported
 
 Questions use CSRF-protected POST, not query-string navigation. GET parameters are
 redirected to the clean URL. The page has no-store cache control and same-origin
-policy; no conversation, question or answer text is saved. Only the previous
-result’s bounded book IDs, account ID and timestamp are kept in the browser session
-for ten minutes to support availability follow-ups. Clear/new GET removes them.
+policy; no conversation, question or answer text is saved. A successful POST
+returns **303** to `/assistant/result/`. That GET rehydrates the selected book/author
+IDs from the current catalog; back/refresh never resubmits the private form and
+never reruns topic inference. Session state contains bounded IDs, status/intent,
+flags, account ID and timestamp for ten minutes. It preserves topic order while
+refreshing availability. Clear/new GET of `/assistant/` removes the references.
 Browsers can retain form state locally; the application makes no promise to erase
 browser/OS memory. Clear loads a new empty form.
 
@@ -89,3 +92,13 @@ CI installs its pinned Playwright Chromium. The production image excludes
 node_modules and requires neither Node nor Playwright for serving the interface.
 Automated axe checks cover the new region; keyboard checks do not claim a full
 manual assistive-technology audit of the site's existing navigation.
+
+
+## Back navigation regression
+
+After Ask, open a book source, press Back, refresh and submit another question.
+The result document must use GET; the question and CSRF token are never put in
+the redirect URL or saved in session state. Chrome smoke also rotates the CSRF
+cookie before Back and verifies that the subsequent submission succeeds. Django
+CSRF enforcement stays enabled; a POST without a token is still rejected.
+Invalid forms and source failures retain their 400/503 responses.

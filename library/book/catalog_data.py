@@ -46,6 +46,7 @@ def lookup_catalog(
     query,
     *,
     by_author=False,
+    author_ids=None,
     now=None,
     flexible=False,
     available_only=False,
@@ -67,7 +68,9 @@ def lookup_catalog(
     author_truncated = False
     if by_author:
         matches = Author.objects.all()
-        if flexible:
+        if author_ids is not None:
+            matches = matches.filter(pk__in=author_ids)
+        elif flexible:
             matches = matches.alias(
                 folded_name=folded_field("name"),
                 folded_surname=folded_field("surname"),
