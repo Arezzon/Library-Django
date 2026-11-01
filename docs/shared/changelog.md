@@ -1,3 +1,7 @@
+2026-11-01
+A grounded, read-only catalog assistant (KAN-52)
+Add an authenticated assistant API/service in an isolated ai Django app with a read-only catalog gateway for literal title, author and current availability queries. Responses cite catalog records, ask for refinement on ambiguous inputs, and report absent data or source failures without invention. No LLM, semantic search, booking or issuance dependency is introduced. Include access/availability/source-failure tests and Docker HTTP checks.
+
 2026-10-31
 A shared, private input contract for recommendations (KAN-50)
 Recommendation data preparation is separated from ranking. The history service returns only the current account's supported book signals and bounded search texts, with no raw event properties or reader identifiers. It ignores client-forged server actions and loan events that name another reader. Shared candidate and fallback queries use the existing stock calculation for current loans and unexpired reservations, exclude the reader's own current loans/holds, and keep a stable alphabetical fallback. KAN-31 now consumes these helpers. The documented v1 contract covers missing data, future separate likes/favorites and rating adapters, ownership, storage and control scenarios; it creates no feedback models or new storage. Regression tests cover these rules and the unchanged ranking behavior.

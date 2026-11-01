@@ -27,6 +27,7 @@ This table is the source for PR 1's access tests. A change to it changes the tes
 | `/api/v1/version/` | GET | 200 | 200 | 200 |
 | `/api/schema/`, `/api/docs/`, `/api/redoc/` | GET | 200 | 200 | 200 |
 | `/api/v1/books/search/?q=` | GET | 401 | 200 | 200 |
+| `/api/v1/assistant/?q=` (KAN-52) | GET | 401 | 200 | 200 |
 | `/api/v1/book/`, `/api/v1/book/{id}/` | GET | 401 | 200 | 200 |
 | `/api/v1/book/` | POST | 401 | 403 | 201 |
 | `/api/v1/book/{id}/` | PUT, PATCH | 401 | 403 | 200 |

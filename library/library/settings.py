@@ -102,6 +102,7 @@ INSTALLED_APPS = [
     "authentication",
     "author",
     "book",
+    "ai.apps.AiConfig",
     "order",
     "events.apps.EventsConfig",
     "audit",
