@@ -642,3 +642,9 @@ clarification, source failures and availability limits.
 Open `/assistant/` after signing in to ask supported catalog questions, refine
 ambiguous matches and follow book sources. Questions use private POST forms.
 See [the Ukrainian controls and accessibility/privacy checks](docs/ba/assistant-interface.md).
+
+### Explicit book ratings
+
+`GET/PUT/PATCH/DELETE /api/v1/books/<id>/rating/` reads or changes only the signed-in
+account's integer 1–5 score. See [the rating contract](docs/features/book-ratings.md)
+for ownership, idempotency, constraints and the staged UI/recommendation integration.

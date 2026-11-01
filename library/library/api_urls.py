@@ -6,6 +6,7 @@ from authentication.api_views import CustomUserViewSet
 from author.api_views import AuthorViewSet
 from book.api_views import BookRecommendationsView, BookSearchView, BookViewSet
 from book.preference_api import BookPreferenceListView, BookPreferenceView
+from book.rating_api import BookRatingView
 from events.api_views import ClientEventView
 from order.api_views import OrderViewSet, ReservationViewSet, UserOrderViewSet
 
@@ -30,6 +31,7 @@ router.register(r"order", OrderViewSet, basename="order")
 router.register(r"reservation", ReservationViewSet, basename="reservation")
 
 urlpatterns = [
+    path("books/<int:book_id>/rating/", BookRatingView.as_view(), name="book-rating"),
     path("assistant/", include("ai.urls")),
     path(
         "me/book-preferences/",

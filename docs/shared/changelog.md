@@ -1,4 +1,8 @@
 2026-11-01
+Private explicit book ratings (KAN-59)
+Add an independent 1–5 rating model, migration, owned idempotent API and database uniqueness/range constraints. Include concurrent writes, existing-catalog migration, privacy, validation, permissions and HTTP regression checks.
+
+2026-11-01
 KAN-53 synchronization with pending reader preferences
 Include the updated KAN-51 predecessor and merged KAN-52 catalog service while preserving assistant navigation, private forms, saved-book controls and every smoke check. Docker Build and CodeQL now also run for PRs targeting KAN predecessor branches, preserving main checks.
 
