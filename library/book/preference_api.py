@@ -106,10 +106,10 @@ class BookPreferenceListView(GenericAPIView):
     def get(self, request):
         if set(request.query_params) - {"kind"}:
             return private_response({"detail": "Only kind is accepted."}, 400)
-        try:
-            books = preference_books(
-                request.user, request.query_params.get("kind", "all")
+        kind = request.query_params.get("kind", "all")
+        if kind not in ("all", "likes", "favorites"):
+            return private_response(
+                {"detail": "kind must be all, likes or favorites."}, 400
             )
-        except ValueError:
-            return private_response({"detail": "Invalid kind value."}, 400)
+        books = preference_books(request.user, kind)
         return private_response(self.get_serializer(books, many=True).data)

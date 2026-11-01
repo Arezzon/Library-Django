@@ -1,6 +1,14 @@
+2026-11-01
+KAN-51 review fixes and KAN-50 integration
+Validate saved-list filters without exposing exception messages, test defensive preference paths, and preserve the shared KAN-50 history, availability and fallback rules alongside explicit reader preferences.
+
 2026-10-31
 Persistent private reader preferences (KAN-51)
 Add independent likes and favorites, owned API and web controls, current-state recommendation signals, and retryable idempotent search tracking. Include migrations, regression tests, and documented privacy and queue-failure contracts.
+
+2026-10-31
+A shared, private input contract for recommendations (KAN-50)
+Recommendation data preparation is separated from ranking. The history service returns only the current account's supported book signals and bounded search texts, with no raw event properties or reader identifiers. It ignores client-forged server actions and loan events that name another reader. Shared candidate and fallback queries use the existing stock calculation for current loans and unexpired reservations, exclude the reader's own current loans/holds, and keep a stable alphabetical fallback. KAN-31 now consumes these helpers. The documented v1 contract covers missing data, future separate likes/favorites and rating adapters, ownership, storage and control scenarios; it creates no feedback models or new storage. Regression tests cover these rules and the unchanged ranking behavior.
 
 2026-10-31
 Evidence-based reasons for recommendations (KAN-32)

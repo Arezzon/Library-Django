@@ -22,10 +22,9 @@ def my_preferences(request):
     if set(request.GET) - {"kind"}:
         return HttpResponseBadRequest("Only kind is accepted.")
     kind = request.GET.get("kind", "all")
-    try:
-        books = preference_books(request.user, kind)
-    except ValueError as error:
-        return HttpResponseBadRequest(str(error))
+    if kind not in ("all", "likes", "favorites"):
+        return HttpResponseBadRequest("kind must be all, likes or favorites.")
+    books = preference_books(request.user, kind)
     return render(request, "book/book_preferences.html", {"books": books, "kind": kind})
 
 

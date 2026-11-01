@@ -48,6 +48,72 @@ class PreferenceTests(FakeEncoderMixin, TestCase):
             is_active=True,
         )
 
+    def test_model_labels_do_not_expose_reader_identity(self):
+        like = BookLike.objects.create(user=self.user, book=self.book)
+        favorite = FavoriteBook.objects.create(user=self.user, book=self.book)
+        self.assertEqual(str(like), f"Like(book={self.book.pk})")
+        self.assertEqual(str(favorite), f"Favorite(book={self.book.pk})")
+
+    def test_service_refuses_non_booleans_and_inactive_accounts(self):
+        for value in ("invalid", 1, []):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                set_preferences(self.user, self.book.pk, liked=value)
+        self.user.is_active = False
+        self.user.save(update_fields=["is_active"])
+        with self.assertRaises(PermissionDenied):
+            set_preferences(self.user, self.book.pk, liked=True)
+        # A stale authenticated object must not bypass the locked DB check.
+        self.user.is_active = True
+        with self.assertRaises(PermissionDenied):
+            set_preferences(self.user, self.book.pk, favorite=True)
+        self.assertFalse(BookLike.objects.exists())
+        self.assertFalse(FavoriteBook.objects.exists())
+
+    def test_write_selectors_and_delete_body_are_rejected_without_mutation(self):
+        set_preferences(self.user, self.book.pk, liked=True, favorite=True)
+        self.assertEqual(
+            self.client.patch(
+                self.url + "?foo=bar", {"liked": False}, format="json"
+            ).status_code,
+            400,
+        )
+        self.assertEqual(self.client.delete(self.url + "?foo=bar").status_code, 400)
+        self.assertEqual(
+            self.client.delete(
+                self.url, {"user_id": self.other.pk}, format="json"
+            ).status_code,
+            400,
+        )
+        self.assertTrue(preference_state(self.user, self.book.pk)["liked"])
+        self.assertTrue(preference_state(self.user, self.book.pk)["favorite"])
+
+    def test_saved_list_filter_errors_are_static_and_do_not_invoke_service(self):
+        with (
+            patch("book.preference_api.preference_books") as api_books,
+            patch("book.preference_views.preference_books") as web_books,
+        ):
+            response = self.client.get(self.list_url, {"kind": "invalid-secret"})
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.json(), {"detail": "kind must be all, likes or favorites."}
+            )
+            response = self.client.get("/book/preferences/", {"kind": "invalid-secret"})
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.content.decode(), "kind must be all, likes or favorites."
+            )
+            api_books.assert_not_called()
+            web_books.assert_not_called()
+        self.assertEqual(
+            self.client.get("/book/preferences/?user_id=2").status_code, 400
+        )
+        self.assertEqual(
+            self.client.post(
+                f"/book/{self.book.pk}/preferences/", {"action": "invalid"}
+            ).status_code,
+            400,
+        )
+
     def test_partial_idempotent_updates_and_delete(self):
         self.assertEqual(
             self.client.get(self.url).json(),
