@@ -110,6 +110,6 @@ class BookPreferenceListView(GenericAPIView):
             books = preference_books(
                 request.user, request.query_params.get("kind", "all")
             )
-        except ValueError as error:
-            return private_response({"detail": str(error)}, 400)
+        except ValueError:
+            return private_response({"detail": "Invalid kind value."}, 400)
         return private_response(self.get_serializer(books, many=True).data)
