@@ -26,7 +26,7 @@ function sql(command) {
     assert.equal(await page.locator(':focus').getAttribute('id'), 'id_q');
     await page.keyboard.type('книга: Kobzar');
     await page.keyboard.press('Tab');
-    assert.equal(await page.locator(':focus').innerText(), 'Запитати');
+    assert.equal(await page.locator(':focus').innerText(), 'Ask');
     await Promise.all([page.waitForNavigation(), page.keyboard.press('Enter')]);
     assert.equal(new URL(page.url()).search, '');
     assert.match(await page.locator('#assistant-result').innerText(), /Kobzar/);
@@ -40,15 +40,15 @@ function sql(command) {
     assert.match(new URL(page.url()).pathname, /^\/book\/\d+\/$/);
     await page.goto(base + '/assistant/');
     await page.locator('#id_q').fill(marker);
-    await Promise.all([page.waitForNavigation(), page.getByRole('button',{name:'Запитати',exact:true}).click()]);
-    assert.match(await page.locator('#assistant-result').innerText(), /немає підтверджених збігів/);
+    await Promise.all([page.waitForNavigation(), page.getByRole('button',{name:'Ask',exact:true}).click()]);
+    assert.match(await page.locator('#assistant-result').innerText(), /No matching records found/);
     assert.equal(new URL(page.url()).search, '');
     sql('ALTER TABLE book_book RENAME TO kan53_catalog_outage');
     try {
       await page.locator('#id_q').fill('наявність: Kobzar');
-      const [response] = await Promise.all([page.waitForNavigation(), page.getByRole('button',{name:'Запитати',exact:true}).click()]);
+      const [response] = await Promise.all([page.waitForNavigation(), page.getByRole('button',{name:'Ask',exact:true}).click()]);
       assert.equal(response.status(), 503);
-      assert.match(await page.locator('#assistant-result [role=alert]').innerText(), /Каталог тимчасово недоступний/);
+      assert.match(await page.locator('#assistant-result [role=alert]').innerText(), /The catalog is temporarily unavailable/);
       assert.equal(await page.locator('#assistant-result a[href^="/book/"]').count(), 0);
     } finally {
       sql('ALTER TABLE kan53_catalog_outage RENAME TO book_book');

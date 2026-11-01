@@ -15,9 +15,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
+        :where(a, button, input, select, textarea):focus-visible { outline: 2px solid #6366f1; outline-offset: 3px; }
+        section[tabindex="-1"]:focus { outline: none; }
+        .rating-stars { display: flex; gap: 2px; }
+        .rating-input { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+        .rating-stars label { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; color: #64748b; }
+        .rating-stars svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+        .rating-stars label:has(~ input:checked), .rating-input:checked + label { color: #4f46e5; }
+        .rating-stars label:has(~ input:checked) svg, .rating-input:checked + label svg { fill: currentColor; }
+        .rating-stars label:hover { background: #e0e7ff; }
+        .rating-input:focus-visible + label { outline: 2px solid #6366f1; outline-offset: 2px; }
+
     </style>
     <style type="text/tailwindcss">
         @layer components {
+            .field {
+                @apply w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 transition focus:border-indigo-500 focus:bg-white;
+            }
             .card {
                 @apply bg-white rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 overflow-hidden;
             }
@@ -103,7 +117,7 @@
 <body class="min-h-full flex flex-col text-slate-800 antialiased overflow-x-hidden">
     <!-- Navbar -->
     <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <!-- Brand / Logo -->
                 <div class="flex items-center space-x-3">
@@ -115,12 +129,13 @@
                     </a>
                 </div>
 
-                <!-- Desktop Navigation Links (Visible on md and larger) -->
-                <nav class="hidden md:flex items-center space-x-1 lg:space-x-2">
+                <!-- Desktop navigation; staff has a wider menu breakpoint -->
+                <nav class="hidden {% if request.user.is_librarian %}2xl:flex{% else %}xl:flex{% endif %} items-center space-x-1 lg:space-x-2">
                     {% if request.user.is_authenticated %}
                         <a href="{% url 'home' %}" class="nav-link">Home</a>
                         <a href="/book/" class="nav-link">Books</a>
-                        <a href="{% url 'assistant-page' %}" class="nav-link">Помічник</a>
+                        <a href="{% url 'book_recommendations' %}" class="nav-link">For You</a>
+                        <a href="{% url 'assistant-page' %}" class="nav-link">Assistant</a>
                         <a href="{% url 'my_book_preferences' %}" class="nav-link">Saved Books</a>
 
                         {# Reader Menu #}
@@ -154,8 +169,8 @@
                     {% endif %}
                 </nav>
 
-                <!-- Mobile Hamburger Button (Visible on mobile/tablet < md) -->
-                <div class="flex items-center md:hidden">
+                <!-- Compact navigation for smaller screens -->
+                <div class="flex items-center {% if request.user.is_librarian %}2xl:hidden{% else %}xl:hidden{% endif %}">
                     <button id="mobile-menu-button" type="button" aria-label="Toggle navigation menu" aria-expanded="false"
                         class="p-2 rounded-xl text-slate-600 hover:text-indigo-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
                         <!-- Icon when closed (hamburger) -->
@@ -172,7 +187,7 @@
         </div>
 
         <!-- Mobile Navigation Menu Dropdown -->
-        <div id="mobile-menu" class="hidden md:hidden border-t border-slate-200 bg-white shadow-lg animate-in slide-in-from-top-2 duration-200">
+        <div id="mobile-menu" class="hidden {% if request.user.is_librarian %}2xl:hidden{% else %}xl:hidden{% endif %} border-t border-slate-200 bg-white shadow-lg animate-in slide-in-from-top-2 duration-200">
             <div class="px-4 pt-3 pb-5 space-y-2">
                 {% if request.user.is_authenticated %}
                     <!-- User Profile Card inside Mobile Menu -->
@@ -195,7 +210,8 @@
                         Books Catalog
                     </a>
 
-                    <a href="{% url 'assistant-page' %}" class="mobile-nav-link">Помічник</a>
+                    <a href="{% url 'book_recommendations' %}" class="mobile-nav-link">For You</a>
+                    <a href="{% url 'assistant-page' %}" class="mobile-nav-link">Assistant</a>
                     <a href="{% url 'my_book_preferences' %}" class="mobile-nav-link">Saved Books</a>
 
                     {# Reader Menu #}

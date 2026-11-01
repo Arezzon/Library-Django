@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}For You - Library{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div><h1 class="text-2xl sm:text-3xl font-bold text-slate-900">For You</h1><p class="mt-2 text-sm text-slate-500">Available books picked for your interests.</p></div>
+        <a href="{% url 'my_book_preferences' %}" class="btn-secondary">Saved Books</a>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-4">
+        {% for book in books %}
+        <article class="card flex flex-col" data-book-id="{{ book.pk }}">
+            <div class="card-body space-y-3 flex-1">
+                <span class="badge-success">{{ book.available_count }} available</span>
+                <h2 class="text-lg font-semibold"><a href="{% url 'book_detail' book.pk %}" class="text-slate-900 hover:text-indigo-600">{{ book.name }}</a></h2>
+                <p class="text-sm text-slate-500">{% for author in book.authors.all %}{{ author.name }} {{ author.surname }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+                <p class="text-sm text-slate-600">{{ book.reason }}</p>
+            </div>
+            <div class="card-footer"><a href="{% url 'book_detail' book.pk %}" class="btn-sm-primary">View book<span class="sr-only">: {{ book.name }}</span></a></div>
+        </article>
+        {% empty %}
+        <div class="card card-body sm:col-span-2"><h2 class="font-semibold">No available recommendations yet</h2><p class="mt-2 text-sm text-slate-500">Check back when more books are available.</p><a href="{% url 'book_list' %}" class="btn-secondary mt-4">Browse books</a></div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

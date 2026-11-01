@@ -39,7 +39,9 @@ saved the actual source book; they never claim it was read. Removing a preferenc
 removes that explicit signal on the next request; independent behavioral history
 can still contribute. Existing availability rules, stable Top-N and alphabetical
 cold-start fallback remain in force. Missing preferences are a valid empty tuple.
-Numerical ratings are reserved for KAN-59–61.
+Numerical ratings use the separate KAN-59–61 model/API and signed ranking rule;
+see [book ratings](../features/book-ratings.md). A non-neutral rating overrides
+the preference weight for that book without changing the like/favorite itself.
 
 ## Search events and failure handling
 

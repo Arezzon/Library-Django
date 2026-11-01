@@ -65,7 +65,6 @@ class AssistantInterfaceTests(FakeEncoderMixin, TestCase):
             'role="status"',
             'tabindex="-1"',
             'href="#id_q"',
-            'lang="uk"',
         ):
             self.assertContains(response, fragment)
         self.assertIn("no-store", response["Cache-Control"])
@@ -97,9 +96,11 @@ class AssistantInterfaceTests(FakeEncoderMixin, TestCase):
             ),
         ):
             response = self.ask("книга: Кобзар")
-        self.assertContains(response, "Каталог тимчасово недоступний", status_code=503)
+        self.assertContains(
+            response, "The catalog is temporarily unavailable", status_code=503
+        )
         self.assertContains(response, 'role="alert"', status_code=503)
-        self.assertContains(response, "спробувати знову", status_code=503)
+        self.assertContains(response, "try again", status_code=503)
         self.assertNotContains(response, "private database details", status_code=503)
         self.assertEqual(response["Retry-After"], "5")
         self.assertEqual(response.context["result"]["books"], [])

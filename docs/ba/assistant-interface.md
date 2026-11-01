@@ -3,7 +3,8 @@
 `/assistant/` is the signed-in reader page for the KAN-52 `ai` catalog service.
 Desktop/mobile navigation links to it. It is server rendered and needs no custom
 JavaScript: labeled intent selector, question textarea, example buttons, submit,
-clear, response and linked catalog sources. Ukrainian text is marked `lang=uk`.
+clear, response and linked catalog sources. Interface labels and navigation follow
+the existing English site; Ukrainian catalog questions remain supported.
 
 Questions use CSRF-protected POST, not query-string navigation. GET parameters are
 redirected to the clean URL. The page has no-store cache control and same-origin
@@ -13,7 +14,8 @@ browser/OS memory. Clear loads a new empty form.
 
 ## States and scope
 
-The page uses `ai.services.catalog_assistant` without a second interpretation layer.
+The page uses structured results from `ai.services.catalog_assistant`. Concise English
+status messages and source cards avoid repeating the API answer and raw URLs.
 The selector accepts literal title/author/availability queries; auto accepts the
 KAN-52 short command grammar. This is not general conversation. The help describes
 supported commands. Confirmed matches provide book detail and author/catalog links;
@@ -23,7 +25,7 @@ Source failure is HTTP 503 with an alert, retry link, no fabricated sources and
 response because they query the same failed catalog tables. Invalid/duplicate/unknown form fields return 400 with an alert.
 Active-account permission checks and CSRF run before catalog access.
 
-Availability is a snapshot. The service's notice remains visible; the page never
+Availability is a snapshot. A short notice accompanies confirmed books; the page never
 calls reservation/issuance services and provides no booking mutation form. Clicking
 book sources opens the normal catalog where normal business checks remain intact.
 

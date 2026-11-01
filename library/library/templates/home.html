@@ -51,6 +51,13 @@
         </a>
 
         {% if request.user.is_visitor %}
+        <a href="{% url 'book_recommendations' %}" class="card p-5 sm:p-6 hover:border-indigo-500 hover:shadow-md active:scale-[0.99] transition group">
+            <div class="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition">
+                <svg class="w-6 h-6" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 3 2.8 5.7 6.3.9-4.6 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2-4.6-4.4 6.3-.9Z"/></svg>
+            </div>
+            <h3 class="text-base sm:text-lg font-semibold text-slate-900 mt-4 group-hover:text-indigo-600 transition">For You</h3>
+            <p class="text-slate-500 text-xs sm:text-sm mt-1">Discover available books picked for your interests.</p>
+        </a>
         <!-- My Orders Card for Reader -->
         <a href="{% url 'order_my' %}" class="card p-5 sm:p-6 hover:border-indigo-500 hover:shadow-md active:scale-[0.99] transition group">
             <div

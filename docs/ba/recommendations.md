@@ -57,8 +57,8 @@ The public service is `recommend_books(user, limit)`; its output contains no
 raw personal signal records. KAN-32 adds a reason based on the caller's own signal.
 KAN-51 adds durable current likes/favorites through `read_book_preferences(user)`
 and records successful catalog/API searches with retry-safe identities. Numerical
-ratings remain separate: KAN-59 owns CRUD/scale, KAN-60 the UI, and KAN-61 ranking
-integration. No rating is inferred from a like or arbitrary event JSON. The
+ratings are separate current state: KAN-59 supplies CRUD/scale, KAN-60 the UI,
+and KAN-61 integrates signed rating signals. No rating is inferred from a like or arbitrary event JSON. The
 alphabetical fallback and weights remain transparent baseline rules.
 
 ## Reasons (KAN-32)
@@ -114,4 +114,22 @@ Likes and favorites are now available as independent owned states. Either gives
 weight 5, with no double boost for both. Current state is read on each request;
 removal drops the explicit signal while other history can remain. See
 [the preference contract](reader-preferences.md) for API routes, search identities,
-privacy and failure handling. Numerical ratings remain a separate future stage.
+privacy and failure handling. Numerical ratings now use the separate current-state adapter documented in
+[book ratings](../features/book-ratings.md), with signed weights and no cross-reader input.
+
+All currently rated books are excluded, including neutral scores and votes outside
+the bounded signal window. A neutral/deleted rating leaves independent history
+and likes intact. See the rating contract for the signed weight/control table.
+
+## Reader entry point
+
+`/book/recommendations/` uses the same private service with no-store responses.
+**For You** appears in both desktop and compact navigation. Cards include current
+availability, an English reason and a book link; an empty catalog has a clear empty
+state. `recommend_books(..., language="en")` localizes presentation only; the API's
+existing Ukrainian `reason` contract and ranking remain unchanged.
+
+Service-backed APIs provide an empty public queryset for the browsable renderer;
+the actual result still comes from the owned service. Regression tests request
+`Accept: text/html`, so opening the API URL in a browser cannot silently regress
+while JSON tests pass.

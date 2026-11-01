@@ -12,8 +12,10 @@ from events.models import EventType
 from . import embeddings
 from .embedding_config import resolve
 from .embeddings import normalized_vector
-from .models import BookEmbedding
+from .models import BookEmbedding, BookRating
 from .preferences import read_book_preferences
+from .rating_rules import rating_weight
+from .ratings import read_rating_signals
 from .recommendation_data import available_candidates, fallback_candidates, read_history
 
 DEFAULT_LIMIT = 10
@@ -25,6 +27,8 @@ EXPLICIT_PREFERENCE_WEIGHT = 5
 FALLBACK_REASON = "Доступна книга із запасного списку рекомендацій."
 PROFILE_REASON = "Рекомендовано за сукупністю ваших інтересів."
 BOOK_REASONS = {
+    "rated_high": "Рекомендовано, бо ви високо оцінили «{title}».",
+    "rated_low": "Рекомендовано з урахуванням вашої низької оцінки «{title}».",
     "liked": "Рекомендовано, бо вам подобається «{title}».",
     "favorite": "Рекомендовано, бо ви додали «{title}» до обраного.",
     EventType.BOOK_VIEW: "Рекомендовано, бо ви переглядали «{title}».",
@@ -35,6 +39,19 @@ BOOK_REASONS = {
 }
 
 
+ENGLISH_BOOK_REASONS = {
+    "rated_high": "Because you rated “{title}” highly.",
+    "rated_low": "Taking your low rating of “{title}” into account.",
+    "liked": "Because you like “{title}”.",
+    "favorite": "Because you saved “{title}” to favorites.",
+    EventType.BOOK_VIEW: "Because you viewed “{title}”.",
+    EventType.BOOK_CLICK: "Because you explored “{title}”.",
+    EventType.BORROW_INTENT: "Because you wanted to borrow “{title}”.",
+    EventType.ORDER_CREATED: "Because you borrowed “{title}”.",
+    EventType.ORDER_RETURNED: "Because you returned “{title}”.",
+}
+
+
 @dataclass(frozen=True)
 class _Signal:
     vector: list[float]
@@ -42,7 +59,7 @@ class _Signal:
     reason: str
 
 
-def _reason(book, signals):
+def _reason(book, signals, profile_reason=PROFILE_REASON):
     """Name the largest positive weighted contribution to this candidate.
 
     Normalizing the profile divides every contribution by the same positive
@@ -53,8 +70,8 @@ def _reason(book, signals):
     try:
         candidate = normalized_vector(book.embedding.vector)
     except ValueError:
-        return PROFILE_REASON
-    best, contribution = PROFILE_REASON, 0.0
+        return profile_reason
+    best, contribution = profile_reason, 0.0
     for signal in signals:
         score = signal.weight * sum(
             x * y for x, y in zip(candidate, signal.vector, strict=True)
@@ -64,7 +81,7 @@ def _reason(book, signals):
     return best
 
 
-def _profile(user, now):
+def _profile(user, now, language="uk"):
     """At most 200 recent own events, including three distinct text searches."""
     history = read_history(user, now=now)
     weights = {signal.book_id: signal.weight for signal in history.books}
@@ -73,6 +90,11 @@ def _profile(user, now):
     for preference in read_book_preferences(user):
         weights[preference.book_id] = EXPLICIT_PREFERENCE_WEIGHT
         actions[preference.book_id] = "liked" if preference.liked else "favorite"
+    for rating in read_rating_signals(user):
+        weight = rating_weight(rating.value)
+        if weight:
+            weights[rating.book_id] = weight
+            actions[rating.book_id] = "rated_high" if weight > 0 else "rated_low"
     spec = resolve()
     vectors = BookEmbedding.objects.filter(
         book_id__in=weights, model=spec.repository, model_revision=spec.tag
@@ -88,12 +110,16 @@ def _profile(user, now):
         except ValueError:
             continue
         seeds.append(embedding.book_id)
-        title = embedding.book.name.strip() or "Книга без назви"
+        title = embedding.book.name.strip() or (
+            "Untitled book" if language == "en" else "Книга без назви"
+        )
         signals.append(
             _Signal(
                 vector,
                 weights[embedding.book_id],
-                BOOK_REASONS[actions[embedding.book_id]].format(title=title),
+                (ENGLISH_BOOK_REASONS if language == "en" else BOOK_REASONS)[
+                    actions[embedding.book_id]
+                ].format(title=title),
             )
         )
         for i, value in enumerate(vector):
@@ -119,7 +145,11 @@ def _profile(user, now):
                     _Signal(
                         vector,
                         SEARCH_WEIGHT,
-                        f"Рекомендовано за вашим пошуком «{query}».",
+                        (
+                            f"Because you searched for “{query}”."
+                            if language == "en"
+                            else f"Рекомендовано за вашим пошуком «{query}»."
+                        ),
                     )
                 )
                 for i, value in enumerate(vector):
@@ -130,7 +160,7 @@ def _profile(user, now):
         return None, seeds, signals
 
 
-def recommend_books(user, limit=DEFAULT_LIMIT):
+def recommend_books(user, limit=DEFAULT_LIMIT, *, language="uk"):
     """Return up to ``limit`` available, not-currently-held books for this account.
 
     A weighted centroid ranks unseen compatible books by cosine similarity. Missing
@@ -147,8 +177,9 @@ def recommend_books(user, limit=DEFAULT_LIMIT):
     ):
         raise ValueError(f"limit must be an integer from 1 to {MAX_LIMIT}.")
     now = timezone.now()
-    books = available_candidates(user, now=now)
-    profile, seeds, signals = _profile(user, now)
+    rated_books = BookRating.objects.filter(user_id=user.pk).values("book_id")
+    books = available_candidates(user, now=now).exclude(pk__in=rated_books)
+    profile, seeds, signals = _profile(user, now, language)
     results = []
     if profile is not None:
         spec = resolve()
@@ -162,7 +193,11 @@ def recommend_books(user, limit=DEFAULT_LIMIT):
             .order_by("distance", "id")[:limit]
         )
     for book in results:
-        book.reason = _reason(book, signals)
+        book.reason = _reason(
+            book,
+            signals,
+            "Based on your interests." if language == "en" else PROFILE_REASON,
+        )
     if len(results) < limit:
         fallback = list(
             fallback_candidates(
@@ -170,9 +205,13 @@ def recommend_books(user, limit=DEFAULT_LIMIT):
                 now=now,
                 exclude_book_ids=(seeds if profile is not None else [])
                 + [book.pk for book in results],
-            )[: limit - len(results)]
+            ).exclude(pk__in=rated_books)[: limit - len(results)]
         )
         for book in fallback:
-            book.reason = FALLBACK_REASON
+            book.reason = (
+                "An available pick to help you get started."
+                if language == "en"
+                else FALLBACK_REASON
+            )
         results += fallback
     return results
