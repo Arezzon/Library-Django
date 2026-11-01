@@ -627,3 +627,9 @@ a language model or semantic search. Use `автор: Taras Shevchenko`,
 `наявність: Kobzar`, or explicit `intent=title|author|availability`.
 See [the assistant contract](docs/ba/catalog-assistant.md) for supported requests,
 clarification, source failures and availability limits.
+
+### Reader assistant page
+
+Open `/assistant/` after signing in to ask supported catalog questions, refine
+ambiguous matches and follow book sources. Questions use private POST forms.
+See [the Ukrainian controls and accessibility/privacy checks](docs/ba/assistant-interface.md).

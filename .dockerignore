@@ -13,3 +13,5 @@ README.md
 .pytest_cache/
 staticfiles/
 .cache/
+
+**/node_modules/

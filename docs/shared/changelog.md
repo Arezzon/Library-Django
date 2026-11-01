@@ -1,4 +1,8 @@
 2026-11-01
+Reader assistant interface and Ukrainian controls (KAN-53)
+Add a private CSRF-protected assistant page with source links, clarification/error states, keyboard-friendly native controls and desktop/mobile navigation. Add eight Ukrainian control questions, status-only logging, permission/privacy/regression tests and a real browser accessibility/source-outage smoke check. The interface consumes KAN-52 and makes no loan or reservation changes.
+
+2026-11-01
 A grounded, read-only catalog assistant (KAN-52)
 Add an authenticated assistant API/service in an isolated ai Django app with a read-only catalog gateway for literal title, author and current availability queries. Responses cite catalog records, ask for refinement on ambiguous inputs, and report absent data or source failures without invention. No LLM, semantic search, booking or issuance dependency is introduced. Include access/availability/source-failure tests and Docker HTTP checks.
 
