@@ -2,13 +2,16 @@
 
 `/assistant/` is the signed-in reader page for the KAN-52 `ai` catalog service.
 Desktop/mobile navigation links to it. It is server rendered and needs no custom
-JavaScript: labeled intent selector, question textarea, example buttons, submit,
+JavaScript: automatic question interpretation, an optional intent selector under
+Search options, question textarea, example buttons, submit,
 clear, response and linked catalog sources. Interface labels and navigation follow
-the existing English site; Ukrainian catalog questions remain supported.
+the existing English site; natural Ukrainian and English questions are supported.
 
 Questions use CSRF-protected POST, not query-string navigation. GET parameters are
 redirected to the clean URL. The page has no-store cache control and same-origin
-policy; no conversation, question or answer is saved in a model or session.
+policy; no conversation, question or answer text is saved. Only the previous
+result’s bounded book IDs, account ID and timestamp are kept in the browser session
+for ten minutes to support availability follow-ups. Clear/new GET removes them.
 Browsers can retain form state locally; the application makes no promise to erase
 browser/OS memory. Clear loads a new empty form.
 
@@ -16,9 +19,9 @@ browser/OS memory. Clear loads a new empty form.
 
 The page uses structured results from `ai.services.catalog_assistant`. Concise English
 status messages and source cards avoid repeating the API answer and raw URLs.
-The selector accepts literal title/author/availability queries; auto accepts the
-KAN-52 short command grammar. This is not general conversation. The help describes
-supported commands. Confirmed matches provide book detail and author/catalog links;
+The optional selector accepts literal title/author/availability queries. Auto
+understands supported natural UA/EN title, author, availability and topic requests.
+See [the parser, CPU search and context contract](catalog-assistant.md). Confirmed matches provide book detail and author/catalog links;
 ambiguous results ask for refinement, absent matches state the lack of evidence.
 Source failure is HTTP 503 with an alert, retry link, no fabricated sources and
 `Retry-After: 5`. Ancillary reservation notices are omitted on this outage
@@ -46,8 +49,9 @@ create the catalog records Кобзар / Тарас Шевченко and ambigu
 | книга: Лісова | confirmed candidates and refinement request |
 
 The existing demo seed uses transliterated titles/names. For a live demo use the
-visible example buttons: `книга: Kobzar`, `автор: Taras Shevchenko`,
-`наявність: Kobzar`. The UI does not invent translations absent from the catalog.
+visible example buttons: `Знайди твори Шевченка`, `Is 1984 available?`,
+`Порадь книги про програмування`. The 16 exact seeded expectations are in
+`ai/control/questions_natural.json` and run in the HTTP smoke check. The UI does not invent translations absent from the catalog.
 
 ## Accessibility and privacy verification
 

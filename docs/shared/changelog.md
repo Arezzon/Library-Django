@@ -1,4 +1,8 @@
 2026-11-01
+Natural Ukrainian and English catalog questions
+Extend the catalog assistant with bounded natural-language interpretation, Ukrainian case and transliteration matching, CPU topic retrieval through the existing semantic model, and account-bound ten-minute availability follow-ups without saving question text. Preserve grounded links, current stock, privacy and read-only operations; add 16 real seeded demo queries to HTTP CI plus grammar, service, session and browser regressions.
+
+2026-11-01
 Book.create links authors after saving the book (KAN-77)
 `Book.create` with a non-empty `authors` list no longer fails with `ValueError`: the book is saved first, then its authors are linked, and both happen in one transaction, so a failed link leaves neither the book nor its embedding behind. New tests cover no authors, an empty list, one and several authors, the rollback and a too-long name.
 

@@ -1,4 +1,4 @@
-"""Read-only, deterministic catalog assistant. No model inference or workflow calls."""
+"""Read-only UA/EN catalog assistant with optional CPU topic retrieval."""
 
 from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError
@@ -6,27 +6,19 @@ from django.utils import timezone
 
 from authentication.permissions import is_signed_in
 from book.catalog_data import lookup_catalog
+from book.embeddings import EmbeddingGenerationError
+
+from .language import parse_query
 
 MAX_QUERY_LENGTH = 256
 INTENTS = ("auto", "title", "author", "availability")
-PREFIXES = {
-    "книга": "title",
-    "назва": "title",
-    "book": "title",
-    "title": "title",
-    "автор": "author",
-    "author": "author",
-    "наявність": "availability",
-    "доступність": "availability",
-    "availability": "availability",
-}
 AVAILABILITY_NOTICE = (
     "Наявність наведено на момент перевірки, це не гарантія отримання книги. "
     "Під час бронювання фонд перевіряється повторно."
 )
 HELP = (
     "Уточніть назву або автора. Приклади: «книга: Kobzar», "
-    "«автор: Taras Shevchenko», «наявність: Kobzar»."
+    "«знайди твори Шевченка», «чи є 1984?», «порадь книги про програмування»."
 )
 
 
@@ -52,11 +44,11 @@ def _response(
     }
 
 
-def catalog_assistant(user, query="", intent="auto"):
-    """Only active signed-in accounts can read the same catalog as normal readers.
+def catalog_assistant(user, query="", intent="auto", *, context_book_ids=()):
+    """Resolve supported UA/EN questions to fresh catalog facts only.
 
-    Accept literal title fragments, explicit intent or documented UA/EN prefixes.
-    Do not interpret arbitrary conversation, retain chat history or mutate stock.
+    The trusted web flow may supply bounded IDs from its own short-lived session.
+    Literal and author lookups need no inference; topic queries reuse CPU search.
     """
     if not is_signed_in(user) or user.pk is None:
         raise PermissionDenied("Sign in to use the catalog assistant.")
@@ -66,28 +58,47 @@ def catalog_assistant(user, query="", intent="auto"):
         or intent not in INTENTS
     ):
         raise ValueError("Invalid assistant parameters.")
-    query = " ".join(query.split())
-    if intent == "auto":
-        prefix, separator, rest = query.partition(":")
-        if separator:
-            intent = PREFIXES.get(prefix.casefold())
-            if intent is None:
-                return _response("clarification_required", "auto", HELP)
-            query = rest.strip()
-        else:
-            intent = "title"
-    if len(query) < 2:
+    parsed = parse_query(query, intent)
+    intent, query = parsed.intent, parsed.text
+    if intent == "clarify" or (
+        len(query) < 2 and not parsed.followup and not parsed.available_only
+    ):
+        return _response("clarification_required", "auto", HELP)
+    if parsed.followup and (
+        not context_book_ids or (parsed.single and len(context_book_ids) != 1)
+    ):
         return _response("clarification_required", intent, HELP)
     now = timezone.now()
     try:
-        books, authors, truncated = lookup_catalog(
-            user, query, by_author=intent == "author", now=now
-        )
-    except DatabaseError:
+        options = {"by_author": intent == "author", "now": now}
+        if parsed.available_only:
+            options["available_only"] = True
+        if parsed.followup:
+            options["book_ids"] = context_book_ids[:10]
+        if intent == "topic":
+            options["topic"] = True
+        books, authors, truncated = lookup_catalog(user, query, **options)
+        if not books and not authors and query and intent != "topic":
+            books, authors, truncated = lookup_catalog(
+                user, query, flexible=True, **options
+            )
+        if not books and not authors and intent == "title" and not parsed.literal:
+            books, authors, truncated = lookup_catalog(
+                user,
+                query,
+                by_author=True,
+                now=now,
+                flexible=True,
+                available_only=parsed.available_only,
+            )
+            if authors:
+                intent = "author"
+
+    except (DatabaseError, EmbeddingGenerationError):
         return _response(
             "source_unavailable",
             intent,
-            "Каталог тимчасово недоступний. Не можу підтвердити книги, авторів чи наявність. Спробуйте пізніше.",
+            "Каталог або пошук тимчасово недоступний. Не можу підтвердити книги, авторів чи наявність. Спробуйте пізніше.",
         )
     if not books and not authors:
         return _response(
@@ -97,9 +108,11 @@ def catalog_assistant(user, query="", intent="auto"):
             checked_at=now.isoformat(),
         )
     ambiguous = truncated or (
-        len(authors) > 1 if intent == "author" else len(books) > 1
+        len(authors) > 1
+        if intent == "author"
+        else (len(books) > 1 and intent != "topic" and not parsed.available_only)
     )
-    lines = []
+    lines = ["Схожі за темою книги каталогу:"] if intent == "topic" else []
     for author in authors:
         lines.append(
             f"Автор: {author['name']} ({author['url']}). Книги: {author['books_url']}."

@@ -2,8 +2,8 @@
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers
-from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from authentication.permissions import IsSignedIn
 
@@ -46,7 +46,7 @@ class AssistantParameters(serializers.Serializer):
     intent = serializers.ChoiceField(choices=INTENTS, default="auto")
 
 
-class CatalogAssistantView(GenericAPIView):
+class CatalogAssistantView(APIView):
     permission_classes = [IsSignedIn]
     serializer_class = AssistantResponseSerializer
     http_method_names = ["get", "head", "options"]
@@ -56,7 +56,7 @@ class CatalogAssistantView(GenericAPIView):
             OpenApiParameter(
                 "q",
                 str,
-                description="Literal title or UA/EN prefix: книга:, автор:, наявність:. Max 256 characters.",
+                description="Ukrainian/English catalog question, e.g. знайди твори Шевченка or Find books about programming. Max 256 characters.",
             ),
             OpenApiParameter(
                 "intent",
@@ -66,7 +66,7 @@ class CatalogAssistantView(GenericAPIView):
             ),
         ],
         responses={200: AssistantResponseSerializer, 503: AssistantResponseSerializer},
-        description="Read-only current catalog facts and source links. No LLM, semantic search, reservation or loan creation. Availability is a snapshot, rechecked by booking.",
+        description="Read-only current catalog facts and source links. CPU semantic search for explicit topics; no external LLM, reservation or loan creation. Availability is a snapshot, rechecked by booking.",
     )
     def get(self, request):
         if set(request.query_params) - {"q", "intent"} or any(
