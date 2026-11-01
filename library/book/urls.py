@@ -1,8 +1,12 @@
 from django.urls import path
 
-from . import preference_views, views
+from . import preference_views, rating_views, views
 
 urlpatterns = [
+    path("recommendations/", views.book_recommendations, name="book_recommendations"),
+    path(
+        "<int:book_id>/rating/", rating_views.rating_update, name="book_rating_update"
+    ),
     path("preferences/", preference_views.my_preferences, name="my_book_preferences"),
     path(
         "<int:book_id>/preferences/",

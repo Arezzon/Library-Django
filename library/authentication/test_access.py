@@ -61,6 +61,11 @@ EVENT = {"event_type": "book_click", "book_id": "{book}", "path": "/book/"}
 # (method, path, body, anonymous, reader, librarian): contracts/access-control.md,
 # "API operations". {reader} is the signed-in reader; {other} is another reader.
 OPERATIONS = [
+    ("get", "/api/v1/books/{book}/rating-summary/", None, 401, 200, 200),
+    ("get", "/api/v1/books/{book}/rating/", None, 401, 200, 200),
+    ("put", "/api/v1/books/{book}/rating/", {"value": 5}, 401, 200, 200),
+    ("patch", "/api/v1/books/{book}/rating/", {"value": 1}, 401, 200, 200),
+    ("delete", "/api/v1/books/{book}/rating/", None, 401, 200, 200),
     ("get", "/api/v1/", None, 200, 200, 200),
     ("get", "/api/v1/version/", None, 200, 200, 200),
     ("get", "/api/schema/", None, 200, 200, 200),

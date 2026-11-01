@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from authentication.permissions import IsSignedIn
 
+from .models import Book
 from .preferences import preference_books, preference_state, set_preferences
 from .serializers import BookSerializer
 
@@ -55,6 +56,7 @@ def private_response(data, status=200):
 
 
 class BookPreferenceView(GenericAPIView):
+    queryset = Book.objects.none()
     permission_classes = [IsSignedIn]
     parser_classes = [JSONParser]
     serializer_class = PreferenceStateSerializer
@@ -96,6 +98,7 @@ class BookPreferenceView(GenericAPIView):
 
 
 class BookPreferenceListView(GenericAPIView):
+    queryset = Book.objects.none()
     permission_classes = [IsSignedIn]
     serializer_class = BookPreferenceSerializer
 

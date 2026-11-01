@@ -1,4 +1,5 @@
-from django.core.validators import MinValueValidator
+from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, router, transaction
 from django.db.models import Count, Q
 from django.db.models.signals import post_delete
@@ -364,3 +365,35 @@ class FavoriteBook(models.Model):
 
     def __str__(self):
         return f"Favorite(book={self.book_id})"
+
+
+class BookRating(models.Model):
+    """One private, current numerical rating per reader/book."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="book_ratings"
+    )
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="ratings")
+    value = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-book_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "book"], name="one_rating_per_reader_book"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(value__gte=1, value__lte=5),
+                name="book_rating_value_1_to_5",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user", "-updated_at"], name="book_rating_user_recent")
+        ]
+
+    def __str__(self):
+        return f"Rating(book={self.book_id})"

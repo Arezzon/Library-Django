@@ -643,3 +643,25 @@ clarification, source failures and availability limits.
 Open `/assistant/` after signing in to ask supported catalog questions, refine
 ambiguous matches and follow book sources. Questions use private POST forms.
 See [the Ukrainian controls and accessibility/privacy checks](docs/ba/assistant-interface.md).
+
+### Explicit book ratings
+
+`GET/PUT/PATCH/DELETE /api/v1/books/<id>/rating/` reads or changes only the signed-in
+account's integer 1–5 score. See [the rating contract](docs/features/book-ratings.md)
+for ownership, idempotency, constraints and the staged UI/recommendation integration.
+
+Book details include a private rating form and aggregate mean/count. The same
+aggregate is available at `/api/v1/books/<id>/rating-summary/` without rater IDs.
+
+Recommendations consume only current own rating signals: 4–5 positive, 1–2
+negative, 3 neutral. Already-rated books are excluded and availability is rechecked.
+
+### Reader experience verification
+
+Use **For You** in the signed-in header for the recommendations page at
+`/book/recommendations/`. The JSON API remains `/api/v1/books/recommendations/`.
+Book details use keyboard-accessible 1–5 stars; select a star and save.
+The catalog assistant and shared reader controls follow the English site interface.
+See [the reader walkthrough](docs/features/reader-verification.md) for KAN-31 onward
+and [deployment checks](docs/features/deployment-verification.md) when a server
+appears to be running older code.

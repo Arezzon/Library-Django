@@ -31,7 +31,7 @@ def assistant_page(request):
         if set(request.POST) - {"q", "intent", "csrfmiddlewaretoken"} or any(
             len(request.POST.getlist(key)) != 1 for key in request.POST
         ):
-            form.add_error(None, "Надішліть лише одне запитання та обраний тип пошуку.")
+            form.add_error(None, "Send one question and one search type.")
         if form.is_valid():
             result = catalog_assistant(
                 request.user, form.cleaned_data["q"], form.cleaned_data["intent"]
