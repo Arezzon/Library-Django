@@ -242,6 +242,14 @@ class OverviewTests(FakeEncoderMixin, TestCase):
             {row["start"]: row["loans"] for row in series}["2026-10-01"], 3
         )
 
+    def test_a_return_dated_before_any_issue_starts_the_history(self):
+        loan(self.bob, self.emma, kyiv(2026, 9, 10), returned=kyiv(2026, 8, 20))
+        overview = self.overview("12m")
+        self.assertEqual(overview["history_start"]["loans"], "2026-08-20")
+        august = {row["start"]: row for row in overview["series"]}["2026-08-01"]
+        self.assertEqual(august["returns"], 1)
+        self.assertTrue(august["covered"])
+
     def test_weekly_series_groups_from_monday(self):
         series = self.overview("90d")["series"]
         loans = {row["start"]: row["loans"] for row in series}

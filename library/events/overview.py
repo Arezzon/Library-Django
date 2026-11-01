@@ -92,8 +92,11 @@ def compare(value, previous, history, period):
 
 
 def history_starts():
+    # A loan's return can be recorded with an earlier date than its issue (the
+    # demo data does), so loan history starts at whichever comes first.
+    loans = Order.objects.aggregate(issued=Min("created_at"), returned=Min("end_at"))
     starts = {
-        "loans": Order.objects.aggregate(first=Min("created_at"))["first"],
+        "loans": min(filter(None, loans.values()), default=None),
         "reservations": Reservation.objects.aggregate(first=Min("created_at"))["first"],
         "events": UserEvent.objects.aggregate(first=Min("occurred_at"))["first"],
     }
