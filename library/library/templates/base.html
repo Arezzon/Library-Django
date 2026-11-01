@@ -143,11 +143,7 @@
                         <!-- User info badge -->
                         <div class="flex items-center space-x-2 text-xs">
                             <span class="text-slate-500 font-medium">{{ request.user.email }}</span>
-                            {% if request.user.is_librarian %}
-                                <span class="badge-purple">Librarian</span>
-                            {% else %}
-                                <span class="badge-info">Reader</span>
-                            {% endif %}
+                            {% include 'includes/role_badge.html' with account=request.user %}
                         </div>
 
                         <a href="{% url 'logout' %}" class="btn-logout ml-2">Log Out</a>
@@ -186,11 +182,7 @@
                             <p class="text-sm font-semibold text-slate-800 truncate">{{ request.user.email }}</p>
                         </div>
                         <div>
-                            {% if request.user.is_librarian %}
-                                <span class="badge-purple">Librarian</span>
-                            {% else %}
-                                <span class="badge-info">Reader</span>
-                            {% endif %}
+                            {% include 'includes/role_badge.html' with account=request.user %}
                         </div>
                     </div>
 

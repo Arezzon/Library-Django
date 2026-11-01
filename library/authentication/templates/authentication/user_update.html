@@ -25,6 +25,12 @@
             <form method="post" class="space-y-5">
                 {% csrf_token %}
                 {% include 'includes/form_snippet.html' %}
+                {% if request.user.is_librarian and 'role' not in form.fields %}
+                <p class="text-sm text-slate-600">
+                    Role: {{ target_user.get_role_display|capfirst }}.
+                    {% if target_user.is_administrator %}The operator changes an administrator's role on the server.{% else %}Only an administrator can grant or remove the librarian role.{% endif %}
+                </p>
+                {% endif %}
                 <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
                     <a href="{% url 'user_detail' target_user.id %}" class="btn-secondary w-full sm:w-auto justify-center">Cancel</a>
                     <button type="submit" class="btn-primary w-full sm:w-auto justify-center">Save Changes</button>

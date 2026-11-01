@@ -9,13 +9,18 @@ import os
 import subprocess
 import sys
 from datetime import timedelta
+from io import StringIO
+from unittest.mock import patch
 
 from django.conf import settings
+from django.core.management import CommandError, call_command
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import path
 from django.utils import timezone
 
-from .models import ROLE_LIBRARIAN, ROLE_VISITOR, CustomUser
+from audit.models import AuditEntry
+
+from .models import ROLE_ADMINISTRATOR, ROLE_LIBRARIAN, ROLE_VISITOR, CustomUser
 
 # Settings inputs; a developer's .env must not leak into the checks below.
 SETTINGS_ENV = (
@@ -326,22 +331,34 @@ class AccountWebAccessTests(TestCase):
         self.assertEqual(self.reader.first_name, "Renamed")
         self.assertEqual(self.reader.created_at, created)
 
-    def test_librarian_changes_role_and_status(self):
+    def test_librarian_changes_status_and_an_administrator_the_role(self):
+        administrator = CustomUser.objects.create_user(
+            email="web-administrator@example.com",
+            password="web-password",
+            first_name="Web",
+            middle_name="",
+            last_name="Administrator",
+            role=ROLE_ADMINISTRATOR,
+            is_active=True,
+        )
+        names = {"first_name": "Web", "middle_name": "M", "last_name": "Reader"}
         self.client.force_login(self.librarian)
+        # An unchecked "active" box is absent from the form data.
+        response = self.client.post(self.update_url(self.reader), names)
+        self.assertEqual(response.status_code, 302)
+        self.reader.refresh_from_db()
+        self.assertEqual(
+            (self.reader.role, self.reader.is_active), (ROLE_VISITOR, False)
+        )
+        self.client.force_login(administrator)
         response = self.client.post(
             self.update_url(self.reader),
-            {
-                "first_name": "Web",
-                "middle_name": "M",
-                "last_name": "Reader",
-                "role": ROLE_LIBRARIAN,
-                # An unchecked "active" box is absent from the form data.
-            },
+            {**names, "role": ROLE_LIBRARIAN, "is_active": "on"},
         )
         self.assertEqual(response.status_code, 302)
         self.reader.refresh_from_db()
         self.assertEqual(
-            (self.reader.role, self.reader.is_active), (ROLE_LIBRARIAN, False)
+            (self.reader.role, self.reader.is_active), (ROLE_LIBRARIAN, True)
         )
 
     def test_anonymous_callers_are_sent_to_sign_in_and_told_why(self):
@@ -384,8 +401,21 @@ class AccountWebAccessTests(TestCase):
         response = client.get("/authentication/")
         self.assertRedirects(response, "/", fetch_redirect_response=False)
 
-    def test_only_librarians_get_admin_rights(self):
-        for user, expected in ((self.librarian, True), (self.reader, False)):
+    def test_only_librarians_and_administrators_get_admin_rights(self):
+        administrator = CustomUser.objects.create_user(
+            email="rights-administrator@example.com",
+            password="web-password",
+            first_name="Rights",
+            middle_name="",
+            last_name="Administrator",
+            role=ROLE_ADMINISTRATOR,
+            is_active=True,
+        )
+        for user, expected in (
+            (administrator, True),
+            (self.librarian, True),
+            (self.reader, False),
+        ):
             with self.subTest(email=user.email):
                 self.assertEqual(
                     (
@@ -416,6 +446,123 @@ class AccountWebAccessTests(TestCase):
             view(request)
         request.user = self.librarian
         self.assertEqual(view(request).content, b"desk")
+
+
+class AdministratorCommandTests(TestCase):
+    """The operator grants the administrator role on the server (FR-063, R26)."""
+
+    def account(self, email, role):
+        return CustomUser.objects.create_user(
+            email=email,
+            password="command-password-1",
+            first_name="Command",
+            middle_name="M",
+            last_name="Test",
+            role=role,
+            is_active=True,
+        )
+
+    def set_administrator(self, *args):
+        output = StringIO()
+        call_command("set_administrator", *args, stdout=output)
+        return output.getvalue()
+
+    def role_entries(self, user, creation=False):
+        """The account's role entries; creating it with a role is the one without a
+        ``before``, left out unless ``creation``."""
+        entries = AuditEntry.objects.filter(
+            target_id=user.pk, action__in=("role_granted", "role_removed")
+        ).order_by("id")
+        if not creation:
+            entries = entries.exclude(before={})
+        return list(
+            entries.values_list("action", "channel", "actor_id", "before", "after")
+        )
+
+    def test_createsuperuser_creates_an_administrator(self):
+        password = {"DJANGO_SUPERUSER_PASSWORD": "first-admin-password-1"}
+        with patch.dict(os.environ, password):
+            call_command(
+                "createsuperuser",
+                interactive=False,
+                email="first-admin@example.com",
+                first_name="First",
+                middle_name="M",
+                last_name="Administrator",
+                stdout=StringIO(),
+            )
+        user = CustomUser.objects.get(email="first-admin@example.com")
+        self.assertEqual((user.role, user.is_active), (ROLE_ADMINISTRATOR, True))
+        self.assertTrue(user.is_administrator)
+        self.assertTrue(user.is_librarian)
+        self.assertTrue(user.check_password("first-admin-password-1"))
+        self.assertEqual(
+            self.role_entries(user, creation=True),
+            [("role_granted", "command", None, {}, {"role": "administrator"})],
+        )
+
+    def test_set_administrator_grants_the_role_and_remove_makes_a_librarian(self):
+        user = self.account("promoted@example.com", ROLE_LIBRARIAN)
+        output = self.set_administrator("promoted@example.com")
+        self.assertIn(f"(#{user.pk}) is now an administrator.", output)
+        self.assertEqual(CustomUser.objects.get(pk=user.pk).role, ROLE_ADMINISTRATOR)
+        output = self.set_administrator("promoted@example.com", "--remove")
+        self.assertIn(f"(#{user.pk}) is now a librarian.", output)
+        # The same account, kept, as a librarian.
+        self.assertEqual(CustomUser.objects.get(pk=user.pk).role, ROLE_LIBRARIAN)
+        self.assertEqual(
+            self.role_entries(user),
+            [
+                (
+                    "role_granted",
+                    "command",
+                    None,
+                    {"role": "librarian"},
+                    {"role": "administrator"},
+                ),
+                (
+                    "role_removed",
+                    "command",
+                    None,
+                    {"role": "administrator"},
+                    {"role": "librarian"},
+                ),
+            ],
+        )
+
+    def test_set_administrator_promotes_a_reader(self):
+        user = self.account("reader-promoted@example.com", ROLE_VISITOR)
+        self.set_administrator("reader-promoted@example.com")
+        self.assertEqual(CustomUser.objects.get(pk=user.pk).role, ROLE_ADMINISTRATOR)
+        self.assertEqual(
+            self.role_entries(user),
+            [
+                (
+                    "role_granted",
+                    "command",
+                    None,
+                    {"role": "reader"},
+                    {"role": "administrator"},
+                )
+            ],
+        )
+
+    def test_set_administrator_changes_nothing_with_nothing_to_change(self):
+        administrator = self.account("already@example.com", ROLE_ADMINISTRATOR)
+        reader = self.account("not-administrator@example.com", ROLE_VISITOR)
+        output = self.set_administrator("already@example.com")
+        self.assertIn(f"(#{administrator.pk}) is already an administrator.", output)
+        # --remove never grants the librarian role to someone who was not an
+        # administrator.
+        output = self.set_administrator("not-administrator@example.com", "--remove")
+        self.assertIn(f"(#{reader.pk}) is not an administrator.", output)
+        self.assertEqual(CustomUser.objects.get(pk=reader.pk).role, ROLE_VISITOR)
+        self.assertEqual(self.role_entries(administrator), [])
+        self.assertEqual(self.role_entries(reader), [])
+
+    def test_set_administrator_refuses_an_unknown_email(self):
+        with self.assertRaisesMessage(CommandError, "No account has this email."):
+            self.set_administrator("nobody@example.com")
 
 
 class VersionEndpointTests(SimpleTestCase):

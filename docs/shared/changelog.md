@@ -1,4 +1,8 @@
 2026-11-01
+The administrator role (KAN-70)
+Accounts can now be administrators. An administrator holds every librarian right and is the only one who grants or removes the librarian role, on the web, through the API and in the admin site, which offer only the reader and librarian roles; a librarian's attempt is refused and changes nothing. Removing the role keeps the account, and its rights end at once. The administrator role itself is granted only on the server: `createsuperuser` creates an administrator, and the new `set_administrator <email> [--remove]` command promotes an existing account or makes an administrator a librarian again. Only administrators change or delete an administrator's account. Every role change, including those the commands make, leaves an audit entry. The account pages and the header name each role, the role every new account gets is called "reader" everywhere, and the admin site's password field sets a new password. The operator guide starts with creating the first administrator. The constitution is amended to v2.4.0: Principle II adds the administrator audience, the only role that grants or removes the librarian role.
+
+2026-11-01
 KAN-53 synchronization with pending reader preferences
 Include the updated KAN-51 predecessor and merged KAN-52 catalog service while preserving assistant navigation, private forms, saved-book controls and every smoke check. Docker Build and CodeQL now also run for PRs targeting KAN predecessor branches, preserving main checks.
 

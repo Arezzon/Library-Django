@@ -35,10 +35,10 @@ This table is the source for PR 1's access tests. A change to it changes the tes
 | `/api/v1/author/`, `/api/v1/author/{id}/` | GET | 401 | 200 | 200 |
 | `/api/v1/author/` | POST | 401 | 403 | 201 |
 | `/api/v1/author/{id}/` | PUT, PATCH, DELETE | 401 | 403 | 200 or 204; from PR 3, DELETE answers 409 while the author is attached to a book |
-| `/api/v1/user/` | GET, POST | 401 | 403 | 200 or 201 |
+| `/api/v1/user/` | GET, POST | 401 | 403 | 200 or 201. From PR 11, POST answers 403 if the body has `role` and the caller is not an administrator. |
 | `/api/v1/user/{id}/` | GET | 401 | Own: 200. Other: 404. | 200 |
-| `/api/v1/user/{id}/` | PUT, PATCH | 401 | Own: 200 for name fields. 403 if the body has `role`, `is_active`, `email` or `password`. Other: 404. | 200. From PR 11, 403 if the body changes `role` and the caller is not an administrator. |
-| `/api/v1/user/{id}/` | DELETE | 401 | 403 | 204 |
+| `/api/v1/user/{id}/` | PUT, PATCH | 401 | Own: 200 for name fields. 403 if the body has `role`, `is_active`, `email` or `password`. Other: 404. | 200. From PR 11, 403 if the body has `role` and the caller is not an administrator, and 403 for an administrator's account unless the caller is an administrator. An administrator's `role` answers 403 to everyone: the operator changes it on the server. |
+| `/api/v1/user/{id}/` | DELETE | 401 | 403 | 204. From PR 11, 403 for an administrator's account unless the caller is an administrator. |
 | `/api/v1/order/` | GET | 401 | 200, own loans only | 200, all loans |
 | `/api/v1/order/{id}/` | GET | 401 | Own: 200. Other: 404. | 200 |
 | `/api/v1/order/` | POST | 401 | 201 for themselves until PR 6, 403 for another reader. From PR 6, 403. | 201 |
@@ -79,9 +79,9 @@ body, or 409 for a refused reservation.
 | `/order/all/`, `/order/update/<id>/`, `/order/close/<id>/` (POST) | Redirect to sign-in | 403 | The page |
 | `/authentication/users/` | Redirect to sign-in | 403 | The page |
 | `/authentication/users/<id>/` | Redirect to sign-in | Own: the page. Other: 403. | The page |
-| `/authentication/users/<id>/update/` | Redirect to sign-in | Own: names only. A POST with `role` or `is_active` gets 403, and nothing changes. Other: 403. | Names, role and status. From PR 11, role only for administrators. |
+| `/authentication/users/<id>/update/` | Redirect to sign-in | Own: names only. A POST with `role` or `is_active` gets 403, and nothing changes. Other: 403. | Names, role and status. From PR 11, role only for administrators, offered as reader or librarian; an administrator's account answers 403 unless the caller is an administrator, and its role is never offered. |
 | `/events/` | Redirect to sign-in | 403 | The dashboard |
-| `/admin/` | Admin sign-in | Admin sign-in (not staff) | The admin site. From PR 11, `role` is read-only unless the caller is an administrator. |
+| `/admin/` | Admin sign-in | Admin sign-in (not staff) | The admin site. From PR 11, `role` is read-only unless the caller is an administrator, and an administrator's account is read-only, and cannot be deleted, unless the caller is an administrator. |
 
 PRs 5 to 7 add the reservation routes listed in [reservations-api.md](reservations-api.md).
 
@@ -122,3 +122,6 @@ Every operation in `/api/schema/` has:
   change roles or data; PR 3 covers every route (FR-049).
 - **Sign-up and the profile page**: a posted `role` or `is_active` never takes effect.
 - **The schema**: every operation has `x-audience`.
+- **The administrator role (PR 11)**: Story 1 scenario 8 through the web, the API and the admin
+  site; an administrator answers every operation and route as a librarian does, and changes
+  roles; an administrator's account refuses a librarian's changes.

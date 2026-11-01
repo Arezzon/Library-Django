@@ -24,15 +24,19 @@ and the API from drifting apart.
 ### II. Explicit Role-Based Access
 
 - Every view and API endpoint MUST declare its audience: anonymous, authenticated, resource
-  owner, or librarian (`ROLE_LIBRARIAN`). HTML views use the decorators in
-  `authentication/decorators.py`; DRF views set `permission_classes`. Relying on a framework
-  default is not a declaration.
+  owner, librarian (`ROLE_LIBRARIAN`) or administrator (`ROLE_ADMINISTRATOR`). HTML views use
+  the decorators in `authentication/decorators.py`; DRF views set `permission_classes`. Relying
+  on a framework default is not a declaration.
+- Administrators MUST hold every librarian right. The librarian role MUST be granted and removed
+  only by an administrator, through the web, the API or the admin site, and the administrator
+  role only on the server, by the operator. An administrator's account MUST be changed or
+  deleted only by administrators, so that no librarian can act as one.
 - Data-changing actions (create, update, delete, return, reopen, reassign) MUST be limited to
   librarians or the owning user, MUST use a non-GET method, and MUST be CSRF-protected.
 - Librarian-only data, including the analytics dashboard and other users' records and orders,
-  MUST NOT be exposed to visitors in templates or API responses.
+  MUST NOT be exposed to readers in templates or API responses.
 - Tests for a protected route MUST cover at least one permitted role and at least one denied
-  caller (anonymous or visitor).
+  caller (anonymous or reader).
 
 Rationale: roles are the system's security boundary, and DRF allows anonymous access to any
 endpoint that does not declare otherwise.
@@ -211,4 +215,4 @@ single model definition keep local, CI and server builds identical.
   or a component in Technology & Platform Constraints changes, so the rules match what is
   actually enforced.
 
-**Version**: 2.3.1 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-10-31
+**Version**: 2.4.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-11-01

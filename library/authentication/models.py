@@ -7,12 +7,15 @@ from django.dispatch import receiver
 
 from audit.services import account_label, record
 
+# The values rank the rights: an administrator has every librarian right (FR-063).
 ROLE_VISITOR = 0
 ROLE_LIBRARIAN = 1
+ROLE_ADMINISTRATOR = 2
 
 ROLE_CHOICES = (
-    (ROLE_VISITOR, "visitor"),
+    (ROLE_VISITOR, "reader"),
     (ROLE_LIBRARIAN, "librarian"),
+    (ROLE_ADMINISTRATOR, "administrator"),
 )
 
 
@@ -56,12 +59,13 @@ class CustomUserManager(BaseUserManager.from_queryset(CustomUserQuerySet)):
 
     def create_superuser(self, email, password, **extra_fields):
         """
-        Create and save a SuperUser with the given email and password.
+        Create and save an administrator: the operator's way to create the first one
+        on the server (FR-063).
         """
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
-        extra_fields.setdefault("role", ROLE_LIBRARIAN)
+        extra_fields.setdefault("role", ROLE_ADMINISTRATOR)
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Superuser must have is_staff=True.")
@@ -89,7 +93,7 @@ class CustomUser(AbstractBaseUser):
     type created_at: int (timestamp)
     param updated_at: Describes the date when the user was modified
     type updated_at: int (timestamp)
-    param role: user role, default role (0, 'visitor')
+    param role: user role, default role (0, 'reader')
     type updated_at: int (choices)
     param is_active: user role, default value False
     type updated_at: bool
@@ -97,6 +101,7 @@ class CustomUser(AbstractBaseUser):
 
     ROLE_VISITOR = ROLE_VISITOR
     ROLE_LIBRARIAN = ROLE_LIBRARIAN
+    ROLE_ADMINISTRATOR = ROLE_ADMINISTRATOR
 
     FIRST_NAME_MAX_LEN = 20
     LAST_NAME_MAX_LEN = 20
@@ -122,7 +127,12 @@ class CustomUser(AbstractBaseUser):
 
     @property
     def is_librarian(self):
-        return self.role == self.ROLE_LIBRARIAN
+        """Librarian rights, which administrators also hold (FR-063)."""
+        return self.role in (self.ROLE_LIBRARIAN, self.ROLE_ADMINISTRATOR)
+
+    @property
+    def is_administrator(self):
+        return self.role == self.ROLE_ADMINISTRATOR
 
     @property
     def is_visitor(self):
@@ -135,7 +145,8 @@ class CustomUser(AbstractBaseUser):
 
     @is_staff.setter
     def is_staff(self, value):
-        if value:
+        # Makes a reader a librarian; an administrator keeps the role.
+        if value and not self.is_librarian:
             self.role = self.ROLE_LIBRARIAN
 
     @property
@@ -145,7 +156,7 @@ class CustomUser(AbstractBaseUser):
 
     @is_superuser.setter
     def is_superuser(self, value):
-        if value:
+        if value and not self.is_librarian:
             self.role = self.ROLE_LIBRARIAN
 
     def has_perm(self, perm, obj=None):
@@ -194,10 +205,10 @@ class CustomUser(AbstractBaseUser):
         label = account_label(self)
         old_role = previous["role"] if previous else None
         if (saved is None or "role" in saved) and self.role != old_role:
-            if self.role == ROLE_LIBRARIAN or old_role == ROLE_LIBRARIAN:
-                action = (
-                    "role_granted" if self.role == ROLE_LIBRARIAN else "role_removed"
-                )
+            # A new account starts from the reader's rights, so a new reader is no grant.
+            old_rank = ROLE_VISITOR if old_role is None else old_role
+            if self.role != old_rank:
+                action = "role_granted" if self.role > old_rank else "role_removed"
                 before = {} if previous is None else {"role": roles[old_role]}
                 after = {"role": roles[self.role]}
                 record(action, "account", self.pk, label, before, after)

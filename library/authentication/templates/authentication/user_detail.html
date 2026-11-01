@@ -17,11 +17,7 @@
                 </div>
             </div>
             <div>
-                {% if target_user.is_librarian %}
-                    <span class="badge-purple">Librarian</span>
-                {% else %}
-                    <span class="badge-info">Reader</span>
-                {% endif %}
+                {% include 'includes/role_badge.html' with account=target_user %}
             </div>
         </div>
 
@@ -65,9 +61,11 @@
             </div>
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 {% if profile_activity %}lg:flex-col lg:items-stretch{% endif %}">
                 {% if request.user.is_librarian %}
+                {% if may_edit %}
                 <a href="{% url 'user_update' target_user.id %}" class="btn-sm-secondary w-full sm:w-auto">
                     Edit Profile
                 </a>
+                {% endif %}
                 <a href="{% url 'books_by_user' target_user.id %}" class="btn-sm-primary w-full sm:w-auto">
                     View Borrowed Books
                 </a>

@@ -33,11 +33,7 @@
                                 <td class="table-td font-medium text-slate-900">{{ user.email }}</td>
                                 <td class="table-td text-slate-600">{{ user.first_name }} {{ user.middle_name }} {{ user.last_name }}</td>
                                 <td class="table-td whitespace-nowrap">
-                                    {% if user.is_librarian %}
-                                        <span class="badge-purple">Librarian</span>
-                                    {% else %}
-                                        <span class="badge-info">Reader</span>
-                                    {% endif %}
+                                    {% include 'includes/role_badge.html' with account=user %}
                                 </td>
                                 <td class="table-td whitespace-nowrap">
                                     {% if user.is_active %}
@@ -70,11 +66,7 @@
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-mono text-slate-400">#{{ user.id }}</span>
                         <div class="flex items-center gap-1.5">
-                            {% if user.is_librarian %}
-                                <span class="badge-purple">Librarian</span>
-                            {% else %}
-                                <span class="badge-info">Reader</span>
-                            {% endif %}
+                            {% include 'includes/role_badge.html' with account=user %}
                             {% if user.is_active %}
                                 <span class="badge-success">Active</span>
                             {% else %}

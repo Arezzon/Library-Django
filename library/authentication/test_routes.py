@@ -15,7 +15,7 @@ from book.models import Book
 from book.testing import FakeEncoderMixin
 from order.models import Order, Reservation
 
-from .models import ROLE_LIBRARIAN, CustomUser
+from .models import ROLE_ADMINISTRATOR, ROLE_LIBRARIAN, CustomUser
 
 PAGE = 200
 FORBIDDEN = 403
@@ -120,6 +120,9 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
         cls.reader = account("routes-reader@example.com")
         cls.other = account("routes-other@example.com")
         cls.librarian = account("routes-librarian@example.com", ROLE_LIBRARIAN)
+        cls.administrator = account(
+            "routes-administrator@example.com", ROLE_ADMINISTRATOR
+        )
         cls.book = Book.objects.create(name="Borrowed book", count=2)
         cls.free_book = Book.objects.create(name="Never borrowed", count=1)
         cls.author = Author.objects.create(name="Lina", surname="Kostenko")
@@ -161,6 +164,17 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
             transaction.set_rollback(True)
         return response
 
+    def assertOutcome(self, response, outcome, route):
+        if outcome in (PAGE, FORBIDDEN, NOT_FOUND):
+            self.assertEqual(response.status_code, outcome)
+        else:
+            target = (
+                f"{LOGIN}?next={route}"
+                if outcome == SIGN_IN
+                else outcome.format(**self.ids())
+            )
+            self.assertRedirects(response, target, fetch_redirect_response=False)
+
     def test_each_route_answers_each_caller_as_the_contract_says(self):
         callers = {
             "anonymous": self.signed_in(),
@@ -173,18 +187,15 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
                 callers.items(), expected, strict=True
             ):
                 with self.subTest(caller=caller, method=method.upper(), route=route):
-                    response = self.call(client, method, route)
-                    if outcome in (PAGE, FORBIDDEN, NOT_FOUND):
-                        self.assertEqual(response.status_code, outcome)
-                    else:
-                        target = (
-                            f"{LOGIN}?next={route}"
-                            if outcome == SIGN_IN
-                            else outcome.format(**self.ids())
-                        )
-                        self.assertRedirects(
-                            response, target, fetch_redirect_response=False
-                        )
+                    self.assertOutcome(self.call(client, method, route), outcome, route)
+
+    def test_administrators_open_every_route_as_librarians_do(self):
+        # FR-063: an administrator has every right of a librarian.
+        client = self.signed_in(self.administrator)
+        for method, route, _anonymous, _reader, librarian in ROUTES:
+            route = route.format(**self.ids())
+            with self.subTest(method=method.upper(), route=route):
+                self.assertOutcome(self.call(client, method, route), librarian, route)
 
     def test_every_protected_route_has_a_permitted_and_a_refused_caller(self):
         refusals = {SIGN_IN, LOGIN, FORBIDDEN, NOT_FOUND, ADMIN_SIGN_IN}
