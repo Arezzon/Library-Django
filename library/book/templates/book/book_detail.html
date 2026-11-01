@@ -4,21 +4,11 @@
 
 {% block content %}
 <div class="max-w-3xl mx-auto space-y-6">
-    {% if messages %}
-    <div class="space-y-2">
-        {% for message in messages %}
-        <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
-            <span>{{ message }}</span>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
     <div class="card">
         <!-- Header -->
         <div class="card-header">
             <div>
-                <span class="text-xs font-mono text-slate-400 block mb-0.5">Book #{{ book.id }}</span>
+                <span class="text-xs font-mono text-slate-600 block mb-0.5">Book #{{ book.id }}</span>
                 <h1 class="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">{{ book.name }}</h1>
             </div>
             <div>
@@ -34,7 +24,7 @@
         <div class="p-4 sm:p-6 md:p-8 space-y-6">
             <!-- Authors Section -->
             <div>
-                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Authors</h3>
+                <h3 class="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Authors</h3>
                 {% if book.authors.all %}
                 <div class="flex flex-wrap gap-2">
                     {% for author in book.authors.all %}
@@ -47,7 +37,7 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-sm text-slate-400 italic">No authors attached to this book.</p>
+                <p class="text-sm text-slate-600 italic">No authors attached to this book.</p>
                 {% endif %}
             </div>
 
@@ -101,7 +91,7 @@
 
             <!-- Description Section -->
             <div>
-                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h3>
+                <h3 class="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Description</h3>
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-700 text-xs sm:text-sm leading-relaxed">
                     {{ book.description|default:"No description provided for this book." }}
                 </div>

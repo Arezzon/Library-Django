@@ -102,8 +102,9 @@ approval required on `main` (R27).
 - **Runtime**: unchanged. `requirements.txt` gains no package.
 - **CI and development only**:
   - coverage 7.16.2 and diff-cover 10.6.0 in `requirements-dev.txt` (PR 3);
-  - Playwright 1.64.0 and @axe-core/playwright 4.13.0 in `scripts/a11y/package-lock.json` (PR 10).
-  - Each is the newest release at least two weeks old on 2026-10-27 (R9, R25).
+  - Playwright 1.64.1 and @axe-core/playwright 4.14.0 in `scripts/a11y/package-lock.json` (PR 10).
+  - Each is the newest release at least two weeks old: coverage and diff-cover on 2026-10-27, and
+    the browser check's packages on 2026-11-01, when PR 10 pinned them (R9, R25).
 - **Images**: no new image. The backup service runs `pgvector/pgvector:0.8.7-pg18`, the database's
   image (PR 9).
 - **Background work**: Celery 5.6.3's beat scheduler runs inside the existing worker (PR 5).

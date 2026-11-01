@@ -14,16 +14,6 @@
         </a>
     </div>
 
-    {% if messages %}
-        <div class="space-y-2">
-            {% for message in messages %}
-                <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
-                    <span>{{ message }}</span>
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
     {% if orders %}
         <!-- Desktop / Tablet Table View -->
         <div class="hidden md:block table-wrapper">
@@ -31,30 +21,30 @@
                 <table class="table-custom">
                     <thead class="table-thead">
                         <tr>
-                            <th class="table-th">Order ID</th>
-                            <th class="table-th">Book Title</th>
-                            <th class="table-th">Borrowed At</th>
-                            <th class="table-th">Planned Return</th>
-                            <th class="table-th">Returned At</th>
-                            <th class="table-th text-right whitespace-nowrap">Status</th>
+                            <th scope="col" class="table-th">Order ID</th>
+                            <th scope="col" class="table-th">Book Title</th>
+                            <th scope="col" class="table-th">Borrowed At</th>
+                            <th scope="col" class="table-th">Planned Return</th>
+                            <th scope="col" class="table-th">Returned At</th>
+                            <th scope="col" class="table-th text-right whitespace-nowrap">Status</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for order in orders %}
                             <tr class="hover:bg-slate-50/75 transition">
-                                <td class="table-td font-mono text-xs text-slate-400">#{{ order.id }}</td>
+                                <td class="table-td font-mono text-xs text-slate-600">#{{ order.id }}</td>
                                 <td class="table-td font-semibold text-slate-900">
                                     <a href="{% url 'book_detail' order.book.id %}" class="hover:text-indigo-600 transition">
                                         {{ order.book.name }}
                                     </a>
                                 </td>
-                                <td class="table-td text-slate-500 whitespace-nowrap">{{ order.created_at|date:"Y-m-d H:i" }}</td>
-                                <td class="table-td text-slate-500 whitespace-nowrap">{{ order.plated_end_at|date:"Y-m-d H:i" }}</td>
+                                <td class="table-td text-slate-500 whitespace-nowrap">{{ order.created_at|date:"j M Y, H:i T" }}</td>
+                                <td class="table-td text-slate-500 whitespace-nowrap">{{ order.plated_end_at|date:"j M Y, H:i T" }}</td>
                                 <td class="table-td text-slate-500 whitespace-nowrap">
                                     {% if order.end_at %}
-                                        {{ order.end_at|date:"Y-m-d H:i" }}
+                                        {{ order.end_at|date:"j M Y, H:i T" }}
                                     {% else %}
-                                        <span class="text-xs text-slate-400 italic">Not returned</span>
+                                        <span class="text-xs text-slate-600 italic">Not returned</span>
                                     {% endif %}
                                 </td>
                                 <td class="table-td text-right whitespace-nowrap">
@@ -80,7 +70,7 @@
             {% for order in orders %}
                 <div class="card p-4 space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-mono text-slate-400">Order #{{ order.id }}</span>
+                        <span class="text-xs font-mono text-slate-600">Order #{{ order.id }}</span>
                         {% if order.end_at %}
                             <span class="badge-success">Returned</span>
                         {% else %}
@@ -98,17 +88,17 @@
 
                     <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
                         <div>
-                            <span class="text-slate-400 block">Borrowed:</span>
-                            <span class="font-medium text-slate-700">{{ order.created_at|date:"Y-m-d" }}</span>
+                            <span class="text-slate-600 block">Borrowed:</span>
+                            <span class="font-medium text-slate-700">{{ order.created_at|date:"j M Y" }}</span>
                         </div>
                         <div>
-                            <span class="text-slate-400 block">Return Deadline:</span>
-                            <span class="font-medium text-slate-700">{{ order.plated_end_at|date:"Y-m-d" }}</span>
+                            <span class="text-slate-600 block">Return Deadline:</span>
+                            <span class="font-medium text-slate-700">{{ order.plated_end_at|date:"j M Y" }}</span>
                         </div>
                         {% if order.end_at %}
                         <div class="col-span-2 pt-1 border-t border-slate-50">
-                            <span class="text-slate-400">Returned Date:</span>
-                            <span class="font-medium text-emerald-700 ml-1">{{ order.end_at|date:"Y-m-d H:i" }}</span>
+                            <span class="text-slate-600">Returned Date:</span>
+                            <span class="font-medium text-emerald-700 ml-1">{{ order.end_at|date:"j M Y, H:i T" }}</span>
                         </div>
                         {% endif %}
                     </div>
@@ -117,7 +107,7 @@
         </div>
     {% else %}
         <div class="card p-8 sm:p-12 text-center">
-            <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+            <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-600 mx-auto flex items-center justify-center mb-3">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                 </svg>

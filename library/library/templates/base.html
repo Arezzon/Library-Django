@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'></path></svg>">
-    <title>{% block title %}Library Management System{% endblock %}</title>
+    <title>{% if form.errors %}Error: {% endif %}{% block title %}Library Management System{% endblock %}</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,34 +45,34 @@
                 @apply p-4 sm:p-6 md:p-8;
             }
             .nav-link {
-                @apply px-3 py-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-slate-50 text-sm font-medium transition;
+                @apply px-3 py-2 rounded-lg text-slate-600 hover:text-indigo-600 hover:bg-slate-50 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .mobile-nav-link {
-                @apply flex items-center px-3.5 py-2.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/60 text-sm font-medium transition;
+                @apply flex items-center px-3.5 py-2.5 rounded-xl text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/60 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .btn-primary {
-                @apply inline-flex items-center justify-center px-4 sm:px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition duration-150 whitespace-nowrap;
+                @apply inline-flex items-center justify-center px-4 sm:px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .btn-secondary {
-                @apply inline-flex items-center justify-center px-4 sm:px-5 py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 text-sm font-medium rounded-xl transition duration-150 whitespace-nowrap;
+                @apply inline-flex items-center justify-center px-4 sm:px-5 py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 text-sm font-medium rounded-xl transition duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .btn-danger {
-                @apply inline-flex items-center justify-center px-4 sm:px-5 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition duration-150 whitespace-nowrap;
+                @apply inline-flex items-center justify-center px-4 sm:px-5 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .btn-logout {
-                @apply px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 transition border border-rose-200 whitespace-nowrap inline-flex items-center justify-center;
+                @apply px-3 py-1.5 rounded-lg text-xs font-medium text-rose-700 hover:bg-rose-50 transition border border-rose-200 whitespace-nowrap inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .btn-sm-primary {
-                @apply inline-flex items-center justify-center px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-700 text-xs font-medium rounded-lg transition duration-150 whitespace-nowrap;
+                @apply inline-flex items-center justify-center px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-700 text-xs font-medium rounded-lg transition duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .btn-sm-secondary {
-                @apply inline-flex items-center justify-center px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition duration-150 whitespace-nowrap;
+                @apply inline-flex items-center justify-center px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .btn-sm-danger {
-                @apply inline-flex items-center justify-center px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 text-xs font-medium rounded-lg transition duration-150 whitespace-nowrap;
+                @apply inline-flex items-center justify-center px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 text-xs font-medium rounded-lg transition duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .btn-sm-success {
-                @apply inline-flex items-center justify-center px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium rounded-lg transition duration-150 whitespace-nowrap;
+                @apply inline-flex items-center justify-center px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium rounded-lg transition duration-150 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2;
             }
             .badge-success {
                 @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 whitespace-nowrap;
@@ -110,11 +110,15 @@
             .alert-success {
                 @apply bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2;
             }
+            .alert-info {
+                @apply bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2;
+            }
         }
     </style>
 </head>
 
 <body class="min-h-full flex flex-col text-slate-800 antialiased overflow-x-hidden">
+    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:px-4 focus:py-2 focus:bg-white focus:text-indigo-700 focus:font-semibold focus:rounded-xl focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-600">Skip to main content</a>
     <!-- Navbar -->
     <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
         <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -157,7 +161,7 @@
 
                         <!-- User info badge -->
                         <div class="flex items-center space-x-2 text-xs">
-                            <span class="text-slate-500 font-medium">{{ request.user.email }}</span>
+                            <a href="{% url 'user_detail' request.user.pk %}" class="nav-link px-2">{{ request.user.email }}<span class="sr-only"> (your profile)</span></a>
                             {% include 'includes/role_badge.html' with account=request.user %}
                         </div>
 
@@ -193,7 +197,7 @@
                     <!-- User Profile Card inside Mobile Menu -->
                     <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between mb-3">
                         <div class="truncate mr-2">
-                            <p class="text-xs text-slate-400 font-medium">Signed in as</p>
+                            <p class="text-xs text-slate-600 font-medium">Signed in as</p>
                             <p class="text-sm font-semibold text-slate-800 truncate">{{ request.user.email }}</p>
                         </div>
                         <div>
@@ -201,12 +205,13 @@
                         </div>
                     </div>
 
+                    <a href="{% url 'user_detail' request.user.pk %}" class="mobile-nav-link">Your profile</a>
                     <a href="{% url 'home' %}" class="mobile-nav-link">
-                        <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                        <svg class="w-4 h-4 mr-2.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                         Home
                     </a>
                     <a href="/book/" class="mobile-nav-link">
-                        <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                        <svg class="w-4 h-4 mr-2.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                         Books Catalog
                     </a>
 
@@ -217,11 +222,11 @@
                     {# Reader Menu #}
                     {% if request.user.is_visitor %}
                         <a href="/order/my/" class="mobile-nav-link">
-                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                            <svg class="w-4 h-4 mr-2.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
                             My Orders
                         </a>
                         <a href="{% url 'reservation_my' %}" class="mobile-nav-link">
-                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <svg class="w-4 h-4 mr-2.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             My Reservations
                         </a>
                     {% endif %}
@@ -229,23 +234,23 @@
                     {# Librarian Menu #}
                     {% if request.user.is_librarian %}
                         <a href="{% url 'reservation_desk' %}" class="mobile-nav-link">
-                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <svg class="w-4 h-4 mr-2.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             Reservation Desk
                         </a>
                         <a href="{% url 'events_dashboard' %}" class="mobile-nav-link">
-                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 16v-5m5 5V7m5 9v-8"></path></svg>
+                            <svg class="w-4 h-4 mr-2.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 16v-5m5 5V7m5 9v-8"></path></svg>
                             Analytics
                         </a>
                         <a href="/author/" class="mobile-nav-link">
-                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            <svg class="w-4 h-4 mr-2.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                             Authors
                         </a>
                         <a href="/authentication/users/" class="mobile-nav-link">
-                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            <svg class="w-4 h-4 mr-2.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                             Users
                         </a>
                         <a href="/order/all/" class="mobile-nav-link">
-                            <svg class="w-4 h-4 mr-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <svg class="w-4 h-4 mr-2.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             All Orders
                         </a>
                     {% endif %}
@@ -263,10 +268,16 @@
     </header>
 
     <!-- Main Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
-        {# Reservations the library cancelled, until the reader dismisses them (FR-017). #}
-        {% if request.reservation_notices %}
-            <div role="status" class="mb-6 space-y-2">
+    <main id="main" tabindex="-1" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 focus:outline-none">
+        {# The one message region: what an action did, and the reservations the library cancelled, #}
+        {# until the reader dismisses them (FR-017). #}
+        <div role="status" class="{% if request.reservation_notices or messages %}mb-6 space-y-2{% endif %}">
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}alert-error{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %}">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+            {% if request.reservation_notices %}
                 {% for notice in request.reservation_notices %}
                     <div class="alert-error flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
@@ -280,14 +291,15 @@
                         </form>
                     </div>
                 {% endfor %}
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
         {% block content %}
         {% endblock %}
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-400 px-4">
+    <footer class="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-600 px-4 space-y-1">
+        <p>Times are shown in Kyiv time (EET/EEST).</p>
         <p>&copy; 2026 Library Management System. Built with Django & Tailwind CSS.</p>
     </footer>
 

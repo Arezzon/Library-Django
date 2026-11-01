@@ -42,7 +42,6 @@ def register(request: HttpRequest) -> HttpResponse:
 def login(request: HttpRequest) -> HttpResponse:
     if request.user.is_authenticated:
         return redirect("home")
-    error = None
     if request.method == "POST":
         form = LoginForm(request.POST)
         if form.is_valid():
@@ -52,11 +51,12 @@ def login(request: HttpRequest) -> HttpResponse:
             if user is not None:
                 auth_login(request, user)
                 return redirect("home")
-            else:
-                error = "Invalid email or password."
+            form.add_error(
+                None, "The email or password is not right. Check both and try again."
+            )
     else:
         form = LoginForm()
-    return render(request, "authentication/login.html", {"form": form, "error": error})
+    return render(request, "authentication/login.html", {"form": form})
 
 
 def account_form(actor, account, data=None):
@@ -78,9 +78,7 @@ def user_update(request: HttpRequest, user_id: int) -> HttpResponse:
         form = account_form(request.user, target_user, request.POST)
         if form.is_valid():
             update_account(request.user, target_user, form.cleaned_data)
-            messages.success(
-                request, f"User profile #{target_user.id} updated successfully."
-            )
+            messages.success(request, f"Changes to {target_user.email} saved.")
             return redirect("user_detail", user_id=target_user.id)
     else:
         form = account_form(request.user, target_user)

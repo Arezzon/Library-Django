@@ -5,7 +5,6 @@ from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_POST
 
 from authentication.decorators import librarian_required, signin_required
 from authentication.models import CustomUser
@@ -131,7 +130,7 @@ def book_create(request: HttpRequest) -> HttpResponse:
             except EmbeddingGenerationError as error:
                 form.add_error(None, str(error))
             else:
-                messages.success(request, f'Book "{book.name}" created successfully.')
+                messages.success(request, f"Book “{book.name}” added to the catalog.")
                 return redirect("book_list")
     else:
         form = BookForm()
@@ -149,7 +148,7 @@ def book_update(request: HttpRequest, book_id: int) -> HttpResponse:
             except EmbeddingGenerationError as error:
                 form.add_error(None, str(error))
             else:
-                messages.success(request, f'Book "{book.name}" updated successfully.')
+                messages.success(request, f"Changes to “{book.name}” saved.")
                 held = book.held_count
                 if book.count < held:
                     # Allowed, for example when copies are lost (spec edge cases).
@@ -170,8 +169,11 @@ def _held_warning(count, held):
 
 
 @librarian_required
-@require_POST
 def book_delete(request: HttpRequest, book_id: int) -> HttpResponse:
+    """GET asks for confirmation; POST deletes (FR-043)."""
+    if request.method != "POST":
+        book = get_object_or_404(Book, pk=book_id)
+        return render(request, "book/book_delete.html", {"book": book})
     try:
         with transaction.atomic():
             book = get_object_or_404(Book.objects.select_for_update(), pk=book_id)
@@ -181,7 +183,7 @@ def book_delete(request: HttpRequest, book_id: int) -> HttpResponse:
         messages.error(request, Book.DELETION_REFUSAL)
         return redirect("book_update", book_id=book_id)
 
-    messages.success(request, f'Book "{name}" deleted successfully.')
+    messages.success(request, f"Book “{name}” deleted.")
     return redirect("book_list")
 
 

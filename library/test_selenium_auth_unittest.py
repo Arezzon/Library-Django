@@ -95,7 +95,7 @@ class TestLoginLogoutSelenium(unittest.TestCase):
         )
 
         self.assertTrue(error_alert.is_displayed())
-        self.assertIn("Invalid email or password", error_alert.text)
+        self.assertIn("The email or password is not right", error_alert.text)
         sleep(1)
 
 

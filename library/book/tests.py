@@ -1323,3 +1323,19 @@ class ReservedAvailabilityTests(FakeEncoderMixin, TestCase):
         response = self.client.get("/admin/book/book/")
         self.assertContains(response, "Available")
         self.assertContains(response, '<td class="field-available">1</td>', html=True)
+
+
+class CatalogSearchFormTests(FakeEncoderMixin, TestCase):
+    def test_the_search_box_and_the_author_filter_have_labels(self):
+        reader = CustomUser.objects.create_user(
+            email="labels@example.com",
+            password="labels-password",
+            first_name="Label",
+            middle_name="",
+            last_name="Reader",
+            is_active=True,
+        )
+        self.client.force_login(reader)
+        response = self.client.get(reverse("book_list"))
+        self.assertContains(response, '<label for="q"')
+        self.assertContains(response, '<label for="author_id"')

@@ -53,12 +53,12 @@ class BookDeletionViewTests(TestCase):
     def delete_url(self, book):
         return reverse("book_delete", args=[book.pk])
 
-    def test_edit_page_has_separate_confirmed_delete_form(self):
+    def test_edit_page_leads_to_a_confirmation_step(self):
         self.client.force_login(self.librarian)
         response = self.client.get(reverse("book_update", args=[self.book.pk]))
-        self.assertContains(response, f'action="{self.delete_url(self.book)}"')
+        self.assertContains(response, f'href="{self.delete_url(self.book)}"')
         self.assertContains(response, "Delete Book")
-        self.assertContains(response, "return confirm(")
+        self.assertNotContains(response, "confirm(")
 
     def test_librarian_can_delete_book_without_orders(self):
         self.client.force_login(self.librarian)
@@ -69,15 +69,18 @@ class BookDeletionViewTests(TestCase):
         self.assertFalse(Book.objects.filter(pk=self.book.pk).exists())
         self.assertTrue(
             any(
-                "deleted successfully" in str(message)
+                str(message) == f"Book “{self.book.name}” deleted."
                 for message in get_messages(response.wsgi_request)
             )
         )
 
-    def test_get_does_not_delete_book(self):
+    def test_get_asks_for_confirmation_and_deletes_nothing(self):
         self.client.force_login(self.librarian)
-        response = self.client.get(self.delete_url(self.book))
-        self.assertEqual(response.status_code, 405)
+        url = self.delete_url(self.book)
+        response = self.client.get(url)
+        self.assertContains(response, f"Delete the book “{self.book.name}”?")
+        self.assertContains(response, "This cannot be undone.")
+        self.assertContains(response, f'<form method="post" action="{url}">')
         self.assertTrue(Book.objects.filter(pk=self.book.pk).exists())
 
     def test_only_librarian_can_delete_book(self):

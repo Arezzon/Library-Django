@@ -15,27 +15,17 @@
         </a>
     </div>
 
-    {% if messages %}
-        <div class="space-y-2">
-            {% for message in messages %}
-                <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
-                    <span>{{ message }}</span>
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
     {% if reservations %}
         <div class="table-wrapper">
             <div class="overflow-x-auto">
                 <table class="table-custom">
                     <thead class="table-thead">
                         <tr>
-                            <th class="table-th">Reader</th>
-                            <th class="table-th">Book Title</th>
-                            <th class="table-th">Deadline</th>
-                            <th class="table-th">Time Left</th>
-                            <th class="table-th">Actions</th>
+                            <th scope="col" class="table-th">Reader</th>
+                            <th scope="col" class="table-th">Book Title</th>
+                            <th scope="col" class="table-th">Deadline</th>
+                            <th scope="col" class="table-th">Time Left</th>
+                            <th scope="col" class="table-th">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
