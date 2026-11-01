@@ -74,11 +74,12 @@ body, or 409 for a refused reservation.
 | `/` | Redirect to sign-in | Home | Home |
 | `/book/`, `/book/<id>/` | Redirect to sign-in | The page | The page |
 | `/book/create/`, `/book/update/<id>/`, `/book/user/<id>/` | Redirect to sign-in | 403 | The page |
+| `/book/delete/<id>/` (GET) | Redirect to sign-in | 403 | The confirmation page, from PR 10 |
 | `/book/delete/<id>/` (POST) | Redirect to sign-in | 403 | Deletes, or refuses if the book has history |
-| `/author/`, `/author/create/`, `/author/update/<id>/`, `/author/delete/<id>/` | Redirect to sign-in | 403 | The page |
+| `/author/`, `/author/create/`, `/author/update/<id>/`, `/author/delete/<id>/` | Redirect to sign-in | 403 | The page. From PR 10, a GET of `/author/delete/<id>/` asks for confirmation and a POST deletes. |
 | `/order/my/` | Redirect to sign-in | Own loans | Own loans |
 | `/order/create/<book_id>/` | Redirect to sign-in | Self-loan until PR 6. From PR 6, redirect to the book page. | The lend form, from PR 6 |
-| `/order/all/`, `/order/update/<id>/`, `/order/close/<id>/` (POST) | Redirect to sign-in | 403 | The page |
+| `/order/all/`, `/order/update/<id>/`, `/order/close/<id>/` | Redirect to sign-in | 403 | The page. From PR 10, a GET of `/order/close/<id>/` asks for confirmation and a POST records the return. |
 | `/authentication/users/` | Redirect to sign-in | 403 | The page |
 | `/authentication/users/<id>/` | Redirect to sign-in | Own: the page. Other: 403. | The page |
 | `/authentication/users/<id>/update/` | Redirect to sign-in | Own: names only. A POST with `role` or `is_active` gets 403, and nothing changes. Other: 403. | Names, role and status. From PR 11, role only for administrators, offered as reader or librarian; an administrator's account answers 403 unless the caller is an administrator, and its role is never offered. |

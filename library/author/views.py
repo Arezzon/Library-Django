@@ -20,10 +20,7 @@ def _delete_author(request: HttpRequest, author_id: int) -> None:
         messages.error(request, refusal)
     else:
         Author.delete_by_id(author_id)
-        messages.success(
-            request,
-            f'Author "{author.name} {author.surname}" was successfully deleted.',
-        )
+        messages.success(request, f"Author “{author.name} {author.surname}” deleted.")
 
 
 @librarian_required
@@ -37,8 +34,8 @@ def author_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = AuthorForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Author created successfully!")
+            author = form.save()
+            messages.success(request, f"Author “{author.name} {author.surname}” added.")
             return redirect("author_list")
     else:
         form = AuthorForm()
@@ -53,8 +50,7 @@ def author_update(request: HttpRequest, author_id: int) -> HttpResponse:
         if form.is_valid():
             form.save()
             messages.success(
-                request,
-                f'Author "{author.name} {author.surname}" was successfully updated!',
+                request, f"Changes to “{author.name} {author.surname}” saved."
             )
             return redirect("author_list")
     else:
@@ -66,6 +62,14 @@ def author_update(request: HttpRequest, author_id: int) -> HttpResponse:
 
 @librarian_required
 def author_delete(request: HttpRequest, author_id: int) -> HttpResponse:
+    """GET asks for confirmation, or says why the author cannot be deleted; POST
+    deletes (FR-043)."""
     if request.method == "POST":
         _delete_author(request, author_id)
-    return redirect("author_list")
+        return redirect("author_list")
+    author = get_object_or_404(Author, pk=author_id)
+    return render(
+        request,
+        "author/author_delete.html",
+        {"author": author, "refusal": author.deletion_refusal()},
+    )

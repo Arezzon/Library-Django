@@ -93,7 +93,7 @@ class AuthorWebTests(AuthorTestCase):
         self.assertRedirects(response, reverse("author_list"))
         self.assertFalse(Author.objects.filter(pk=self.unattached.pk).exists())
         self.assertIn(
-            'Author "Lesya Ukrainka" was successfully deleted.',
+            "Author “Lesya Ukrainka” deleted.",
             messages_of(response),
         )
 
@@ -103,8 +103,8 @@ class AuthorWebTests(AuthorTestCase):
         self.assertRedirects(response, reverse("author_list"))
         self.assertUnchanged(self.author)
         self.assertIn(
-            'Cannot delete author "Taras Shevchenko" because they are attached to '
-            "one or more books.",
+            "“Taras Shevchenko” cannot be deleted while a book lists them as its author. "
+            "Remove them from those books first, on the edit page of each book.",
             messages_of(response),
         )
 
@@ -133,6 +133,27 @@ class AuthorWebTests(AuthorTestCase):
         self.assertFalse(Author.objects.filter(surname="Franko").exists())
         self.assertUnchanged(self.author)
         self.assertTrue(Author.objects.filter(pk=self.unattached.pk).exists())
+
+    def test_deleting_an_author_asks_first_and_says_what_will_happen(self):
+        url = reverse("author_delete", args=[self.unattached.pk])
+        response = self.signed_in(self.librarian).get(url)
+        self.assertContains(response, "Delete the author “Lesya Ukrainka”?")
+        self.assertContains(response, "This cannot be undone.")
+        self.assertContains(response, f'<form method="post" action="{url}">')
+        self.assertTrue(Author.objects.filter(pk=self.unattached.pk).exists())
+
+    def test_an_author_with_books_is_not_offered_for_deletion(self):
+        url = reverse("author_delete", args=[self.author.pk])
+        response = self.signed_in(self.librarian).get(url)
+        self.assertContains(response, self.author.deletion_refusal())
+        self.assertNotContains(response, f'<form method="post" action="{url}">')
+        self.assertUnchanged(self.author)
+
+    def test_the_author_list_leads_to_the_confirmation(self):
+        response = self.signed_in(self.librarian).get(reverse("author_list"))
+        url = reverse("author_delete", args=[self.unattached.pk])
+        self.assertContains(response, f'href="{url}"')
+        self.assertNotContains(response, "confirm(")
 
 
 class AuthorApiTests(AuthorTestCase):
@@ -180,8 +201,8 @@ class AuthorApiTests(AuthorTestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(
             response.json()["detail"],
-            'Cannot delete author "Taras Shevchenko" because they are attached to '
-            "one or more books.",
+            "“Taras Shevchenko” cannot be deleted while a book lists them as its author. "
+            "Remove them from those books first, on the edit page of each book.",
         )
         self.assertUnchanged(self.author)
 

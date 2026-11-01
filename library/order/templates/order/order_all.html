@@ -11,16 +11,6 @@
         </div>
     </div>
 
-    {% if messages %}
-    <div class="space-y-2">
-        {% for message in messages %}
-        <div class="{% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
-            <span>{{ message }}</span>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
     {% if orders %}
     <!-- Desktop / Tablet Table View -->
     <div class="hidden md:block table-wrapper">
@@ -28,37 +18,37 @@
             <table class="table-custom">
                 <thead class="table-thead">
                     <tr>
-                        <th class="table-th">ID</th>
-                        <th class="table-th">Reader / User</th>
-                        <th class="table-th">Book Title</th>
-                        <th class="table-th">Borrowed At</th>
-                        <th class="table-th">Planned Return</th>
-                        <th class="table-th">Returned At</th>
-                        <th class="table-th text-right whitespace-nowrap">Status / Actions</th>
+                        <th scope="col" class="table-th">ID</th>
+                        <th scope="col" class="table-th">Reader / User</th>
+                        <th scope="col" class="table-th">Book Title</th>
+                        <th scope="col" class="table-th">Borrowed At</th>
+                        <th scope="col" class="table-th">Planned Return</th>
+                        <th scope="col" class="table-th">Returned At</th>
+                        <th scope="col" class="table-th text-right whitespace-nowrap">Status / Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for order in orders %}
                     <tr class="hover:bg-slate-50/75 transition">
-                        <td class="table-td font-mono text-xs text-slate-400">#{{ order.id }}</td>
+                        <td class="table-td font-mono text-xs text-slate-600">#{{ order.id }}</td>
                         <td class="table-td font-medium text-slate-900">
                             <a href="{% url 'user_detail' order.user.id %}" class="hover:text-indigo-600 transition">
                                 {{ order.user.email }}
                             </a>
-                            <p class="text-xs text-slate-400 font-normal">{{ order.user.first_name }} {{ order.user.last_name }}</p>
+                            <p class="text-xs text-slate-600 font-normal">{{ order.user.first_name }} {{ order.user.last_name }}</p>
                         </td>
                         <td class="table-td font-medium text-slate-900">
                             <a href="{% url 'book_detail' order.book.id %}" class="hover:text-indigo-600 transition">
                                 {{ order.book.name }}
                             </a>
                         </td>
-                        <td class="table-td text-slate-500 whitespace-nowrap">{{ order.created_at|date:"Y-m-d H:i" }}</td>
-                        <td class="table-td text-slate-500 whitespace-nowrap">{{ order.plated_end_at|date:"Y-m-d H:i" }}</td>
+                        <td class="table-td text-slate-500 whitespace-nowrap">{{ order.created_at|date:"j M Y, H:i T" }}</td>
+                        <td class="table-td text-slate-500 whitespace-nowrap">{{ order.plated_end_at|date:"j M Y, H:i T" }}</td>
                         <td class="table-td text-slate-500 whitespace-nowrap">
                             {% if order.end_at %}
-                                {{ order.end_at|date:"Y-m-d H:i" }}
+                                {{ order.end_at|date:"j M Y, H:i T" }}
                             {% else %}
-                                <span class="text-xs text-slate-400 italic">Pending return</span>
+                                <span class="text-xs text-slate-600 italic">Pending return</span>
                             {% endif %}
                         </td>
                         <td class="table-td text-right whitespace-nowrap">
@@ -71,12 +61,7 @@
                                         Closed
                                     </span>
                                 {% else %}
-                                    <form method="post" action="{% url 'order_close' order.id %}" class="inline-flex" onsubmit="return confirm('Confirm book return and close order #{{ order.id }}?');">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn-sm-success">
-                                            Close (Return)
-                                        </button>
-                                    </form>
+                                    <a href="{% url 'order_close' order.id %}" class="btn-sm-success">Record Return<span class="sr-only"> of {{ order.book.name }}</span></a>
                                 {% endif %}
                             </div>
                         </td>
@@ -92,7 +77,7 @@
         {% for order in orders %}
             <div class="card p-4 space-y-3">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-mono text-slate-400">Order #{{ order.id }}</span>
+                    <span class="text-xs font-mono text-slate-600">Order #{{ order.id }}</span>
                     {% if order.end_at %}
                         <span class="badge-success">Closed</span>
                     {% else %}
@@ -113,12 +98,12 @@
 
                 <div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
                     <div>
-                        <span class="text-slate-400 block">Borrowed:</span>
-                        <span class="font-medium text-slate-700">{{ order.created_at|date:"Y-m-d" }}</span>
+                        <span class="text-slate-600 block">Borrowed:</span>
+                        <span class="font-medium text-slate-700">{{ order.created_at|date:"j M Y" }}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 block">Deadline:</span>
-                        <span class="font-medium text-slate-700">{{ order.plated_end_at|date:"Y-m-d" }}</span>
+                        <span class="text-slate-600 block">Deadline:</span>
+                        <span class="font-medium text-slate-700">{{ order.plated_end_at|date:"j M Y" }}</span>
                     </div>
                 </div>
 
@@ -127,12 +112,7 @@
                         Edit
                     </a>
                     {% if not order.end_at %}
-                        <form method="post" action="{% url 'order_close' order.id %}" class="inline-flex flex-1" onsubmit="return confirm('Confirm book return and close order #{{ order.id }}?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn-sm-success w-full justify-center">
-                                Close (Return)
-                            </button>
-                        </form>
+                        <a href="{% url 'order_close' order.id %}" class="btn-sm-success w-full justify-center flex-1">Record Return<span class="sr-only"> of {{ order.book.name }}</span></a>
                     {% endif %}
                 </div>
             </div>

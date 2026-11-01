@@ -474,6 +474,46 @@ class LoanChangeTests(FakeEncoderMixin, TestCase):
         response = self.signed_in(self.librarian).post(url)
         self.assertRedirects(response, reverse("order_all"))
         self.assertIsNotNone(self.fresh(self.loan).end_at)
+        self.assertIn(
+            f"Return recorded: “{self.loan.book.name}” is back in stock, "
+            f"and loan #{self.loan.pk} is closed.",
+            [str(message) for message in get_messages(response.wsgi_request)],
+        )
+
+    def test_recording_a_return_asks_first_and_says_what_will_happen(self):
+        url = reverse("order_close", args=[self.loan.pk])
+        response = self.signed_in(self.librarian).get(url)
+        self.assertContains(response, f"Record the return of “{self.loan.book.name}”?")
+        self.assertContains(response, self.loan.user.email)
+        self.assertContains(response, f'<form method="post" action="{url}">')
+        self.assertIsNone(self.fresh(self.loan).end_at)
+
+    def test_the_loan_lists_lead_to_the_confirmation(self):
+        client = self.signed_in(self.librarian)
+        url = reverse("order_close", args=[self.loan.pk])
+        pages = [
+            reverse("order_all"),
+            reverse("books_by_user", args=[self.loan.user.pk]),
+        ]
+        for page in pages:
+            with self.subTest(page=page):
+                response = client.get(page)
+                self.assertContains(response, f'href="{url}"')
+                self.assertNotContains(response, "confirm(")
+
+    def test_recording_a_return_twice_changes_nothing(self):
+        url = reverse("order_close", args=[self.loan.pk])
+        client = self.signed_in(self.librarian)
+        client.post(url)
+        returned = self.fresh(self.loan).end_at
+        self.assertContains(client.get(url), "This loan was already closed on")
+        response = client.post(url)
+        self.assertRedirects(response, reverse("order_all"))
+        self.assertEqual(self.fresh(self.loan).end_at, returned)
+        self.assertIn(
+            f"Loan #{self.loan.pk} was already closed, so nothing changed.",
+            [str(message) for message in get_messages(response.wsgi_request)],
+        )
 
     def test_return_through_the_api(self):
         path = f"/api/v1/order/{self.loan.pk}/"

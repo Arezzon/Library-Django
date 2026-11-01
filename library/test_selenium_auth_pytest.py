@@ -109,7 +109,7 @@ def test_invalid_login(driver):
     )
     assert error_alert.is_displayed(), "Error message alert should be visible"
     assert (
-        "Invalid email or password" in error_alert.text
+        "The email or password is not right" in error_alert.text
     ), "Error message text is incorrect"
     logger.info(f"   -> Verification passed: Error displayed ('{error_alert.text}').")
     logger.info("--- PASSED: test_invalid_login ---\n")

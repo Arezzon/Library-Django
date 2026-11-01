@@ -1,9 +1,11 @@
+import re
 import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
 from celery.exceptions import Retry
 from django.db import OperationalError, transaction
+from django.template.defaultfilters import date as date_filter
 from django.test import Client, RequestFactory, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -462,6 +464,22 @@ class AnalyticsTests(FakeEncoderMixin, TestCase):
             "/events/", {"event_type": "book_view", "days": "90"}
         )
         self.assertEqual(filtered.context["summary"]["total"], 2)
+
+    def test_the_daily_chart_has_a_table_with_the_same_numbers(self):
+        self.event(EventType.BOOK_VIEW, book_id=self.book.pk)
+        self.client.force_login(self.librarian)
+        response = self.client.get("/events/")
+        page = response.content.decode()
+        table = re.search(
+            r"<caption[^>]*>Actions per day</caption>(.*?)</table>", page, re.S
+        )
+        self.assertIsNotNone(table)
+        for bar in response.context["bars"]:
+            day = date_filter(bar["day"], "j M Y")
+            self.assertIn(
+                f'<th scope="row">{day}</th><td>{bar["total"]}</td>', table.group(1)
+            )
+        self.assertNotIn("UTC", page)
 
     def test_pagination_preserves_filters_and_escapes_search_text(self):
         for _ in range(26):

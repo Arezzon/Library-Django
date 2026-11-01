@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Record a Return | LibrarySys{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-0 sm:px-4 py-4 sm:py-8">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900">Record the return of “{{ order.book.name }}”?</h1>
+        </div>
+
+        <div class="card-body">
+            <dl class="mb-5 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm text-slate-600 space-y-1">
+                <div><dt class="inline font-semibold text-slate-900">Reader:</dt> <dd class="inline">{{ order.user.first_name }} {{ order.user.last_name }} ({{ order.user.email }})</dd></div>
+                <div><dt class="inline font-semibold text-slate-900">Borrowed:</dt> <dd class="inline">{{ order.created_at|date:"j M Y, H:i T" }}</dd></div>
+                <div><dt class="inline font-semibold text-slate-900">Due:</dt> <dd class="inline">{{ order.plated_end_at|date:"j M Y, H:i T" }}</dd></div>
+            </dl>
+
+            {% if order.end_at %}
+                <p class="mb-5 text-sm text-slate-600">This loan was already closed on {{ order.end_at|date:"j M Y, H:i T" }}.</p>
+                <div class="pt-4 border-t border-slate-100 flex justify-end">
+                    <a href="{% url 'order_all' %}" class="btn-secondary w-full sm:w-auto justify-center">Back to All Orders</a>
+                </div>
+            {% else %}
+                <p class="mb-5 text-sm text-slate-600">
+                    The loan closes now, and the copy is available to other readers again.
+                    If you record a return by mistake, correct the return time on the loan's edit page.
+                </p>
+                <form method="post" action="{% url 'order_close' order.id %}">
+                    {% csrf_token %}
+                    <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
+                        <a href="{% url 'order_all' %}" class="btn-secondary w-full sm:w-auto justify-center">Not Now</a>
+                        <button type="submit" class="btn-primary w-full sm:w-auto justify-center">Yes, Record the Return</button>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

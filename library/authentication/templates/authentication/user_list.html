@@ -18,18 +18,18 @@
                 <table class="table-custom">
                     <thead class="table-thead">
                         <tr>
-                            <th class="table-th">ID</th>
-                            <th class="table-th">User Email</th>
-                            <th class="table-th">Full Name</th>
-                            <th class="table-th">Role</th>
-                            <th class="table-th">Status</th>
-                            <th class="table-th text-right whitespace-nowrap">Actions</th>
+                            <th scope="col" class="table-th">ID</th>
+                            <th scope="col" class="table-th">User Email</th>
+                            <th scope="col" class="table-th">Full Name</th>
+                            <th scope="col" class="table-th">Role</th>
+                            <th scope="col" class="table-th">Status</th>
+                            <th scope="col" class="table-th text-right whitespace-nowrap">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for user in users %}
                             <tr class="hover:bg-slate-50/75 transition">
-                                <td class="table-td font-mono text-xs text-slate-400">#{{ user.id }}</td>
+                                <td class="table-td font-mono text-xs text-slate-600">#{{ user.id }}</td>
                                 <td class="table-td font-medium text-slate-900">{{ user.email }}</td>
                                 <td class="table-td text-slate-600">{{ user.first_name }} {{ user.middle_name }} {{ user.last_name }}</td>
                                 <td class="table-td whitespace-nowrap">
@@ -64,7 +64,7 @@
             {% for user in users %}
                 <div class="card p-4 space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-mono text-slate-400">#{{ user.id }}</span>
+                        <span class="text-xs font-mono text-slate-600">#{{ user.id }}</span>
                         <div class="flex items-center gap-1.5">
                             {% include 'includes/role_badge.html' with account=user %}
                             {% if user.is_active %}

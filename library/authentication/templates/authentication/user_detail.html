@@ -25,28 +25,28 @@
         <div class="p-4 sm:p-6 space-y-3 sm:space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
-                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">First Name</span>
+                    <span class="text-xs font-medium text-slate-600 uppercase tracking-wider block">First Name</span>
                     <span class="text-sm font-semibold text-slate-800 mt-1 block">{{ target_user.first_name|default:"—" }}</span>
                 </div>
                 <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
-                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">Last Name</span>
+                    <span class="text-xs font-medium text-slate-600 uppercase tracking-wider block">Last Name</span>
                     <span class="text-sm font-semibold text-slate-800 mt-1 block">{{ target_user.last_name|default:"—" }}</span>
                 </div>
                 <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
-                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">Middle Name</span>
+                    <span class="text-xs font-medium text-slate-600 uppercase tracking-wider block">Middle Name</span>
                     <span class="text-sm font-semibold text-slate-800 mt-1 block">{{ target_user.middle_name|default:"—" }}</span>
                 </div>
                 <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
-                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">Account Status</span>
-                    <span class="text-sm font-semibold mt-1 block {% if target_user.is_active %}text-emerald-600{% else %}text-slate-500{% endif %}">
+                    <span class="text-xs font-medium text-slate-600 uppercase tracking-wider block">Account Status</span>
+                    <span class="text-sm font-semibold mt-1 block {% if target_user.is_active %}text-emerald-700{% else %}text-slate-600{% endif %}">
                         {% if target_user.is_active %}Active Account{% else %}Inactive{% endif %}
                     </span>
                 </div>
             </div>
 
             <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-100">
-                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">Registration Date</span>
-                <span class="text-sm font-semibold text-slate-800 mt-1 block">{{ target_user.created_at|date:"F j, Y, H:i" }}</span>
+                <span class="text-xs font-medium text-slate-600 uppercase tracking-wider block">Registration Date</span>
+                <span class="text-sm font-semibold text-slate-800 mt-1 block">{{ target_user.created_at|date:"j M Y, H:i T" }}</span>
             </div>
         </div>
 

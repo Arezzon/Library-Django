@@ -25,9 +25,15 @@ def _close_order(request: HttpRequest, order_id: int) -> None:
     if order.end_at is None:
         order.end_at = timezone.now()
         order.save()
-        messages.success(request, f"Order #{order.id} closed (Book returned).")
+        messages.success(
+            request,
+            f"Return recorded: “{order.book.name}” is back in stock, "
+            f"and loan #{order.id} is closed.",
+        )
     else:
-        messages.info(request, f"Order #{order.id} was already closed.")
+        messages.info(
+            request, f"Loan #{order.id} was already closed, so nothing changed."
+        )
 
 
 @signin_required
@@ -266,7 +272,7 @@ def order_update(request: HttpRequest, order_id: int) -> HttpResponse:
             except BookUnavailableError as error:
                 form.add_error(None, str(error))
             else:
-                messages.success(request, f"Order #{order.id} updated successfully.")
+                messages.success(request, f"Changes to loan #{order.id} saved.")
                 return redirect("order_all")
     else:
         form = OrderUpdateForm(instance=order)
@@ -275,6 +281,9 @@ def order_update(request: HttpRequest, order_id: int) -> HttpResponse:
 
 @librarian_required
 def order_close(request: HttpRequest, order_id: int) -> HttpResponse:
+    """GET asks for confirmation; POST records the return (FR-043)."""
     if request.method == "POST":
         _close_order(request, order_id)
-    return redirect("order_all")
+        return redirect("order_all")
+    order = get_object_or_404(Order.objects.select_related("book", "user"), pk=order_id)
+    return render(request, "order/order_close.html", {"order": order})

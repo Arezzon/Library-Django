@@ -518,6 +518,24 @@ python scripts/smoke_reservation_load.py --compose-file docker-compose-dev.yml -
 `--readers 30` adds the load check that the operator guide's "Check reservations
 under load" runs on the Pi.
 
+CI's `ubuntu-latest` leg also checks the main pages for accessibility: axe, run
+through Playwright in Chromium, must find no WCAG 2.2 level A or AA violation on
+any of them, signed in as the demo reader and the demo librarian. The only data it
+changes is one reservation, which the reader makes and cancels again. To run it
+against the development stack started with demo data, from the repository root
+(Node.js is needed):
+
+```bash
+npm ci --prefix scripts/a11y
+npx --prefix scripts/a11y playwright install chromium
+node scripts/a11y/check_pages.mjs --base-url http://localhost:8000
+```
+
+`A11Y_READER_EMAIL`, `A11Y_READER_PASSWORD`, `A11Y_LIBRARIAN_EMAIL` and
+`A11Y_LIBRARIAN_PASSWORD` sign in with other accounts. The keyboard and
+screen-reader checks stay manual; `specs/003-priority-tech-debt/quickstart.md`
+section 10 lists them.
+
 > **Tip:** If tests fail with `Missing staticfiles manifest entry`, run
 > `python manage.py collectstatic --noinput` before the test command.
 

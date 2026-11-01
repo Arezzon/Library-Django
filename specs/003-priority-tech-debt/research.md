@@ -739,9 +739,10 @@ and undoing it without a record is guesswork.
 
 **Decision**:
 - **Automated checks** (FR-042), in `scripts/a11y/`:
-  - `package.json` and `package-lock.json` pin Playwright 1.64.0 and @axe-core/playwright 4.13.0,
-    the newest releases at least two weeks old. Playwright 1.64.1 and @axe-core/playwright 4.14.0
-    are newer.
+  - `package.json` and `package-lock.json` pin Playwright 1.64.1 and @axe-core/playwright 4.14.0,
+    the newest releases at least two weeks old on 2026-11-01, when PR 10 pinned them. They match
+    `scripts/browser` (KAN-53), so CI downloads one Chromium. On 2026-10-27, when this plan was
+    written, the same rule gave Playwright 1.64.0 and @axe-core/playwright 4.13.0.
   - `check_pages.mjs` signs in as the seeded reader and the seeded librarian and loads each main
     page (FR-041). It runs axe with the tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` and
     `wcag22aa`, and fails on any violation.
@@ -874,6 +875,8 @@ accurate after every merge.
 | The admin site's user form shows the password hash as an editable text field | `authentication/admin.py` | Register, P3 |
 | Pages load Tailwind and fonts from third-party servers in readers' browsers | `base.html` | Register, P3 (privacy and availability) |
 | Audit entries have no retention period | `audit` | Register, P2, for the product owner and the business analyst |
+| Saving a book with an empty title creates a book without a name, on the web and through the API (found by PR 10's check) | `book/models.py` (`name` allows blank) | Register, P2 |
+| The assistant page shows when its answer was checked as a UTC timestamp, not in Kyiv time with the zone (FR-044) | `ai/services.py`, `ai/templates/ai/assistant.html` (KAN-52) | Register, P3 |
 | The gaps FR-055 lists: weekly-only off-device copies, analytics search text, English only, browser tests not in CI, P2 search and forecasting out of scope | — | Register |
 
 ## Measurements
@@ -965,3 +968,28 @@ no measurable memory. CI repeats the check on every run.
 - **Result**: 1 account reviewed, none changed. No unauthorized changes or signs of
   exploitation were found.
 - **Record**: [the comment on #36](https://github.com/Arezzon/Library-Django/pull/36#issuecomment-6468084803).
+
+### Accessibility (PR 10, SC-009)
+
+**Automated (FR-042)**:
+
+- **Date**: 2026-11-01.
+- **Method**: `scripts/a11y/check_pages.mjs` against the development stack with demo data. It
+  signs in as the demo reader and librarian and checks each main page and form error state with
+  axe-core 4.14.0 (through @axe-core/playwright 4.14.0 and Playwright 1.64.1, in Chromium), for
+  the tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` and `wcag22aa`.
+- **Result**:
+
+  | Run | Pages and states checked | Violations | Steps that could not run |
+  |---|---|---|---|
+  | Before PR 10 | 32 | 208: 205 colour contrast, 3 for the unlabelled author filter | 4: no link to the reader's profile, and no confirmation page for recording a return or for deleting a book or an author |
+  | After PR 10 | 39, with the reader's other menu pages (For You, Saved Books, Assistant) | 0 | 0 |
+
+  CI repeats the check on every run, on the `ubuntu-latest` leg.
+
+**Keyboard and screen reader (T162)**: not yet run. A person completes each main task of Story 6
+with the keyboard alone and with NVDA in Firefox or Chrome, and the results go here.
+
+**Walkthrough (T163, FR-045)**: not yet run. At least three people who are new to the system, at
+least one of them with little digital experience, attempt each main task; the anonymous results go
+here.

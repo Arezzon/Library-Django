@@ -37,12 +37,14 @@ ROUTES = [
     ("get", "/book/create/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/book/update/{book}/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/book/user/{reader}/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/book/delete/{free_book}/", SIGN_IN, FORBIDDEN, PAGE),
     ("post", "/book/delete/{free_book}/", SIGN_IN, FORBIDDEN, "/book/"),
     # A book with borrowing history is refused, back on its edit page.
     ("post", "/book/delete/{book}/", SIGN_IN, FORBIDDEN, "/book/update/{book}/"),
     ("get", "/author/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/author/create/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/author/update/{author}/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/author/delete/{author}/", SIGN_IN, FORBIDDEN, PAGE),
     ("post", "/author/delete/{author}/", SIGN_IN, FORBIDDEN, "/author/"),
     ("get", "/order/my/", SIGN_IN, PAGE, PAGE),
     # Every loan starts with a librarian: readers reserve on the book page.
@@ -91,6 +93,7 @@ ROUTES = [
     ),
     ("get", "/order/all/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/order/update/{loan}/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/order/close/{loan}/", SIGN_IN, FORBIDDEN, PAGE),
     ("post", "/order/close/{loan}/", SIGN_IN, FORBIDDEN, "/order/all/"),
     ("get", "/authentication/users/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/authentication/users/{reader}/", SIGN_IN, PAGE, PAGE),

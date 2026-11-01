@@ -1301,13 +1301,13 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
 
 ### Tests for User Story 6 (PR 10)
 
-- [ ] T150 [US6] Create branch `fix/kan-69-accessibility` from a freshly fetched `origin/main`, with
+- [x] T150 [US6] Create branch `fix/kan-69-accessibility` from a freshly fetched `origin/main`, with
   PR 7 merged. (Jira) Move KAN-69 to In Progress.
-- [ ] T151 [P] [US6] Create `scripts/a11y/package.json`: private, `"type": "module"`, with the exact
-  devDependencies `playwright` `1.64.0` and `@axe-core/playwright` `4.13.0`. Run `npm install --prefix
-  scripts/a11y` to produce `scripts/a11y/package-lock.json`, and ignore `scripts/a11y/node_modules/`
-  in `.gitignore`.
-- [ ] T152 [US6] Create `scripts/a11y/check_pages.mjs`:
+- [x] T151 [P] [US6] Create `scripts/a11y/package.json`: private, `"type": "module"`, with the exact
+  devDependencies `playwright` `1.64.1` and `@axe-core/playwright` `4.14.0` (R25). Run `npm install
+  --prefix scripts/a11y` to produce `scripts/a11y/package-lock.json`, and ignore
+  `scripts/a11y/node_modules/` in `.gitignore`.
+- [x] T152 [US6] Create `scripts/a11y/check_pages.mjs`:
   - **Options**: `--base-url`.
   - **Sign-in**: as the seeded reader and the seeded librarian. `A11Y_READER_EMAIL`,
     `A11Y_READER_PASSWORD`, `A11Y_LIBRARIAN_EMAIL` and `A11Y_LIBRARIAN_PASSWORD` override them.
@@ -1319,15 +1319,15 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
   - **Check**: `AxeBuilder`, with the tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` and
     `wcag22aa`.
   - **Output**: each violation with its rule, impact, page and target. It exits 1 if there is any.
-- [ ] T153 [P] [US6] Create `library/authentication/test_templates.py` (FR-044). It scans every
+- [x] T153 [P] [US6] Create `library/authentication/test_templates.py` (FR-044). It scans every
   template under `library/` and fails on a `|date:` format that shows a time (`H`, `G`, `i`, `A`,
   `a` or `P`) without a zone (`T`, `e` or `O`).
-- [ ] T154 [US6] Run `check_pages.mjs` against the development stack with demo data, and list the
+- [x] T154 [US6] Run `check_pages.mjs` against the development stack with demo data, and list the
   current violations in the pull request description as the baseline.
 
 ### Implementation for User Story 6 (PR 10)
 
-- [ ] T155 [US6] Fix the shared layout in `library/library/templates/base.html`:
+- [x] T155 [US6] Fix the shared layout in `library/library/templates/base.html`:
   - a skip link to `<main id="main">`;
   - visible focus on links and buttons, with `focus-visible` rings on `.nav-link`, `.btn-*` and
     `.mobile-nav-link`;
@@ -1335,7 +1335,7 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
     `author/author_list.html`, `book/book_detail.html`, `book/book_list.html`, `order/order_all.html`
     and `order/order_my.html`;
   - a footer note: "Times are shown in Kyiv time (EET/EEST).".
-- [ ] T156 [US6] In `library/library/templates/includes/form_snippet.html` and
+- [x] T156 [US6] In `library/library/templates/includes/form_snippet.html` and
   `library/library/forms_mixins.py` (FR-043):
   - give every field a label;
   - tie its help text and errors to it with `aria-describedby`;
@@ -1343,7 +1343,7 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
   - make each error say what is wrong and how to fix it;
   - mark required fields;
   - keep the values typed.
-- [ ] T157 [US6] Fix the pages under `library/*/templates/`:
+- [x] T157 [US6] Fix the pages under `library/*/templates/`:
   - contrast of at least 4.5:1 for light grey text;
   - names for every link and button;
   - table headers;
@@ -1354,15 +1354,15 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
     `library/events/templates/events/_analytics_content.html`.
 
   Show every date and time in the format with the zone, so that T153 passes.
-- [ ] T158 [US6] Re-run `check_pages.mjs` until it reports 0 violations (SC-009).
-- [ ] T159 [US6] In `.github/workflows/docker-build.yml`, on the `ubuntu-latest` leg after the stack is
+- [x] T158 [US6] Re-run `check_pages.mjs` until it reports 0 violations (SC-009).
+- [x] T159 [US6] In `.github/workflows/docker-build.yml`, on the `ubuntu-latest` leg after the stack is
   healthy, run (FR-042):
   1. `npm ci --prefix scripts/a11y`;
   2. `npx --prefix scripts/a11y playwright install --with-deps chromium`;
   3. `node scripts/a11y/check_pages.mjs --base-url http://localhost:8000`.
-- [ ] T160 [P] [US6] Add `/scripts/a11y/ @Dima22820 @Arezzon` to `.github/CODEOWNERS`, and document the
+- [x] T160 [P] [US6] Add `/scripts/a11y/ @Dima22820 @Arezzon` to `.github/CODEOWNERS`, and document the
   accessibility check in the README's "Tests and checks".
-- [ ] T161 [US6] Constitution PATCH amendment (R29), in `.specify/memory/constitution.md`. With the
+- [x] T161 [US6] Constitution PATCH amendment (R29), in `.specify/memory/constitution.md`. With the
   handoff set to `blocked`, use `/speckit-constitution` to add the accessibility check to the
   smoke-test in workflow item 4. Add its entry to `docs/shared/changelog.md`, then set the handoff
   back.
@@ -1376,7 +1376,7 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
   - fix each problem, or note it for the register with an owner and a plan.
 
   At least 80% of the attempts must finish without help.
-- [ ] T164 [US6] Verify and prepare the pull request:
+- [x] T164 [US6] Verify and prepare the pull request:
   - run quickstart.md §10, lint, format and the diff coverage;
   - add the changelog entry;
   - use the title `fix(ui): make the main pages meet WCAG 2.2 AA (KAN-69)`.

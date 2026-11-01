@@ -41,8 +41,9 @@ class Author(models.Model):
         site all refuse while the author is attached to a book."""
         if self.books.exists():
             return (
-                f'Cannot delete author "{self.name} {self.surname}" because they are '
-                "attached to one or more books."
+                f"“{self.name} {self.surname}” cannot be deleted while a book lists "
+                "them as its author. Remove them from those books first, on the edit "
+                "page of each book."
             )
         return None
 
