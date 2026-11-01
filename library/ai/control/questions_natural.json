@@ -1,0 +1,18 @@
+[
+  {"question":"знайди твори Шевченка","status":"found","titles":["Kobzar"]},
+  {"question":"Find books by Taras Shevchenko","status":"found","titles":["Kobzar"]},
+  {"question":"Покажи книги Франка","status":"found","titles":["Zakhar Berkut"]},
+  {"question":"Find books by Lesya Ukrainka","status":"found","titles":["Forest Song (Lisova Pisnya)"]},
+  {"question":"Знайди твори Орвелла","status":"found","titles":["1984","Animal Farm"]},
+  {"question":"Show books by George Orwell","status":"found","titles":["1984","Animal Farm"]},
+  {"question":"Знайди книгу Кобзаря","status":"found","titles":["Kobzar"]},
+  {"question":"Find Kobzar","status":"found","titles":["Kobzar"]},
+  {"question":"Покажи Лісову пісню","status":"found","titles":["Forest Song (Lisova Pisnya)"]},
+  {"question":"Чи є в наявності 1984?","status":"found","titles":["1984"]},
+  {"question":"Is 1984 available?","status":"found","titles":["1984"]},
+  {"question":"Порадь книги про програмування","status":"found","titles":["Clean Code: A Handbook of Agile Software Craftsmanship"]},
+  {"question":"Recommend a book about programming","status":"found","titles":["Clean Code: A Handbook of Agile Software Craftsmanship"]},
+  {"question":"Знайди НЕІСНУЮЧА-КНИГА-987654","status":"not_found","titles":[]},
+  {"question":"Find books by Imaginary Author 98765","status":"not_found","titles":[]},
+  {"question":"Забронюй 1984","status":"clarification_required","titles":[]}
+]

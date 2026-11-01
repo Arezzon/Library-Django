@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods
 from authentication.decorators import signin_required
 from authentication.permissions import is_signed_in
 
+from .context import KEY, read_context, remember_result
 from .forms import AssistantQuestionForm
 from .services import catalog_assistant
 
@@ -24,6 +25,8 @@ def assistant_page(request):
         raise PermissionDenied
     if request.GET:
         return redirect("assistant-page")
+    if request.method == "GET":
+        request.session.pop(KEY, None)
     form = AssistantQuestionForm(request.POST if request.method == "POST" else None)
     result = None
     status = 200
@@ -34,8 +37,12 @@ def assistant_page(request):
             form.add_error(None, "Send one question and one search type.")
         if form.is_valid():
             result = catalog_assistant(
-                request.user, form.cleaned_data["q"], form.cleaned_data["intent"]
+                request.user,
+                form.cleaned_data["q"],
+                form.cleaned_data["intent"],
+                context_book_ids=read_context(request.session, request.user),
             )
+            remember_result(request.session, request.user, result)
             status = 503 if result["status"] == "source_unavailable" else 200
             if status == 503:
                 # The shared notices join catalog tables too. Do not requery a

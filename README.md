@@ -683,3 +683,12 @@ The catalog assistant and shared reader controls follow the English site interfa
 See [the reader walkthrough](docs/features/reader-verification.md) for KAN-31 onward
 and [deployment checks](docs/features/deployment-verification.md) when a server
 appears to be running older code.
+
+### Natural-language catalog questions
+
+Ask the Assistant `знайди твори Шевченка`, `Find books by Taras Shevchenko`,
+`Is 1984 available?` or `Порадь книги про програмування`. No command prefix or
+intent selection is required. Topic queries reuse the existing CPU encoder;
+name/title lookups do not load a model. The reader page supports a short
+availability follow-up without retaining question text. See
+[the contract and verified controls](docs/ba/catalog-assistant.md).

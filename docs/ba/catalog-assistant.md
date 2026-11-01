@@ -1,95 +1,103 @@
-# Catalog assistant (KAN-52)
+# Natural-language catalog assistant (KAN-52 / KAN-53)
 
-P1 uses deterministic catalog queries and templates. It needs neither P2 semantic
-search (KAN-28), embedding inference nor an external LLM. This module sits beside
-catalog reads; it has no calls into reservation/issuance services and stores no
-conversation, private reader history or assistant requests. The service/API boundary
-follows the current Django architecture; the reader UI can consume the same
-structured response without access to business write services.
+The reader can ask supported library questions in Ukrainian or English without
+commands or selecting an intent. This is a bounded catalog assistant, not an LLM
+chatbot. No GPU, external API, new model, model training or migration is required.
 
-## Architecture (KAN-26)
+## Request interpretation
 
-The installed `ai` Django app owns request interpretation, response templates and
-its API route. It calls the read-only `book.catalog_data.lookup_catalog` gateway
-for linked catalog facts. Core catalog code imports no `ai` modules; AI code calls
-no booking/issuance services. Existing embedding, search and recommendation
-implementations are unchanged; moving those older modules behind AI facades is
-separate from this assistant ticket. No AI models or migrations are introduced.
+`ai.language.parse_query` identifies title, author, availability and topic requests.
+It removes recognized request wrappers such as “find me” and “знайди”, understands
+quoted titles, and keeps the existing explicit intents and `автор:`/`book:` syntax.
+A real title containing a colon remains searchable. Unknown names/titles are never
+silently replaced with semantic neighbors. Mutation requests ask for clarification;
+the assistant cannot reserve, issue, return or delete a book.
 
-CI and coverage include the new `ai` app alongside every existing suite.
+| Reader question | Lookup |
+| --- | --- |
+| знайди твори Шевченка | author, Ukrainian case stem and Latin transliteration |
+| Find books by Taras Shevchenko | author, all name tokens |
+| Знайди книгу Кобзаря | title, literal first then normalized tokens |
+| Is 1984 available? | named title with fresh counts, including zero |
+| Show available books by Shevchenko | author collection filtered by current stock |
+| Порадь книги про програмування | topic using the existing CPU semantic encoder |
 
-## Reader interface contract
+`book.catalog_matching` applies conservative Ukrainian ending removal to query
+tokens and equivalent Cyrillic/Latin folding in SQL: case, transliteration,
+punctuation and repeated letters. This supports Shevchenka → Shevchenko and
+Лесі Українки → Lesya Ukrainka. It is not a full morphological analyzer or a
+translation dictionary for every international name. Exact catalog lookup wins;
+multiple matching authors require clarification rather than inventing an identity.
 
-`GET /api/v1/assistant/?q=<text>&intent=auto` requires an active signed-in account,
-including for librarians. Responses are private and not cached. POST/PATCH/DELETE
-are refused. Ownership selectors and repeated/unknown parameters return 400.
+The database evaluates normalized title/name expressions; the application does not
+load the complete catalog or author list into process memory. Literal matches keep
+the existing two/three-query fast path and need no model inference.
 
-`ai.services.catalog_assistant(user, query, intent)` is the reusable service.
-The API is ready for a reader interface; this ticket does not add a chat UI.
+## Topic search and CPU resources
 
-Supported intents:
+Only explicit topic/recommendation wording invokes `book.search.search_books`,
+reusing the existing process-local quantized ONNX encoder and pgvector cosine
+ranking. There is no second resident model. Existing thread/token controls apply.
+At most 20 database-ranked neighbors are inspected; the assistant returns at most
+five whose similarity is at least `max(0.45, best_similarity - 0.08)`.
 
-| Intent | Input | Behavior |
-| --- | --- | --- |
-| `title` | literal title fragment | case-insensitive substring on Book.name |
-| `author` | literal name/surname/patronymic tokens | every token matches an author name field; returns author records and linked books |
-| `availability` | literal title fragment | same title lookup with current copy counts |
-| `auto` (default) | bare title or a recognized prefix | maps the prefix; otherwise treats the text as a literal title |
+The gate is a transparent baseline heuristic, not calibrated relevance confidence.
+The UI labels these as related catalog matches. An unrelated named book/author
+never uses this path. No acceptable matches produce an explicit empty result;
+encoder/database failure gives 503, no partial facts and `Retry-After: 5`.
+Topic lookup needs the already configured embedding artifacts; ordinary title,
+author and availability questions continue to work without inference.
 
-Prefixes: `книга:`, `назва:`, `book:`, `title:`, `автор:`, `author:`, `наявність:`,
-`доступність:`, `availability:`. Prefix matching ignores case. With an explicit
-intent, q is literal, so a title containing a colon remains searchable.
-Empty/one-character text, an empty prefix value or an unsupported prefix returns
-`clarification_required` without querying the catalog. Unknown intent or text over
-256 characters returns 400. This is a documented command grammar, not arbitrary
-natural-language understanding, fuzzy matching or semantic inference.
+## Catalog gateway and grounding
 
-## Grounding and failures
+`ai.services.catalog_assistant(user, query, intent)` calls the read-only
+`book.catalog_data.lookup_catalog` gateway. Core catalog code imports no `ai`
+module. Neither layer calls booking/issuance write services. Every book, author,
+link and count comes from current records; titles are never generated or translated.
 
-A response includes `status`, resolved `intent`, plain-text Ukrainian `answer`,
-`books`, `authors`, `checked_at`, `truncated` and `availability_notice`.
+`Book.objects.with_availability(now)` counts active loans and unexpired active
+reservations. A request for available books applies the same `count > loans + holds`
+rule in SQL. Named-title availability still reports an existing out-of-stock book
+with zero copies. Borrower identities and loan/hold records are never returned.
+Booking rechecks availability atomically; an assistant answer does not hold stock.
 
-Book records contain their exact title, ID, web detail URL, linked author records,
-`available_count` and `total_count`. Authors include exact catalog names, API record
-URLs and a filtered book-list URL. Relative URLs are generated from Django routes,
-never from user text. Clients must render answer/title/name as text, not trusted HTML.
-An absent author is stated explicitly. Existing authors without books are still
-confirmed with links; the assistant never fills missing relationships with guesses.
+Author/title collections are capped at 10 with stable case-insensitive name/title
+and primary-key ordering. Partial title matches or multiple authors ask for
+clarification. An author without books is reported without fabricating books.
 
-Multiple matching books (or authors for author intent) return
-`clarification_required` with confirmed candidates and an invitation to refine the
-full name/title or open a linked record. Results are ordered by case-insensitive
-title (authors by surname/name), then ID. Each top-level list is capped at 10;
-`truncated=true` makes the bound explicit. Query count is fixed (2 for title/copy
-queries, 3 for author lookup), rather than one stock/author query per book.
+## API and reader interface
 
-No matches return `not_found`, empty records and a statement that the catalog has
-no confirmed matches. Catalog database failures return HTTP 503,
-`source_unavailable`, empty records, no checked_at, a static explanation and
-`Retry-After: 5`. All lazy queries/materialization are inside the failure boundary:
-partial records and exception/credential text are never returned. Authentication
-uses the existing session/database infrastructure; an infrastructure-wide outage
-can prevent authentication before the assistant is reached.
+`GET /api/v1/assistant/?q=<text>&intent=auto` requires an active signed-in account.
+The API is stateless; `intent` accepts `auto`, `title`, `author`, `availability`.
+`topic` is an inferred response intent, not a new client-controlled selector.
+Responses retain `status`, `intent`, Ukrainian plain-text `answer`, `books`,
+`authors`, `checked_at`, `truncated`, and `availability_notice`. Interface labels
+are English and catalog data remains in its stored language. Browsable HTML works.
+Unknown/repeated parameters, ownership selectors and text over 256 characters are
+refused. POST/PATCH/DELETE API operations are refused. Responses are private/no-store.
 
-## Availability is informational
+The CSRF-protected POST page `/assistant/` uses automatic interpretation by default;
+manual intent selection remains under Search options. It supports follow-ups such
+as “А які з них доступні?” and “Which of these are available?”. For ten minutes the
+session retains only the previous result's at most ten book IDs, account ID and
+timestamp. It saves no question, answer, title or chat history. IDs are bound to
+the signed-in account, and stock is queried again. Singular “Is it available?”
+requires one preceding book; missing/expired/ambiguous context asks for clarification.
+Clear/new GET, sign-out and empty results withdraw references. API callers do not
+receive or inject this browser context.
 
-Each lookup uses `Book.objects.with_availability(now)`: total copies minus active
-unreturned loans and active reservations expiring strictly after now, clamped at
-zero. Readers' names, loan records and hold owners are never included. Returned
-loans, expired/cancelled holds and stock changes affect the next request without
-cache invalidation or beat. Book authors cannot multiply the counted loans/holds.
+## Verified demonstration and regression checks
 
-`checked_at` is the lookup instant, not a reservation or transaction-wide promise.
-A concurrent issue/hold can change stock immediately after the answer. The response
-always includes a notice that booking rechecks stock. The assistant neither locks
-nor holds copies; existing reservation/issuance services remain responsible for
-atomic eligibility/stock checks. No migration, new queue or model download is needed.
+`ai/control/questions_natural.json` contains 16 questions with exact expected
+catalog titles for the standard seeded catalog. `scripts/smoke_catalog_assistant.py`
+checks every case over HTTP with the real CPU encoder; these same cases are listed
+in the PR. Availability counts can change with live loans/reservations, so checks
+verify fresh non-negative counts instead of promising a fixed number of copies.
 
-## Verification
-
-`ai.test_assistant` covers title/author links, missing records/authors, Ukrainian
-case-insensitive input, refinement, limits/stability, live loan/hold/expiry/return
-changes, source/prefetch failures, active-account access, parameter validation,
-read-only SQL, absent embeddings and no inference. The existing access matrix
-includes the endpoint. Docker Build runs these with all established app suites;
-HTTP smoke checks verify seeded catalog answers and clarification/missing states.
+`ai.test_natural_language` covers grammar, declensions/transliteration, current
+stock, ambiguous/missing entities, confidence gating with controlled vectors,
+model failure, no-inference paths, context isolation/expiry/clear, HTML API and
+permissions. Existing assistant and all other app suites remain enabled.
+Chrome tests submit Ukrainian and English questions, follow sources, exercise
+follow-ups and keyboard controls, run axe, simulate source failure in a disposable
+DB, and verify private-log handling and unchanged loan/reservation row counts.
