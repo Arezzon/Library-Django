@@ -5,6 +5,7 @@ from rest_framework.routers import APIRootView, DefaultRouter
 from authentication.api_views import CustomUserViewSet
 from author.api_views import AuthorViewSet
 from book.api_views import BookRecommendationsView, BookSearchView, BookViewSet
+from book.preference_api import BookPreferenceListView, BookPreferenceView
 from events.api_views import ClientEventView
 from order.api_views import OrderViewSet, ReservationViewSet, UserOrderViewSet
 
@@ -30,6 +31,16 @@ router.register(r"reservation", ReservationViewSet, basename="reservation")
 
 urlpatterns = [
     path("assistant/", include("ai.urls")),
+    path(
+        "me/book-preferences/",
+        BookPreferenceListView.as_view(),
+        name="my-book-preferences",
+    ),
+    path(
+        "books/<int:book_id>/preferences/",
+        BookPreferenceView.as_view(),
+        name="book-preferences",
+    ),
     path(
         "books/recommendations/",
         BookRecommendationsView.as_view(),
