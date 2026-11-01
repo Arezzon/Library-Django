@@ -152,7 +152,7 @@ jobs:
         if: matrix.runner != 'ubuntu-latest'
         run: |
           set -o pipefail
-          docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events audit --verbosity 2 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
+          docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events audit ai --verbosity 2 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
 
       # The same tests on one leg, measured by coverage, with the output kept the same
       # way. The data and coverage.xml land in library/ through the bind mount, where
@@ -163,7 +163,7 @@ jobs:
           set -o pipefail
           dc="docker compose -f docker-compose-dev.yml"
           $dc exec -T web python -m pip install --quiet "$(grep '^coverage==' requirements-dev.txt)"
-          $dc exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python -m coverage run --rcfile=/app/pyproject.toml manage.py test authentication author book order events audit --verbosity 2 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
+          $dc exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python -m coverage run --rcfile=/app/pyproject.toml manage.py test authentication author book order events audit ai --verbosity 2 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
           $dc exec -T web python -m coverage xml --rcfile=/app/pyproject.toml -o coverage.xml
 
       # Coverage of the lines the pull request adds or changes (FR-051). A report
@@ -229,6 +229,9 @@ jobs:
             | python -c 'import json,sys; books=json.load(sys.stdin); assert 0 < len(books) <= 3; assert all(b["available_count"] > 0 and isinstance(b.get("reason"), str) and b["reason"].strip() for b in books)'
           echo "== recommendations without signing in (must answer 401) =="
           test "$(curl -sS -o /dev/null -w '%{http_code}' "$base/api/v1/books/recommendations/")" = 401
+
+      - name: Verify grounded catalog assistant over HTTP
+        run: python scripts/smoke_catalog_assistant.py
 
       # SC-002: 100 simultaneous reservations of a book's one copy succeed exactly once,
       # in each of 20 runs. The script removes its temporary accounts and books.

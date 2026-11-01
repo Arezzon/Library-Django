@@ -59,6 +59,7 @@ OPERATIONS = [
     ("get", "/api/docs/", None, 200, 200, 200),
     ("get", "/api/redoc/", None, 200, 200, 200),
     ("get", "/api/v1/books/search/?q=topic", None, 401, 200, 200),
+    ("get", "/api/v1/assistant/?q=topic", None, 401, 200, 200),
     ("get", "/api/v1/book/", None, 401, 200, 200),
     ("get", "/api/v1/book/{book}/", None, 401, 200, 200),
     ("post", "/api/v1/book/", {"name": "New book", "count": 1}, 401, 403, 201),
