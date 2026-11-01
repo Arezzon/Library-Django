@@ -120,6 +120,7 @@
                     {% if request.user.is_authenticated %}
                         <a href="{% url 'home' %}" class="nav-link">Home</a>
                         <a href="/book/" class="nav-link">Books</a>
+                        <a href="{% url 'assistant-page' %}" class="nav-link">Помічник</a>
                         <a href="{% url 'my_book_preferences' %}" class="nav-link">Saved Books</a>
 
                         {# Reader Menu #}
@@ -202,6 +203,7 @@
                         Books Catalog
                     </a>
 
+                    <a href="{% url 'assistant-page' %}" class="mobile-nav-link">Помічник</a>
                     <a href="{% url 'my_book_preferences' %}" class="mobile-nav-link">Saved Books</a>
 
                     {# Reader Menu #}

@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     tags: ["v*"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "KAN-*"]
 
 env:
   REGISTRY: ghcr.io
@@ -235,6 +235,19 @@ jobs:
 
       - name: Verify grounded catalog assistant over HTTP
         run: python scripts/smoke_catalog_assistant.py
+
+      - name: Set up Node for assistant browser checks
+        if: matrix.runner == 'ubuntu-latest'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify assistant keyboard flow, accessibility, private logs and source failure
+        if: matrix.runner == 'ubuntu-latest'
+        run: |
+          npm ci --prefix scripts/browser
+          npx --prefix scripts/browser playwright-core install --with-deps chromium
+          node scripts/browser/smoke_assistant.cjs
 
       # SC-002: 100 simultaneous reservations of a book's one copy succeed exactly once,
       # in each of 20 runs. The script removes its temporary accounts and books.

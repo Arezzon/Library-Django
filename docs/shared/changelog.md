@@ -1,18 +1,22 @@
 2026-11-01
-KAN-51 synchronization with the merged catalog assistant
-Preserve private reader preferences and search persistence alongside the KAN-52 app, both HTTP smoke checks, and both sets of API routes and documentation.
+KAN-53 synchronization with pending reader preferences
+Include the updated KAN-51 predecessor and merged KAN-52 catalog service while preserving assistant navigation, private forms, saved-book controls and every smoke check. Docker Build and CodeQL now also run for PRs targeting KAN predecessor branches, preserving main checks.
+
+2026-11-01
+Reader assistant interface and Ukrainian controls (KAN-53)
+Add a private CSRF-protected assistant page with source links, clarification/error states, keyboard-friendly native controls and desktop/mobile navigation. Add eight Ukrainian control questions, status-only logging, permission/privacy/regression tests and a real browser accessibility/source-outage smoke check. The interface consumes KAN-52 and makes no loan or reservation changes.
 
 2026-11-01
 A grounded, read-only catalog assistant (KAN-52)
 Add an authenticated assistant API/service in an isolated ai Django app with a read-only catalog gateway for literal title, author and current availability queries. Responses cite catalog records, ask for refinement on ambiguous inputs, and report absent data or source failures without invention. No LLM, semantic search, booking or issuance dependency is introduced. Include access/availability/source-failure tests and Docker HTTP checks.
 
 2026-11-01
+KAN-51 synchronization with the merged catalog assistant
+Preserve private reader preferences and search persistence alongside the KAN-52 app, both HTTP smoke checks, and both sets of API routes and documentation.
+
+2026-11-01
 KAN-51 review fixes and KAN-50 integration
 Validate saved-list filters without exposing exception messages, test defensive preference paths, and preserve the shared KAN-50 history, availability and fallback rules alongside explicit reader preferences.
-
-2026-10-31
-Persistent private reader preferences (KAN-51)
-Add independent likes and favorites, owned API and web controls, current-state recommendation signals, and retryable idempotent search tracking. Include migrations, regression tests, and documented privacy and queue-failure contracts.
 
 2026-10-31
 A shared, private input contract for recommendations (KAN-50)
@@ -33,6 +37,10 @@ My reservations shows each deadline with the time left, such as "1 day 3 hours l
 2026-10-31
 Librarians issue and cancel reservations at the desk (KAN-57)
 Every loan now starts with a librarian. The desk page lists active reservations by deadline, with the reader, the book and the time left. Issuing a reservation is one step: it becomes issued and the loan starts with the copy it held, for 14 days unless the librarian chooses 1 to 30, and a repeated request starts no second loan. Librarians also lend directly, from the desk or a book's page: a reservation the reader holds for that book is issued, and a copy that another reader's reservation holds is not lent. An expired reservation is not issued, and a reader with an overdue loan is neither issued nor lent a book. Librarians cancel with a reason of 1 to 500 characters; the copy is free at once, the audit trail records who, when and why, and the reader sees the cancellation on their next page until they dismiss it. Readers cancel their own reservations without a reason. Readers no longer borrow for themselves: the old borrow link opens the book page, and loans started through the API or the admin site follow the same rules, answering 409 with a code when refused. The analytics count a librarian's loan as the reader's borrow, with the librarian in issued_by.
+
+2026-10-31
+Persistent private reader preferences (KAN-51)
+Add independent likes and favorites, owned API and web controls, current-state recommendation signals, and retryable idempotent search tracking. Include migrations, regression tests, and documented privacy and queue-failure contracts.
 
 2026-10-29
 Readers reserve an available book for 48 hours (KAN-56)

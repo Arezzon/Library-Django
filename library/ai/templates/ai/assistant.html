@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Помічник каталогу — Library{% endblock %}
+{% block content %}
+<div id="assistant-interface" lang="uk" class="max-w-4xl mx-auto space-y-6">
+    <h1 class="text-3xl font-bold">Помічник каталогу</h1>
+    <p>Знайдіть книгу, автора або перевірте наявність за даними бібліотеки.</p>
+    <p id="question-help">Введіть назву або коротку команду: «книга: Kobzar», «автор: Taras Shevchenko», «наявність: Kobzar». Підтримуються назви й імена з каталогу; довільна розмова не підтримується. До 256 символів.</p>
+    {% if result %}<a class="btn-secondary" href="#assistant-result">Перейти до відповіді</a>{% endif %}
+    <form method="post" action="{% url 'assistant-page' %}#assistant-result" autocomplete="off" class="card p-6 space-y-4">
+        {% csrf_token %}
+        {% if form.errors %}<div role="alert" id="question-errors" class="text-red-800">{{ form.non_field_errors }}{{ form.q.errors }}{{ form.intent.errors }}</div>{% else %}<span id="question-errors"></span>{% endif %}
+        <div><label for="{{ form.intent.id_for_label }}">{{ form.intent.label }}</label>{{ form.intent }}</div>
+        <div><label for="{{ form.q.id_for_label }}">{{ form.q.label }}</label>{{ form.q }}</div>
+        <button type="submit" class="btn-primary">Запитати</button>
+        <a href="{% url 'assistant-page' %}" class="btn-secondary">Очистити</a>
+    </form>
+    <section aria-labelledby="examples-heading">
+        <h2 id="examples-heading" class="text-xl font-semibold">Спробуйте приклад</h2>
+        <form method="post" action="{% url 'assistant-page' %}#assistant-result" class="flex flex-wrap gap-3">
+            {% csrf_token %}<input type="hidden" name="intent" value="auto">
+            <button name="q" value="книга: Kobzar" class="btn-secondary">Знайти Kobzar</button>
+            <button name="q" value="автор: Taras Shevchenko" class="btn-secondary">Книги Тараса Шевченка</button>
+            <button name="q" value="наявність: Kobzar" class="btn-secondary">Наявність Kobzar</button>
+        </form>
+    </section>
+    {% if result %}
+    <section id="assistant-result" tabindex="-1" aria-labelledby="answer-heading" class="card p-6 space-y-4">
+        <h2 id="answer-heading" class="text-xl font-semibold">Відповідь помічника</h2>
+        <div {% if result.status == 'source_unavailable' %}role="alert"{% else %}role="status"{% endif %} class="whitespace-pre-line">{{ result.answer }}</div>
+        {% if result.checked_at %}<p>Перевірено: <time datetime="{{ result.checked_at }}">{{ result.checked_at }}</time></p>{% endif %}
+        {% if result.books %}
+        <h3 class="text-lg font-semibold">Книги-джерела</h3>
+        <ul class="space-y-3">{% for book in result.books %}<li>
+            <a class="text-indigo-700 underline" href="{{ book.url }}">{{ book.title }}</a>
+            <p>Доступно {{ book.available_count }} із {{ book.total_count }}.</p>
+            {% for author in book.authors %}<a class="text-indigo-700 underline" href="{{ author.books_url }}">{{ author.name|default:'Автор без імені в каталозі' }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+        </li>{% endfor %}</ul>
+        {% endif %}
+        {% if result.authors %}<h3 class="text-lg font-semibold">Автори-джерела</h3><ul>{% for author in result.authors %}<li><a class="text-indigo-700 underline" href="{{ author.books_url }}">{{ author.name }}</a> · <a class="text-indigo-700 underline" href="{{ author.url }}">Запис автора {{ author.name }}</a></li>{% endfor %}</ul>{% endif %}
+        {% if result.truncated %}<p>Список скорочено. Уточніть повну назву або ім’я автора.</p>{% endif %}
+        <p>{{ result.availability_notice }}</p>
+        <a class="btn-secondary" href="#id_q">Уточнити запит або спробувати знову</a>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

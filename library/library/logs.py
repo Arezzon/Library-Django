@@ -17,6 +17,7 @@ request_id = ContextVar("request_id", default=None)
 
 LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 APP_LOGGERS = (
+    "ai",
     "audit",
     "authentication",
     "author",
