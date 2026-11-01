@@ -56,3 +56,27 @@ def set_rating(user, book_id, value):
             rating.value = value
             rating.save(update_fields=["value", "updated_at"])
     return {"book_id": book.pk, "value": value}
+
+
+def rating_overview(user, book_id):
+    """Current own value and public mean/count in one query, no rater identifiers."""
+    from django.db.models import Avg, Count, OuterRef, Subquery
+
+    require_rating_account(user)
+    own = BookRating.objects.filter(user_id=user.pk, book_id=OuterRef("pk"))
+    row = get_object_or_404(
+        Book.objects.annotate(
+            own_value=Subquery(own.values("value")[:1]),
+            mean_value=Avg("ratings__value"),
+            vote_count=Count("ratings"),
+        ).values("pk", "own_value", "mean_value", "vote_count"),
+        pk=book_id,
+    )
+    return {
+        "book_id": row["pk"],
+        "value": row["own_value"],
+        "average": (
+            round(row["mean_value"], 2) if row["mean_value"] is not None else None
+        ),
+        "count": row["vote_count"],
+    }

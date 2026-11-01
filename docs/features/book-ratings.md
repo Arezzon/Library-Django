@@ -29,3 +29,24 @@ DB constraints, strict validation, active accounts/CSRF, ownership, queue indepe
 concurrent writes and an actual 0006→0007 migration with an existing catalog row.
 The full Docker regression suites remain enabled; `scripts/smoke_ratings.py` checks
 real authenticated HTTP requests and a new login session in the disposable stack.
+
+## Reader UI and aggregate summary (KAN-60)
+
+Book details show only the current account's score in a labeled native select,
+with Save/Remove actions, empty states and accessible error feedback. CSRF-protected
+POST `/book/<id>/rating/` derives the owner from the session; duplicate/unknown
+fields, owner selectors and unsupported actions are refused before writes. Both
+successful changes and repeated removals redirect to the book rating section.
+
+`GET /api/v1/books/<id>/rating-summary/` returns only `{book_id, average, count}`
+for signed-in catalog readers. Mean is rounded to two decimals; an empty aggregate
+is null/count 0, never an inferred zero score. Neither rater identifiers nor
+individual votes are exposed. This is aggregate display, not a claim of statistical
+anonymity for small samples. The owned value and aggregate are read in one SQL
+snapshot using a current-user scalar subquery; there is no cross-reader vote list.
+
+The browser smoke check exercises keyboard save/update/remove, a fresh session,
+aggregate-only response keys, axe on the rating section, an invalid submitted
+value, and unchanged loan/hold counts. Browser tooling is development-only and uses
+the same pinned dependencies as the assistant check. Unit/integration tests are
+`book.test_rating_interface`; CI retains every established suite.

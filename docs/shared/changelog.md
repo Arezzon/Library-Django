@@ -1,4 +1,8 @@
 2026-11-01
+Book rating controls and aggregate display (KAN-60)
+Show the current private score, keyboard-accessible save/remove controls, clear errors and empty states on book details. Add an aggregate-only mean/count endpoint and tests for sessions, privacy, validation, CSRF and real browser keyboard/axe behavior.
+
+2026-11-01
 Private explicit book ratings (KAN-59)
 Add an independent 1–5 rating model, migration, owned idempotent API and database uniqueness/range constraints. Include concurrent writes, existing-catalog migration, privacy, validation, permissions and HTTP regression checks.
 
