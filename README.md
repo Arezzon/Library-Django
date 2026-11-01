@@ -376,6 +376,11 @@ changes are tracked as events. Librarians can open **Analytics** at
 | Analytics dashboard | Not available to readers |
 | Raw tracking API | Authenticated clients with CSRF |
 
+The figures for the library overview (KAN-34) come from
+`GET /api/v1/analytics/overview/`: loans and returns from orders, interest from
+these events, with every metric defined in
+[the dashboard design](docs/ba/analytics-dashboard.md).
+
 Client events are sent to:
 
 ```text
@@ -433,6 +438,7 @@ changes. Each operation is open only to its audience:
 | `/api/v1/user/<id>/order/` | Orders for one user | That user or a librarian reads; only librarians start, change or delete |
 | `/api/v1/reservation/` | Reservations | Signed-in accounts reserve for themselves, and read and cancel their own; librarians read every reservation, issue it (`<id>/issue/`) or cancel it with a reason (`<id>/cancel/`) |
 | `/api/v1/events/` | Queue an activity event | Signed-in accounts |
+| `/api/v1/analytics/overview/?period=30d&limit=10` | Aggregated loans, returns, reservations, book views, top books and reader counts for `7d`, `30d`, `90d` or `12m`, compared with the period before; no personal data ([metrics](docs/ba/analytics-dashboard.md)) | Librarians and administrators |
 
 A request that is not signed in gets `401` with `WWW-Authenticate: Session`. A signed-in
 account without the right role gets `403`, and so does a reader who sends `role`,

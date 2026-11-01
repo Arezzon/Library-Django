@@ -7,7 +7,7 @@ from author.api_views import AuthorViewSet
 from book.api_views import BookRecommendationsView, BookSearchView, BookViewSet
 from book.preference_api import BookPreferenceListView, BookPreferenceView
 from book.rating_api import BookRatingSummaryView, BookRatingView
-from events.api_views import ClientEventView
+from events.api_views import AnalyticsOverviewView, ClientEventView
 from order.api_views import OrderViewSet, ReservationViewSet, UserOrderViewSet
 
 from .api_views import VersionView
@@ -54,6 +54,11 @@ urlpatterns = [
         name="book-recommendations",
     ),
     path("books/search/", BookSearchView.as_view(), name="book-search"),
+    path(
+        "analytics/overview/",
+        AnalyticsOverviewView.as_view(),
+        name="analytics-overview",
+    ),
     path("events/", ClientEventView.as_view(), name="client-event"),
     path("version/", VersionView.as_view(), name="version"),
     path("", include(router.urls)),

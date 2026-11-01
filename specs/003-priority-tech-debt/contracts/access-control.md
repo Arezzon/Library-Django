@@ -50,6 +50,7 @@ This table is the source for PR 1's access tests. A change to it changes the tes
 | `/api/v1/user/{uid}/order/{id}/` | GET | 401 | Own: 200. Otherwise: 404. | 200 |
 | `/api/v1/user/{uid}/order/{id}/` | PUT, PATCH, DELETE | 401 | 403 | 200 or 204 |
 | `/api/v1/events/` | POST | 401 | 202 | 202 |
+| `/api/v1/analytics/overview/` (KAN-34) | GET | 401 | 403 | 200; 400 for an unknown period, a limit outside 1–20 or any other parameter |
 
 Operations added later, detailed in [reservations-api.md](reservations-api.md):
 

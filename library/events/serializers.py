@@ -5,6 +5,7 @@ from rest_framework import serializers
 from book.models import Book
 
 from .models import EventType
+from .overview import DEFAULT_LIMIT, DEFAULT_PERIOD, PERIODS
 
 
 class ClientEventSerializer(serializers.Serializer):
@@ -23,3 +24,8 @@ class ClientEventSerializer(serializers.Serializer):
                     dict.fromkeys(sorted(unknown), "Unknown field.")
                 )
         return super().to_internal_value(data)
+
+
+class OverviewParameters(serializers.Serializer):
+    period = serializers.ChoiceField(choices=list(PERIODS), default=DEFAULT_PERIOD)
+    limit = serializers.IntegerField(default=DEFAULT_LIMIT, min_value=1, max_value=20)
