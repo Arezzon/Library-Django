@@ -69,6 +69,23 @@
                 <a href="{% url 'my_book_preferences' %}" class="text-indigo-600">My saved books</a>
             </section>
 
+            <section id="book-rating" tabindex="-1" aria-labelledby="rating-heading" class="space-y-3">
+                <h2 id="rating-heading" class="text-lg font-semibold">Rate this book</h2>
+                <p id="rating-help">Choose 1–5. Your individual rating is private; the library shows only the average and number of ratings.</p>
+                {% if rating_overview.value %}<p>Your current rating: <strong>{{ rating_overview.value }} / 5</strong></p>{% else %}<p>You have not rated this book yet.</p>{% endif %}
+                {% if rating_overview.count %}<p>Average: {{ rating_overview.average|floatformat:2 }} / 5 · {{ rating_overview.count }} rating{{ rating_overview.count|pluralize }}</p>{% else %}<p>No ratings yet.</p>{% endif %}
+                <form method="post" action="{% url 'book_rating_update' book.id %}" class="flex flex-wrap items-center gap-3">
+                    {% csrf_token %}<input type="hidden" name="action" value="set">
+                    {% if rating_form.errors %}<div id="rating-errors" role="alert">{{ rating_form.non_field_errors }}{{ rating_form.value.errors }}</div>{% else %}<span id="rating-errors"></span>{% endif %}
+                    <label for="{{ rating_form.value.id_for_label }}">{{ rating_form.value.label }}</label>{{ rating_form.value }}
+                    <button type="submit" class="btn-primary">Save rating</button>
+                </form>
+                {% if rating_overview.value %}<form method="post" action="{% url 'book_rating_update' book.id %}">
+                    {% csrf_token %}<input type="hidden" name="action" value="remove">
+                    <button type="submit" class="btn-secondary">Remove rating</button>
+                </form>{% endif %}
+            </section>
+
             <!-- Description Section -->
             <div>
                 <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h3>

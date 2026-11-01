@@ -19,6 +19,8 @@ from .embeddings import EmbeddingGenerationError
 from .forms import BookForm
 from .models import Book
 from .preferences import preference_state
+from .rating_forms import BookRatingForm
+from .ratings import rating_overview
 from .search import search_books
 
 
@@ -93,16 +95,28 @@ def book_list(request: HttpRequest) -> HttpResponse:
 
 @signin_required
 @never_cache
-def book_detail(request: HttpRequest, book_id: int) -> HttpResponse:
+def book_detail(
+    request: HttpRequest, book_id: int, *, rating_form=None, status=200
+) -> HttpResponse:
     now = timezone.now()
     book = get_object_or_404(
         Book.objects.with_availability(now).prefetch_related("authors"), pk=book_id
     )
-    context = {"book": book, "preferences": preference_state(request.user, book.pk)}
+    overview = rating_overview(request.user, book.pk)
+    context = {
+        "book": book,
+        "preferences": preference_state(request.user, book.pk),
+        "rating_overview": overview,
+        "rating_form": (
+            rating_form
+            if rating_form is not None
+            else BookRatingForm(initial={"value": overview["value"]})
+        ),
+    }
     if request.user.is_visitor:
         # Why the reader cannot reserve, if they cannot (FR-020).
         context["reserve_refusal"] = eligibility(request.user, book, now)
-    return render(request, "book/book_detail.html", context)
+    return render(request, "book/book_detail.html", context, status=status)
 
 
 @librarian_required

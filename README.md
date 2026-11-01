@@ -648,3 +648,6 @@ See [the Ukrainian controls and accessibility/privacy checks](docs/ba/assistant-
 `GET/PUT/PATCH/DELETE /api/v1/books/<id>/rating/` reads or changes only the signed-in
 account's integer 1–5 score. See [the rating contract](docs/features/book-ratings.md)
 for ownership, idempotency, constraints and the staged UI/recommendation integration.
+
+Book details include a private rating form and aggregate mean/count. The same
+aggregate is available at `/api/v1/books/<id>/rating-summary/` without rater IDs.

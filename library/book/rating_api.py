@@ -76,3 +76,27 @@ class BookRatingView(GenericAPIView):
                 {"detail": "Parameters and body are not accepted."}, status=400
             )
         return Response(set_rating(request.user, book_id, None))
+
+
+class RatingSummarySerializer(serializers.Serializer):
+    book_id = serializers.IntegerField(read_only=True)
+    average = serializers.FloatField(read_only=True, allow_null=True)
+    count = serializers.IntegerField(read_only=True)
+
+
+class BookRatingSummaryView(GenericAPIView):
+    permission_classes = [IsSignedIn]
+    serializer_class = RatingSummarySerializer
+
+    def get(self, request, book_id):
+        from .ratings import rating_overview
+
+        if request.query_params:
+            return Response(
+                {"detail": "Query parameters are not accepted."}, status=400
+            )
+        overview = rating_overview(request.user, book_id)
+        return Response(
+            self.get_serializer(overview).data,
+            headers={"Cache-Control": "private, no-store"},
+        )
