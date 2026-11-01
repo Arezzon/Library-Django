@@ -13,16 +13,20 @@ from . import embeddings
 from .embedding_config import resolve
 from .embeddings import normalized_vector
 from .models import BookEmbedding
+from .preferences import read_book_preferences
 from .recommendation_data import available_candidates, fallback_candidates, read_history
 
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 20
 SEARCH_WEIGHT = 1
+EXPLICIT_PREFERENCE_WEIGHT = 5
 
 
 FALLBACK_REASON = "Доступна книга із запасного списку рекомендацій."
 PROFILE_REASON = "Рекомендовано за сукупністю ваших інтересів."
 BOOK_REASONS = {
+    "liked": "Рекомендовано, бо вам подобається «{title}».",
+    "favorite": "Рекомендовано, бо ви додали «{title}» до обраного.",
     EventType.BOOK_VIEW: "Рекомендовано, бо ви переглядали «{title}».",
     EventType.BOOK_CLICK: "Рекомендовано, бо ви цікавилися книгою «{title}».",
     EventType.BORROW_INTENT: "Рекомендовано, бо ви хотіли взяти «{title}».",
@@ -66,6 +70,9 @@ def _profile(user, now):
     weights = {signal.book_id: signal.weight for signal in history.books}
     actions = {signal.book_id: signal.event_type for signal in history.books}
     queries = history.searches
+    for preference in read_book_preferences(user):
+        weights[preference.book_id] = EXPLICIT_PREFERENCE_WEIGHT
+        actions[preference.book_id] = "liked" if preference.liked else "favorite"
     spec = resolve()
     vectors = BookEmbedding.objects.filter(
         book_id__in=weights, model=spec.repository, model_revision=spec.tag

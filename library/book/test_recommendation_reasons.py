@@ -159,7 +159,7 @@ class RecommendationReasonTests(FakeEncoderMixin, TestCase):
         self.event(self.first_seed)
         self.event(self.second_seed)
         with patch("book.embeddings.load_embedding_model") as loader:
-            with self.assertNumQueries(4):
+            with self.assertNumQueries(6):
                 results = recommend_books(self.reader, 2)
         loader.assert_not_called()
         self.assertTrue(all(book.reason for book in results))

@@ -1,0 +1,10 @@
+[
+  {"question":"книга: Кобзар","status":"found","title":"Кобзар"},
+  {"question":"автор: Тарас Шевченко","status":"found","title":"Кобзар"},
+  {"question":"наявність: Кобзар","status":"found","title":"Кобзар"},
+  {"question":"книга: Неіснуюча книга 784603","status":"not_found"},
+  {"question":"автор: Неіснуючий Автор 784603","status":"not_found"},
+  {"question":"бронювання: Кобзар","status":"clarification_required"},
+  {"question":"","status":"clarification_required"},
+  {"question":"книга: Лісова","status":"clarification_required","title":"Лісова пісня"}
+]
