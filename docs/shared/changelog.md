@@ -1,4 +1,12 @@
 2026-11-01
+KAN-51 synchronization with the merged catalog assistant
+Preserve private reader preferences and search persistence alongside the KAN-52 app, both HTTP smoke checks, and both sets of API routes and documentation.
+
+2026-11-01
+A grounded, read-only catalog assistant (KAN-52)
+Add an authenticated assistant API/service in an isolated ai Django app with a read-only catalog gateway for literal title, author and current availability queries. Responses cite catalog records, ask for refinement on ambiguous inputs, and report absent data or source failures without invention. No LLM, semantic search, booking or issuance dependency is introduced. Include access/availability/source-failure tests and Docker HTTP checks.
+
+2026-11-01
 KAN-51 review fixes and KAN-50 integration
 Validate saved-list filters without exposing exception messages, test defensive preference paths, and preserve the shared KAN-50 history, availability and fallback rules alongside explicit reader preferences.
 

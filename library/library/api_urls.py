@@ -30,6 +30,7 @@ router.register(r"order", OrderViewSet, basename="order")
 router.register(r"reservation", ReservationViewSet, basename="reservation")
 
 urlpatterns = [
+    path("assistant/", include("ai.urls")),
     path(
         "me/book-preferences/",
         BookPreferenceListView.as_view(),

@@ -424,6 +424,7 @@ changes. Each operation is open only to its audience:
 | `/api/v1/` | Index of the API | Anyone |
 | `/api/v1/version/` | Commit of the running image | Anyone |
 | `/api/v1/books/search/?q=` | Semantic search | Signed-in accounts |
+| `/api/v1/assistant/?q=` | Grounded catalog assistant (KAN-52) | Signed-in accounts |
 | `/api/v1/books/recommendations/?limit=10` | Available books ranked for the current account with a per-book reason; [algorithm](docs/ba/recommendations.md) / [data contract](docs/ba/recommendation-data.md) | Signed-in accounts, own signals only |
 | `/api/v1/book/` | Books | Signed-in accounts read; librarians create, change and delete |
 | `/api/v1/author/` | Authors | Signed-in accounts read; librarians create, change and delete |
@@ -486,7 +487,7 @@ credentials.
 Run Django tests from `library/`:
 
 ```powershell
-python manage.py test authentication author book order events audit
+python manage.py test authentication author book order events audit ai
 python manage.py collectstatic --noinput
 python manage.py check
 ```
@@ -494,7 +495,7 @@ python manage.py check
 Docker smoke checks:
 
 ```bash
-docker compose -f docker-compose-dev.yml exec -T web python manage.py test authentication author book order events audit --verbosity 2
+docker compose -f docker-compose-dev.yml exec -T web python manage.py test authentication author book order events audit ai --verbosity 2
 docker compose -f docker-compose-dev.yml exec -T web python manage.py smoke_test_tracking
 docker compose -f docker-compose-dev.yml exec -T backup library-backup once
 node --test scripts/test_tracking_js.cjs
@@ -541,7 +542,7 @@ measure it locally, with the development stack built from your branch:
 ```bash
 DC="docker compose -f docker-compose-dev.yml"
 $DC exec -T web sh -c "pip install -q $(grep '^coverage==' requirements-dev.txt) \
-  && coverage run --rcfile=/app/pyproject.toml manage.py test authentication author book order events audit \
+  && coverage run --rcfile=/app/pyproject.toml manage.py test authentication author book order events audit ai \
   && coverage xml --rcfile=/app/pyproject.toml -o coverage.xml"
 git fetch origin main
 (cd library && diff-cover coverage.xml --compare-branch=origin/main)
@@ -627,3 +628,11 @@ them at `/book/preferences/`. The API exposes
 `GET /api/v1/me/book-preferences/?kind=all|likes|favorites`.
 See [private preference and search contracts](docs/ba/reader-preferences.md)
 for ownership, idempotency, retry behavior and recommendation weights.
+
+### Catalog assistant
+
+`GET /api/v1/assistant/?q=Kobzar` returns catalog facts and source links without
+a language model or semantic search. Use `автор: Taras Shevchenko`,
+`наявність: Kobzar`, or explicit `intent=title|author|availability`.
+See [the assistant contract](docs/ba/catalog-assistant.md) for supported requests,
+clarification, source failures and availability limits.
