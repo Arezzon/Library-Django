@@ -22,7 +22,7 @@ need to read any application code.
 - [Prerequisites](#prerequisites)
 - [Create the stack](#create-the-stack)
 - [Environment variables](#environment-variables)
-- [Create the first librarian account](#create-the-first-librarian-account)
+- [Create the first administrator](#create-the-first-administrator)
 - [Review librarian accounts after an update](#review-librarian-accounts-after-an-update)
 - [First deployment checklist](#first-deployment-checklist)
 - [Viewing logs](#viewing-logs)
@@ -132,11 +132,12 @@ another model means building new images. (If a different model setting does reac
 container, for example through an edited Compose file, it refuses to start with the
 `book.E001` error instead of mixing vectors.)
 
-## Create the first librarian account
+## Create the first administrator
 
 With `DJANGO_SEED` off (the default), the database starts with no users, so nobody can sign
-in yet. Once `web` is running, create the first account; it becomes a librarian and a Django
-admin. In Portainer, open the `web` container, then **Console → Connect** (with `/bin/sh`), or
+in yet. Once `web` is running, create the first account; it becomes an administrator, who has
+every librarian right and is the only one who can make someone a librarian or take the role
+away. In Portainer, open the `web` container, then **Console → Connect** (with `/bin/sh`), or
 on the Pi run:
 
 ```bash
@@ -145,30 +146,43 @@ docker exec -it library-web-1 python manage.py createsuperuser
 
 Replace `library` with your stack name. It asks for an email, first, last and middle name (enter
 `-` if there is none) and a password. Sign in at `/authentication/login/` with that email. Other
-users can register on the site; the librarian manages them and the catalog, and `/admin/`
-offers the Django admin.
+users register on the site as readers; the administrator makes librarians of the people who run
+the library, on the user's **Edit Profile** page or in the Django admin at `/admin/`.
+
+To make an existing account an administrator instead, for example a librarian's, run:
+
+```bash
+docker exec library-web-1 python manage.py set_administrator <email>
+```
+
+`--remove` after the email makes an administrator a librarian again. Either way the account is
+kept and the audit trail records the change. Only this command and `createsuperuser` grant the
+administrator role: the site, the API and the Django admin never do, and only an administrator
+can change an administrator's account.
 
 ## Review librarian accounts after an update
 
-Sign-up always creates a visitor account, and only a librarian can make someone a librarian.
-Librarians manage the catalog, the loans and every account, and they reach the Django admin,
-so only the people who run the library should hold the role. Review the librarian accounts
-right after deploying this release, and again whenever someone leaves the library team.
+Sign-up always creates a reader account, and only an administrator can make someone a
+librarian. Librarians manage the catalog, the loans and readers' accounts, and they reach the
+Django admin, so only the people who run the library should hold the role. Review the librarian
+and administrator accounts right after deploying this release, and again whenever someone leaves
+the library team.
 
-1. Signed in as a librarian, open `/admin/authentication/customuser/?role__exact=1`, the
-   user list filtered to librarians.
+1. Signed in as an administrator, open `/admin/authentication/customuser/?role__exact=1`, the
+   user list filtered to librarians, and `?role__exact=2` for administrators.
 2. List when each of them last signed in. An account's creation time cannot tell you when it
    was made, so rely on the email address and the last sign-in:
 
    ```bash
    docker exec library-web-1 python manage.py shell -c "from authentication.models import CustomUser
-   for user in CustomUser.objects.filter(role=1).order_by('email'): print(user.email, user.last_login, user.is_active)"
+   for user in CustomUser.objects.filter(role__in=(1, 2)).order_by('email'): print(user.email, user.get_role_display(), user.last_login, user.is_active)"
    ```
 
    Replace `library` with your stack name.
 3. For every account that does not belong to an authorized librarian, open it in the admin and
-   either set **Role** to `visitor` or untick **Active**. Deactivating keeps the account and its
-   loans, and the person can no longer sign in.
+   either set **Role** to `reader` or untick **Active**. For an administrator, first run
+   `set_administrator <email> --remove`. Deactivating keeps the account and its loans, and the
+   person can no longer sign in.
 4. Record the date, the number of accounts reviewed and each change (the email and what you
    changed), and send the record to the maintainers.
 
@@ -187,14 +201,14 @@ images download and the search vectors are built.
 
    It prints `arm64`.
 3. **The site answers** at `http://<pi address>:<WEB_PORT>/`:
-   - the home page `/` loads (anonymous visitors are sent to the sign-in page);
+   - the home page `/` loads (anyone signed out is sent to the sign-in page);
    - the API documentation `/api/docs/` loads;
    - a search works, for example
      `http://<pi address>:8000/api/v1/books/search/?q=detective` returns a JSON list (it is empty
      until books exist; with `DJANGO_SEED=true` it returns the demo books).
 4. **The running version** is reported at `/api/v1/version/`, for example
    `{"commit": "4f2c…"}`.
-5. **Data survives restarts**: signed in as the librarian, create a book, then redeploy the stack and reboot the Pi. The book
+5. **Data survives restarts**: signed in as the administrator, create a book, then redeploy the stack and reboot the Pi. The book
    is still there and all four containers come back on their own.
 6. **Portainer behaves as this setup expects.** Check this once automatic updates are on
    ([Turn on automatic updates](#turn-on-automatic-updates)), and again after upgrading

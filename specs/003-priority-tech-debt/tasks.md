@@ -1223,22 +1223,22 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
 
 ### Tests for User Story 1 (PR 11)
 
-- [ ] T138 [US1] Create branch `feat/kan-70-administrator-role` from a freshly fetched `origin/main`,
+- [x] T138 [US1] Create branch `feat/kan-70-administrator-role` from a freshly fetched `origin/main`,
   with PRs 1 and 8 merged. (Jira) Move KAN-70 to In Progress.
-- [ ] T139 [P] [US1] In `library/authentication/test_access.py`, add Story 1 scenario 8:
+- [x] T139 [P] [US1] In `library/authentication/test_access.py`, add Story 1 scenario 8:
   - a librarian trying to grant or remove the librarian role is refused through the web (403), the
     API (403) and the admin site, where the field is read-only and a crafted POST changes nothing;
   - an administrator's change takes effect, keeps the account, and leaves an audit entry;
   - administrators keep every librarian right, such as creating books and using the desk;
   - the role choices offered are reader and librarian.
-- [ ] T140 [P] [US1] In `library/authentication/tests.py`, test that:
+- [x] T140 [P] [US1] In `library/authentication/tests.py`, test that:
   - `createsuperuser` creates an administrator;
   - `set_administrator <email>` grants the role, and `--remove` makes the account a librarian;
   - each keeps the account and records an audit entry with channel `command`.
 
 ### Implementation for User Story 1 (PR 11)
 
-- [ ] T141 [US1] In `library/authentication/models.py` (data-model.md §4):
+- [x] T141 [US1] In `library/authentication/models.py` (data-model.md §4):
   - add `ROLE_ADMINISTRATOR = 2`, and set `ROLE_CHOICES` to `(0, "reader")`, `(1, "librarian")`,
     `(2, "administrator")`;
   - make `is_librarian` true for librarians and administrators, and add `is_administrator`;
@@ -1247,33 +1247,33 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
   Run `python manage.py makemigrations authentication` to create
   `library/authentication/migrations/0005_alter_customuser_role.py`, which changes Django's state
   only.
-- [ ] T142 [US1] In `library/authentication/services.py`, make `may_change_role` true only for
+- [x] T142 [US1] In `library/authentication/services.py`, make `may_change_role` true only for
   administrators, and limit the roles that the web, the API and the admin site can assign to reader
   and librarian. In `library/authentication/permissions.py`, add `IsAdministrator`, with audience
   `administrator`.
-- [ ] T143 [US1] Apply the rule in:
+- [x] T143 [US1] Apply the rule in:
   - `library/authentication/forms.py`, where `UserUpdateForm` shows `role` only to administrators;
   - `library/authentication/views.py`;
   - `library/authentication/serializers.py`, where `role` is writable only by administrators, and
     anyone else gets 403;
   - `library/authentication/admin.py`, where `role` is read-only unless the user is an administrator,
     its choices are limited to reader and librarian, and saving goes through `update_account`.
-- [ ] T144 [US1] Create `library/authentication/management/__init__.py`,
+- [x] T144 [US1] Create `library/authentication/management/__init__.py`,
   `library/authentication/management/commands/__init__.py` and
   `library/authentication/management/commands/set_administrator.py`. The command is
   `set_administrator <email> [--remove]`: `--remove` sets the role to librarian, the command prints
   the result, and it is audited with channel `command`.
-- [ ] T145 [P] [US1] Update the role labels in `library/authentication/templates/authentication/*.html`
+- [x] T145 [P] [US1] Update the role labels in `library/authentication/templates/authentication/*.html`
   and any other template that says "visitor" (`grep -rn "visitor" library/*/templates`).
-- [ ] T146 [P] [US1] In `docs/deployment/raspberry-pi-portainer.md`, replace "Create the first
+- [x] T146 [P] [US1] In `docs/deployment/raspberry-pi-portainer.md`, replace "Create the first
   librarian account" with "Create the first administrator": `createsuperuser` for a new account, and
   `set_administrator` for an existing one. Describe the roles in the README, and replace "visitor"
   in the docs.
-- [ ] T147 [US1] Constitution MINOR amendment (R29), in `.specify/memory/constitution.md`. With the
+- [x] T147 [US1] Constitution MINOR amendment (R29), in `.specify/memory/constitution.md`. With the
   handoff set to `blocked`, use `/speckit-constitution` to add the administrator audience
   (`ROLE_ADMINISTRATOR`) to Principle II as the only role that grants or removes the librarian role.
   Add its entry to `docs/shared/changelog.md`, then set the handoff back.
-- [ ] T148 [US1] Verify and prepare the pull request:
+- [x] T148 [US1] Verify and prepare the pull request:
   - run quickstart.md §11, lint, format and the diff coverage;
   - add the changelog entry;
   - use the title `feat(authentication): add the administrator role (KAN-70)`.

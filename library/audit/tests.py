@@ -13,7 +13,12 @@ from django.test import Client, TestCase
 from django.urls import get_resolver
 from django.utils import timezone
 
-from authentication.models import ROLE_LIBRARIAN, ROLE_VISITOR, CustomUser
+from authentication.models import (
+    ROLE_ADMINISTRATOR,
+    ROLE_LIBRARIAN,
+    ROLE_VISITOR,
+    CustomUser,
+)
 from book.models import Book
 from book.testing import FakeEncoderMixin
 from order.models import Order
@@ -48,6 +53,7 @@ class AuditTestCase(FakeEncoderMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.librarian = account("librarian@audit.test", ROLE_LIBRARIAN)
+        cls.administrator = account("administrator@audit.test", ROLE_ADMINISTRATOR)
         cls.reader = account("reader@audit.test")
         cls.other_reader = account("other@audit.test")
         cls.colleague = account("colleague@audit.test", ROLE_LIBRARIAN)
@@ -131,16 +137,18 @@ class AuditTestCase(FakeEncoderMixin, TestCase):
 
 
 class AccountEntryTests(AuditTestCase):
-    def changes(self, user, field, value):
-        """The same account change through each channel."""
+    def changes(self, user, field, value, by=None):
+        """The same account change through each channel, made by ``by``."""
+        by = by or self.librarian
         update_url = f"/authentication/users/{user.pk}/update/"
         admin_url = f"/admin/authentication/customuser/{user.pk}/change/"
-        # An unchecked "active" box is absent from the form data.
+        # An unchecked "active" box is absent from the form data, and only an
+        # administrator's form has the role (FR-063).
         form = {
             "first_name": user.first_name,
             "middle_name": user.middle_name,
             "last_name": user.last_name,
-            "role": user.role,
+            **({"role": user.role} if by.is_administrator else {}),
             **({"is_active": "on"} if user.is_active else {}),
         }
         if field == "is_active":
@@ -149,6 +157,7 @@ class AccountEntryTests(AuditTestCase):
         else:
             form[field] = value
         admin_form = {
+            "role": user.role,
             **form,
             "email": user.email,
             "password": user.password,
@@ -160,24 +169,29 @@ class AccountEntryTests(AuditTestCase):
             user.save()
 
         return {
-            "web": lambda: self.send("web", "post", update_url, form),
+            "web": lambda: self.send("web", "post", update_url, form, user=by),
             "api": lambda: self.send(
-                "api", "patch", f"/api/v1/user/{user.pk}/", {field: value}
+                "api", "patch", f"/api/v1/user/{user.pk}/", {field: value}, user=by
             ),
-            "admin": lambda: self.send("admin", "post", admin_url, admin_form),
+            "admin": lambda: self.send("admin", "post", admin_url, admin_form, user=by),
             "command": command,
         }
 
+    def role_changes(self, user, role):
+        """The role change through each channel, with the actor who makes it."""
+        changes = self.changes(user, "role", role, by=self.administrator)
+        for channel, change in changes.items():
+            yield channel, change, None if channel == "command" else self.administrator
+
     def test_granting_the_librarian_role(self):
-        for channel, change in self.changes(
-            self.reader, "role", ROLE_LIBRARIAN
-        ).items():
+        for channel, change, actor in self.role_changes(self.reader, ROLE_LIBRARIAN):
             self.check(
                 "role_granted",
                 channel,
                 change,
-                lambda: ({"role": "visitor"}, {"role": "librarian"}),
+                lambda: ({"role": "reader"}, {"role": "librarian"}),
                 self.reader.pk,
+                actor,
             )
 
     def test_creating_a_librarian_account_grants_the_role(self):
@@ -193,20 +207,23 @@ class AccountEntryTests(AuditTestCase):
         self.check(
             "role_granted",
             "api",
-            lambda: self.send("api", "post", "/api/v1/user/", body),
+            lambda: self.send(
+                "api", "post", "/api/v1/user/", body, user=self.administrator
+            ),
             lambda: ({}, {"role": "librarian"}),
             lambda: CustomUser.objects.get(email=body["email"]).pk,
+            self.administrator,
         )
 
     def test_removing_the_librarian_role(self):
-        changes = self.changes(self.colleague, "role", ROLE_VISITOR)
-        for channel, change in changes.items():
+        for channel, change, actor in self.role_changes(self.colleague, ROLE_VISITOR):
             self.check(
                 "role_removed",
                 channel,
                 change,
-                lambda: ({"role": "librarian"}, {"role": "visitor"}),
+                lambda: ({"role": "librarian"}, {"role": "reader"}),
                 self.colleague.pk,
+                actor,
             )
 
     def test_deactivating_an_account(self):
@@ -246,7 +263,7 @@ class AccountEntryTests(AuditTestCase):
                 "account_deleted",
                 channel,
                 change,
-                lambda: ({"role": "visitor", "is_active": True}, {}),
+                lambda: ({"role": "reader", "is_active": True}, {}),
                 user.pk,
             )
 
@@ -604,7 +621,7 @@ class AuditGuaranteeTests(AuditTestCase):
 
     def test_no_entry_holds_a_password_or_a_hash(self):
         client = Client()
-        client.force_login(self.librarian)
+        client.force_login(self.administrator)
         client.patch(
             f"/api/v1/user/{self.reader.pk}/",
             {"password": "brand-new-password-7", "role": ROLE_LIBRARIAN},

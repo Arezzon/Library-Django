@@ -26,6 +26,10 @@ def is_librarian(user):
     return is_signed_in(user) and getattr(user, "is_librarian", False)
 
 
+def is_administrator(user):
+    return is_signed_in(user) and getattr(user, "is_administrator", False)
+
+
 class DenyAll(permissions.BasePermission):
     """The default for a view that declares no audience: nobody."""
 
@@ -82,3 +86,13 @@ class IsLibrarian(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return is_librarian(request.user)
+
+
+class IsAdministrator(permissions.BasePermission):
+    """The only audience that grants or removes the librarian role (FR-063)."""
+
+    audience = "administrator"
+    audience_description = "Administrators only."
+
+    def has_permission(self, request, view):
+        return is_administrator(request.user)

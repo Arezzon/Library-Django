@@ -1,0 +1,8 @@
+{# An account's role: {% include 'includes/role_badge.html' with account=... %} #}
+{% if account.is_administrator %}
+    <span class="badge-purple">Administrator</span>
+{% elif account.is_librarian %}
+    <span class="badge-purple">Librarian</span>
+{% else %}
+    <span class="badge-info">Reader</span>
+{% endif %}

@@ -61,7 +61,7 @@ before using the `venv` setup.
 | Catalog | Books, descriptions, stock counts and authors |
 | Borrowing | Librarians lend at the desk; return, reopen and reassign orders. Every loan starts with a librarian, and none while the reader has an overdue loan |
 | Reservations | A reader reserves an available book for 48 hours, active at once; the copy stays held until it is collected or the deadline passes. At most 3 at a time, and none while a loan is overdue. My reservations shows each deadline with the time left and what to do next. Librarians issue reserved books at the desk in one step, or cancel with a reason that they confirm and the reader sees; readers cancel their own. When 100 readers reserve the last copy at once, exactly one gets it ([guide](docs/features/reservations.md)) |
-| Accounts | Email-based users, profiles and visitor/librarian roles; sign-up always creates a visitor, and only librarians change roles and account status |
+| Accounts | Email-based users and profiles with three roles. Sign-up always creates a reader. Librarians run the catalog, loans, reservations and account status. Administrators have every librarian right and are the only ones who make someone a librarian or take the role away, and only they change an administrator's account. The operator creates administrators on the server ([guide](docs/deployment/raspberry-pi-portainer.md#create-the-first-administrator)) |
 | Administration | Django admin and librarian-only management screens |
 | API | Endpoints under `/api/v1/`, each open only to its stated audience, plus Swagger and ReDoc |
 | Embeddings | Multilingual 1024-dimensional `bge-m3` vectors generated with ONNX Runtime |
@@ -305,9 +305,9 @@ python seed_db.py
 | Email | Password | Role |
 | --- | --- | --- |
 | `librarian@library.com` | `admin123password` | Librarian |
-| `reader@library.com` | `reader123password` | Visitor |
-| `alice@library.com` | `alice123password` | Visitor |
-| `bob@library.com` | `bob123password` | Visitor |
+| `reader@library.com` | `reader123password` | Reader |
+| `alice@library.com` | `alice123password` | Reader |
+| `bob@library.com` | `bob123password` | Reader |
 
 > **Security:** These credentials are for local/demo use only. Set a unique
 > `SECRET_KEY` and replace seeded passwords before deploying.
@@ -373,7 +373,7 @@ changes are tracked as events. Librarians can open **Analytics** at
 | --- | --- |
 | Global activity, filters and recent events | Librarians |
 | Selected user's activity | Librarians |
-| Analytics dashboard | Not available to visitors |
+| Analytics dashboard | Not available to readers |
 | Raw tracking API | Authenticated clients with CSRF |
 
 Client events are sent to:
@@ -428,15 +428,16 @@ changes. Each operation is open only to its audience:
 | `/api/v1/books/recommendations/?limit=10` | Available books ranked for the current account with a per-book reason; [algorithm](docs/ba/recommendations.md) / [data contract](docs/ba/recommendation-data.md) | Signed-in accounts, own signals only |
 | `/api/v1/book/` | Books | Signed-in accounts read; librarians create, change and delete |
 | `/api/v1/author/` | Authors | Signed-in accounts read; librarians create, change and delete |
-| `/api/v1/user/` | Accounts | Librarians list, create, change and delete; a visitor reads and renames only their own account |
-| `/api/v1/order/` | Orders (loans) | Librarians start, read and change every order; a visitor reads their own |
+| `/api/v1/user/` | Accounts | Librarians list, create, change and delete; only an administrator sets `role` (reader or librarian) or changes an administrator's account; a reader reads and renames only their own account |
+| `/api/v1/order/` | Orders (loans) | Librarians start, read and change every order; a reader reads their own |
 | `/api/v1/user/<id>/order/` | Orders for one user | That user or a librarian reads; only librarians start, change or delete |
 | `/api/v1/reservation/` | Reservations | Signed-in accounts reserve for themselves, and read and cancel their own; librarians read every reservation, issue it (`<id>/issue/`) or cancel it with a reason (`<id>/cancel/`) |
 | `/api/v1/events/` | Queue an activity event | Signed-in accounts |
 
 A request that is not signed in gets `401` with `WWW-Authenticate: Session`. A signed-in
-account without the right role gets `403`, and so does a visitor who sends `role`,
-`is_active`, `email` or `password` for their own account. A visitor who asks for another
+account without the right role gets `403`, and so does a reader who sends `role`,
+`is_active`, `email` or `password` for their own account, or a librarian who sends `role` or
+changes an administrator's account. A reader who asks for another
 user's record gets `404`, the same answer as for a record that does not exist. Deleting an
 author who is attached to a book, or a book that has loans or reservations, gets `409`, and
 nothing changes; the web pages and the admin site refuse it too. A reservation, an issue or

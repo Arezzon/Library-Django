@@ -6,10 +6,13 @@ changes this file, the schema's audience labels and the README's API table toget
 
 import uuid
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.contrib.auth.models import AnonymousUser
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import URLResolver, get_resolver
 from django.urls import path as django_path
 from django.utils import timezone
@@ -17,12 +20,17 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 from rest_framework.views import APIView
 
+from audit.models import AuditEntry
 from author.models import Author
 from book.models import Book
 from book.testing import FakeEncoderMixin
 from order.models import Order, Reservation
 
-from .models import ROLE_LIBRARIAN, CustomUser
+from .models import ROLE_ADMINISTRATOR, ROLE_LIBRARIAN, ROLE_VISITOR, CustomUser
+from .permissions import IsAdministrator
+from .services import update_account
+
+ADMINISTRATOR_BADGE = '<span class="badge-purple">Administrator</span>'
 
 AUDIENCES = {
     "anonymous",
@@ -81,7 +89,9 @@ OPERATIONS = [
     ("patch", "/api/v1/user/{reader}/", NAMES, 401, 200, 200),
     ("put", "/api/v1/user/{other}/", NAMES, 401, 404, 200),
     ("patch", "/api/v1/user/{other}/", NAMES, 401, 404, 200),
-    ("patch", "/api/v1/user/{reader}/", {"role": ROLE_LIBRARIAN}, 401, 403, 200),
+    # Only an administrator grants or removes the librarian role (FR-063).
+    ("patch", "/api/v1/user/{reader}/", {"role": ROLE_LIBRARIAN}, 401, 403, 403),
+    ("post", "/api/v1/user/", {**NEW_USER, "role": ROLE_LIBRARIAN}, 401, 403, 403),
     ("delete", "/api/v1/user/{other}/", None, 401, 403, 204),
     ("get", "/api/v1/order/", None, 401, 200, 200),
     ("get", "/api/v1/order/{own_loan}/", None, 401, 200, 200),
@@ -155,12 +165,12 @@ SCHEMA_AUDIENCES = {
 }
 
 
-def account(email, role=0):
+def account(email, role=0, middle_name=""):
     return CustomUser.objects.create_user(
         email=email,
         password="access-password",
         first_name="Access",
-        middle_name="",
+        middle_name=middle_name,
         last_name="Test",
         role=role,
         is_active=True,
@@ -238,6 +248,9 @@ class OperationAccessTests(FakeEncoderMixin, TestCase):
         cls.reader = account("access-reader@example.com")
         cls.other = account("access-other@example.com")
         cls.librarian = account("access-librarian@example.com", ROLE_LIBRARIAN)
+        cls.administrator = account(
+            "access-administrator@example.com", ROLE_ADMINISTRATOR
+        )
         cls.book = Book.objects.create(name="Access book", count=5)
         cls.free_book = Book.objects.create(name="Never borrowed", count=1)
         cls.author = Author.objects.create(name="Lina", surname="Kostenko")
@@ -308,6 +321,17 @@ class OperationAccessTests(FakeEncoderMixin, TestCase):
                         self.assertEqual(response["WWW-Authenticate"], "Session")
                     if status in (401, 403, 404):
                         self.assertRefusedWithoutData(response)
+
+    def test_administrators_answer_as_librarians_and_may_change_roles(self, _publish):
+        client = self.api(self.administrator)
+        for method, path, body, _anonymous, _reader, librarian in OPERATIONS:
+            # Every librarian right, and the role change refused to librarians.
+            status = librarian
+            if body and "role" in body:
+                status = 201 if method == "post" else 200
+            with self.subTest(method=method.upper(), path=path, body=body):
+                response = self.call(client, method, path, body)
+                self.assertEqual(response.status_code, status, response.content[:300])
 
     def test_readers_list_only_their_own_loans(self, _publish):
         own = self.api(self.reader).get("/api/v1/order/").json()
@@ -384,6 +408,275 @@ class OperationAccessTests(FakeEncoderMixin, TestCase):
         self.assertEqual(Order.objects.filter(user=self.librarian).count(), 1)
 
 
+class AdministratorRoleTests(TestCase):
+    """Spec Story 1 scenario 8 (FR-063): only an administrator grants or removes the
+    librarian role, through the web, the API and the admin site."""
+
+    CHANNELS = ("web", "api", "admin")
+
+    @classmethod
+    def setUpTestData(cls):
+        # The web and admin forms require every name.
+        for name, role in (
+            ("reader", ROLE_VISITOR),
+            ("librarian", ROLE_LIBRARIAN),
+            ("colleague", ROLE_LIBRARIAN),
+            ("administrator", ROLE_ADMINISTRATOR),
+            ("other_administrator", ROLE_ADMINISTRATOR),
+        ):
+            setattr(cls, name, account(f"role-{name}@example.com", role, "M"))
+
+    def signed_in(self, user):
+        client = Client()
+        client.force_login(user)
+        return client
+
+    def update_url(self, user):
+        return f"/authentication/users/{user.pk}/update/"
+
+    def admin_url(self, user, page="change"):
+        return f"/admin/authentication/customuser/{user.pk}/{page}/"
+
+    def form(self, user, **changes):
+        # An unchecked "active" box is absent from the form data.
+        names = {
+            "first_name": user.first_name,
+            "middle_name": user.middle_name,
+            "last_name": user.last_name,
+        }
+        return {**names, **({"is_active": "on"} if user.is_active else {}), **changes}
+
+    def change(self, client, channel, user, **changes):
+        """Send ``changes`` to ``user``'s account through one channel."""
+        if channel == "web":
+            return client.post(self.update_url(user), self.form(user, **changes))
+        if channel == "api":
+            return client.patch(
+                f"/api/v1/user/{user.pk}/", changes, content_type="application/json"
+            )
+        # The whole admin form; a read-only role is ignored when posted.
+        admin_form = self.form(
+            user, email=user.email, password=user.password, role=user.role
+        )
+        return client.post(self.admin_url(user), {**admin_form, **changes})
+
+    def role_entries(self):
+        return AuditEntry.objects.filter(action__in=("role_granted", "role_removed"))
+
+    def test_a_librarian_cannot_grant_or_remove_the_librarian_role(self):
+        # Creating the librarians and administrators above granted their roles.
+        entries = self.role_entries().count()
+        client = self.signed_in(self.librarian)
+        page = client.get(self.update_url(self.reader))
+        self.assertNotIn("role", page.context["form"].fields)
+        self.assertNotContains(client.get(self.admin_url(self.reader)), 'name="role"')
+        for user, role in (
+            (self.reader, ROLE_LIBRARIAN),
+            (self.colleague, ROLE_VISITOR),
+        ):
+            for channel in self.CHANNELS:
+                with self.subTest(channel=channel, user=user.email):
+                    response = self.change(client, channel, user, role=role)
+                    # The admin site saves the form without the read-only role.
+                    expected = 302 if channel == "admin" else 403
+                    self.assertEqual(response.status_code, expected)
+                    stored = CustomUser.objects.get(pk=user.pk)
+                    self.assertEqual(stored.role, user.role)
+        response = client.post(
+            "/api/v1/user/",
+            {**NEW_USER, "role": ROLE_LIBRARIAN},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(CustomUser.objects.filter(email=NEW_USER["email"]).exists())
+        self.assertEqual(self.role_entries().count(), entries)
+
+    def test_an_administrator_grants_and_removes_the_librarian_role(self):
+        client = self.signed_in(self.administrator)
+        success = {"web": 302, "api": 200, "admin": 302}
+        steps = ((ROLE_LIBRARIAN, "role_granted"), (ROLE_VISITOR, "role_removed"))
+        for channel in self.CHANNELS:
+            with self.subTest(channel=channel), transaction.atomic():
+                for role, action in steps:
+                    user = CustomUser.objects.get(pk=self.reader.pk)
+                    response = self.change(client, channel, user, role=role)
+                    self.assertEqual(response.status_code, success[channel])
+                    # The same account, with the new role.
+                    self.assertEqual(CustomUser.objects.get(pk=user.pk).role, role)
+                    entry = AuditEntry.objects.get(action=action, target_id=user.pk)
+                    self.assertEqual(
+                        (entry.channel, entry.actor_id),
+                        (channel, self.administrator.pk),
+                    )
+                transaction.set_rollback(True)
+
+    def test_removing_the_role_keeps_the_account_and_ends_its_rights_at_once(self):
+        colleague = self.signed_in(self.colleague)
+        self.assertEqual(colleague.get("/order/reservations/desk/").status_code, 200)
+        response = self.change(
+            self.signed_in(self.administrator), "api", self.colleague, role=ROLE_VISITOR
+        )
+        self.assertEqual(response.status_code, 200)
+        stored = CustomUser.objects.get(pk=self.colleague.pk)
+        self.assertEqual((stored.role, stored.is_active), (ROLE_VISITOR, True))
+        self.assertEqual(colleague.get("/order/reservations/desk/").status_code, 403)
+
+    def test_the_roles_offered_are_reader_and_librarian(self):
+        client = self.signed_in(self.administrator)
+        offered = [(ROLE_VISITOR, "reader"), (ROLE_LIBRARIAN, "librarian")]
+        form = client.get(self.update_url(self.reader)).context["form"]
+        self.assertEqual(list(form.fields["role"].choices), offered)
+        page = client.get(self.admin_url(self.reader))
+        self.assertEqual(
+            list(page.context["adminform"].form.fields["role"].choices), offered
+        )
+        for channel in self.CHANNELS:
+            with self.subTest(channel=channel):
+                response = self.change(
+                    client, channel, self.reader, role=ROLE_ADMINISTRATOR
+                )
+                # Not a choice: the API answers 400, the forms come back with an error.
+                expected = 400 if channel == "api" else 200
+                self.assertEqual(response.status_code, expected)
+                stored = CustomUser.objects.get(pk=self.reader.pk)
+                self.assertEqual(stored.role, ROLE_VISITOR)
+
+    def test_only_administrators_change_an_administrators_account(self):
+        target = self.other_administrator
+        before = CustomUser.objects.values().get(pk=target.pk)
+        client = self.signed_in(self.librarian)
+        api = f"/api/v1/user/{target.pk}/"
+        self.assertEqual(client.get(self.update_url(target)).status_code, 403)
+        for body in (
+            {"first_name": "Renamed"},
+            {"is_active": False},
+            {"email": "taken-over@example.com"},
+            {"password": "taken-over-pass-1"},
+        ):
+            with self.subTest(body=body):
+                response = client.patch(api, body, content_type="application/json")
+                self.assertEqual(response.status_code, 403)
+        self.assertEqual(client.delete(api).status_code, 403)
+        # The admin site shows the account read-only.
+        self.assertNotContains(client.get(self.admin_url(target)), 'name="email"')
+        response = self.change(client, "admin", target, first_name="Renamed")
+        self.assertEqual(response.status_code, 403)
+        response = client.post(self.admin_url(target, "delete"), {"post": "yes"})
+        self.assertEqual(response.status_code, 403)
+        client.post(
+            "/admin/authentication/customuser/",
+            {
+                "action": "delete_selected",
+                "_selected_action": [target.pk],
+                "post": "yes",
+            },
+        )
+        self.assertEqual(CustomUser.objects.values().get(pk=target.pk), before)
+
+        # Another administrator changes it, except the role: the server changes that.
+        client = self.signed_in(self.administrator)
+        response = client.patch(
+            api, {"first_name": "Renamed"}, content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        response = client.patch(
+            api, {"role": ROLE_LIBRARIAN}, content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 403)
+        page = client.get(self.update_url(target))
+        self.assertNotIn("role", page.context["form"].fields)
+        self.assertNotContains(client.get(self.admin_url(target)), 'name="role"')
+        self.assertEqual(CustomUser.objects.get(pk=target.pk).role, ROLE_ADMINISTRATOR)
+
+    def test_the_admin_site_sets_passwords_and_a_librarian_adds_readers(self):
+        client = self.signed_in(self.librarian)
+        response = self.change(
+            client, "admin", self.reader, password="admin-set-password-1"
+        )
+        self.assertEqual(response.status_code, 302)
+        reader = CustomUser.objects.get(pk=self.reader.pk)
+        self.assertTrue(reader.check_password("admin-set-password-1"))
+        response = client.post(
+            "/admin/authentication/customuser/add/",
+            {
+                "email": "admin-added@example.com",
+                "password": "admin-added-password-1",
+                "first_name": "Added",
+                "middle_name": "M",
+                "last_name": "Reader",
+                "role": ROLE_LIBRARIAN,
+                "is_active": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        added = CustomUser.objects.get(email="admin-added@example.com")
+        self.assertEqual(added.role, ROLE_VISITOR)
+        self.assertTrue(added.check_password("admin-added-password-1"))
+
+    def test_the_rule_never_assigns_the_administrator_role(self):
+        reader = CustomUser.objects.get(pk=self.reader.pk)
+        with self.assertRaises(PermissionDenied):
+            update_account(self.administrator, reader, {"role": ROLE_ADMINISTRATOR})
+        self.assertEqual(CustomUser.objects.get(pk=self.reader.pk).role, ROLE_VISITOR)
+
+    def test_the_pages_name_each_role_and_who_changes_it(self):
+        client = self.signed_in(self.librarian)
+        self.assertContains(client.get("/authentication/users/"), ADMINISTRATOR_BADGE)
+        profile = client.get(f"/authentication/users/{self.administrator.pk}/")
+        self.assertContains(profile, ADMINISTRATOR_BADGE)
+        # No link offers a change the librarian may not make.
+        self.assertNotContains(profile, self.update_url(self.administrator))
+        profile = client.get(f"/authentication/users/{self.reader.pk}/")
+        self.assertContains(profile, self.update_url(self.reader))
+        self.assertContains(
+            client.get(self.update_url(self.reader)),
+            "Only an administrator can grant or remove the librarian role.",
+        )
+        client = self.signed_in(self.administrator)
+        # The header names the signed-in account's role.
+        self.assertContains(client.get("/"), ADMINISTRATOR_BADGE)
+        self.assertContains(
+            client.get(self.update_url(self.other_administrator)),
+            "The operator changes an administrator's role on the server.",
+        )
+
+    def test_saving_their_own_profile_keeps_an_administrator(self):
+        client = self.signed_in(self.administrator)
+        for channel in ("web", "admin"):
+            with self.subTest(channel=channel):
+                response = self.change(
+                    client, channel, self.administrator, first_name=channel.title()
+                )
+                self.assertEqual(response.status_code, 302)
+                stored = CustomUser.objects.get(pk=self.administrator.pk)
+                self.assertEqual(
+                    (stored.first_name, stored.role),
+                    (channel.title(), ROLE_ADMINISTRATOR),
+                )
+
+
+class AdministratorAudienceTests(TestCase):
+    def test_only_an_active_administrator_has_the_administrator_audience(self):
+        permission = IsAdministrator()
+        self.assertEqual(permission.audience, "administrator")
+        callers = {
+            "anonymous": (AnonymousUser(), False),
+            "reader": (account("audience-reader@example.com"), False),
+            "librarian": (account("audience-lib@example.com", ROLE_LIBRARIAN), False),
+            "administrator": (
+                account("audience-admin@example.com", ROLE_ADMINISTRATOR),
+                True,
+            ),
+        }
+        inactive = account("audience-inactive@example.com", ROLE_ADMINISTRATOR)
+        inactive.is_active = False
+        callers["inactive administrator"] = (inactive, False)
+        for caller, (user, expected) in callers.items():
+            with self.subTest(caller=caller):
+                request = SimpleNamespace(user=user)
+                self.assertIs(permission.has_permission(request, None), expected)
+
+
 class SchemaAudienceTests(TestCase):
     def schema(self):
         response = self.client.get("/api/schema/?format=json")
@@ -418,6 +711,16 @@ class SchemaAudienceTests(TestCase):
         for key, expected in SCHEMA_AUDIENCES.items():
             with self.subTest(operation=key):
                 self.assertEqual(audiences.get(key), expected)
+
+    def test_the_schema_lists_every_role_an_account_can_have(self):
+        # Responses carry an administrator's role, so the schema lists it too.
+        schema = self.schema()
+        role = schema["components"]["schemas"]["RoleEnum"]
+        self.assertEqual(
+            role["enum"], [ROLE_VISITOR, ROLE_LIBRARIAN, ROLE_ADMINISTRATOR]
+        )
+        field = schema["components"]["schemas"]["CustomUser"]["properties"]["role"]
+        self.assertIn("Only an administrator sets it", field["description"])
 
     def test_own_record_operations_document_not_found(self):
         responses = {

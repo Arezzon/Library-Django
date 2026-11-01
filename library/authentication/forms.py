@@ -3,6 +3,7 @@ from django import forms
 from library.forms_mixins import TailwindFormMixin
 
 from .models import ROLE_VISITOR, CustomUser
+from .services import ASSIGNABLE_ROLE_CHOICES, may_change_role
 
 
 class RegistrationForm(TailwindFormMixin, forms.ModelForm):
@@ -84,7 +85,8 @@ class ProfileForm(TailwindFormMixin, forms.ModelForm):
 
 
 class UserUpdateForm(TailwindFormMixin, forms.ModelForm):
-    """What a librarian may change on any account: the names, role and status."""
+    """What a librarian may change on an account: the names and the status, and for an
+    administrator the role, as reader or librarian (FR-002, FR-063)."""
 
     class Meta:
         model = CustomUser
@@ -96,3 +98,10 @@ class UserUpdateForm(TailwindFormMixin, forms.ModelForm):
             "role": "Role",
             "is_active": "Active Account (Access permitted)",
         }
+
+    def __init__(self, *args, actor, **kwargs):
+        super().__init__(*args, **kwargs)
+        if may_change_role(actor, self.instance):
+            self.fields["role"].choices = ASSIGNABLE_ROLE_CHOICES
+        else:
+            del self.fields["role"]
