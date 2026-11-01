@@ -1,20 +1,24 @@
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import ProtectedError
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from authentication.decorators import librarian_required, signin_required
 from authentication.models import CustomUser
 from author.models import Author
+from events.searches import record_search, search_identity
+from events.services import EventQueueUnavailable
 from order.models import Order
 from order.services import eligibility
 
 from .embeddings import EmbeddingGenerationError
 from .forms import BookForm
 from .models import Book
+from .preferences import preference_state
 from .search import search_books
 
 
@@ -34,32 +38,67 @@ def book_list(request: HttpRequest) -> HttpResponse:
     query = request.GET.get("q", "").strip()
     author_id = request.GET.get("author_id", "").strip()
 
+    active_search = bool(query or author_id.isdigit())
+    try:
+        identity = (
+            search_identity(request.GET.get("search_id"))
+            if active_search
+            else search_identity()
+        )
+    except ValueError:
+        return HttpResponseBadRequest("Invalid search_id.")
+    status = 200
+    saved = False
     try:
         books = _filter_books(query, author_id)
+        if active_search:
+            books = list(books)
     except (ValueError, EmbeddingGenerationError) as error:
         messages.error(request, str(error))
         books = Book.objects.none()
-    authors = Author.objects.all().order_by("surname", "name")
-
-    return render(
+    else:
+        if active_search:
+            try:
+                record_search(
+                    request,
+                    identity,
+                    query,
+                    int(author_id) if author_id.isdigit() else None,
+                )
+                saved = True
+            except EventQueueUnavailable:
+                status = 503
+                messages.error(
+                    request, "Search history could not be saved. Retry this search."
+                )
+    response = render(
         request,
         "book/book_list.html",
         {
             "books": books,
-            "authors": authors,
+            "authors": Author.objects.all().order_by("surname", "name"),
             "query": query,
             "selected_author_id": int(author_id) if author_id.isdigit() else "",
+            "search_id": str(search_identity() if saved else identity),
         },
+        status=status,
     )
+    if active_search:
+        response["X-Search-Event-ID"] = str(identity)
+        response["Cache-Control"] = "private, no-store"
+    if status == 503:
+        response["Retry-After"] = "5"
+    return response
 
 
 @signin_required
+@never_cache
 def book_detail(request: HttpRequest, book_id: int) -> HttpResponse:
     now = timezone.now()
     book = get_object_or_404(
         Book.objects.with_availability(now).prefetch_related("authors"), pk=book_id
     )
-    context = {"book": book}
+    context = {"book": book, "preferences": preference_state(request.user, book.pk)}
     if request.user.is_visitor:
         # Why the reader cannot reserve, if they cannot (FR-020).
         context["reserve_refusal"] = eligibility(request.user, book, now)

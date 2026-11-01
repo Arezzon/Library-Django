@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     tags: ["v*"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "KAN-*"]
 
 env:
   REGISTRY: ghcr.io
@@ -229,6 +229,9 @@ jobs:
             | python -c 'import json,sys; books=json.load(sys.stdin); assert 0 < len(books) <= 3; assert all(b["available_count"] > 0 and isinstance(b.get("reason"), str) and b["reason"].strip() for b in books)'
           echo "== recommendations without signing in (must answer 401) =="
           test "$(curl -sS -o /dev/null -w '%{http_code}' "$base/api/v1/books/recommendations/")" = 401
+
+      - name: Verify durable reader preferences over HTTP
+        run: python scripts/smoke_reader_preferences.py
 
       - name: Verify grounded catalog assistant over HTTP
         run: python scripts/smoke_catalog_assistant.py

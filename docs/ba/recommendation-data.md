@@ -60,7 +60,7 @@ rating scale or redefine likes as ratings.
 | Borrow intent | KAN-30 `UserEvent`, server or validated client | weight 3 |
 | Book borrowed / returned | KAN-30 `UserEvent`, server | weight 4; loan owner must not contradict the session account |
 | Text searched | KAN-30 server `search` event, `properties.query` | up to 3 distinct texts, at most 200 characters each; ranking uses weight 1 |
-| Favorites / likes | KAN-51 models, not present in this base | unavailable, not fabricated from clicks; future adapter reads current owned state and removes withdrawn choices |
+| Favorites / likes | KAN-51 `BookLike` / `FavoriteBook` models | `book.preferences.read_book_preferences(user)` reads current owned state separately; removal withdraws the explicit signal |
 | Explicit rating | KAN-59 model/scale, not present in this base | unavailable, not zero or dislike; KAN-61 connects changed/deleted ratings separately after CRUD/UI exist |
 
 Selection uses at most the 200 latest eligible events from the past 90 days,
@@ -84,7 +84,9 @@ not a purge of historical analytics or a new retention job. A queue failure or
 missing source can leave history incomplete; the consumer still has book signals
 or the safe fallback. Do not log the raw private search snapshot.
 
-V1 exposes only `books` and `searches`. Optional future feedback adapters must add
+V1 exposes only `books` and `searches`. KAN-51 supplements this history with
+its separate owned preference adapter and a weight of 5 once per book, even when
+both flags are true (see [reader preferences](reader-preferences.md)). Future rating adapters must add
 distinct typed fields and document scale, update/delete and ownership semantics;
 they must not smuggle ratings through arbitrary event JSON or treat absence as a
 negative value. No feedback models or API are created by KAN-50.

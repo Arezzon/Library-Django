@@ -620,6 +620,15 @@ enabled. A web process alone cannot consume queued events.
 
 This project is provided as a learning / marathon exercise.
 
+### Reader preferences
+
+Signed-in readers can like and save books from the book detail page and manage
+them at `/book/preferences/`. The API exposes
+`GET/PATCH/DELETE /api/v1/books/<id>/preferences/` and
+`GET /api/v1/me/book-preferences/?kind=all|likes|favorites`.
+See [private preference and search contracts](docs/ba/reader-preferences.md)
+for ownership, idempotency, retry behavior and recommendation weights.
+
 ### Catalog assistant
 
 `GET /api/v1/assistant/?q=Kobzar` returns catalog facts and source links without

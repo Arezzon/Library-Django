@@ -20,20 +20,6 @@ class EventTrackingMiddleware:
                 if match.url_name in ("book_detail", "book-detail"):
                     book_id = match.kwargs.get("book_id", match.kwargs.get("pk"))
                     capture(request, EventType.BOOK_VIEW, book_id=int(book_id))
-                elif match.url_name == "book_list":
-                    query = request.GET.get("q", "").strip()[:200]
-                    author_id = request.GET.get("author_id", "")
-                    if query or author_id.isdigit():
-                        capture(
-                            request,
-                            EventType.SEARCH,
-                            properties={
-                                "query": query,
-                                "author_id": (
-                                    int(author_id) if author_id.isdigit() else None
-                                ),
-                            },
-                        )
             return response
         finally:
             current_request.reset(token)
