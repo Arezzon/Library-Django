@@ -230,6 +230,9 @@ jobs:
           echo "== recommendations without signing in (must answer 401) =="
           test "$(curl -sS -o /dev/null -w '%{http_code}' "$base/api/v1/books/recommendations/")" = 401
 
+      - name: Verify owned book ratings over HTTP
+        run: python scripts/smoke_ratings.py
+
       - name: Verify durable reader preferences over HTTP
         run: python scripts/smoke_reader_preferences.py
 
