@@ -188,3 +188,15 @@
 
 {"event":"artifact_drift_detected","timestamp":"2026-11-02T10:51:33.8013793Z","actor":"claude","feature_directory":"specs/003-priority-tech-debt","drifted_artifacts":[{"path":"tasks.md","old_sha256":"f2a47c36b9a04d726e80fc145ddbd45cd0a102d1c634b1139c7b2c19e1558107","new_sha256":"2ba8cf6a26cee0103f1f1590b44b9ca15b494a68ba4ce6b992c3b62099a1e93b"}]}
 
+{"timestamp":"2026-11-02T11:11:13.1201672Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1111130693501Z-executing"}
+
+{"timestamp":"2026-11-02T11:11:13.4263067Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T11:17:47.2806838Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"plan.md\u0027s PR 13 paragraph names Phases 17 and 18; at the user\u0027s direction PR 13 also carries Phase 19 (T201)","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1117472652613Z-blocked"}
+
+{"timestamp":"2026-11-02T11:17:48.5747187Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1117485245876Z-executing"}
+
+{"timestamp":"2026-11-02T11:18:37.6890923Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1118376318476Z-complete"}
+
+{"event":"artifact_drift_detected","timestamp":"2026-11-02T11:18:37.6933592Z","actor":"claude","feature_directory":"specs/003-priority-tech-debt","drifted_artifacts":[{"path":"tasks.md","old_sha256":"6bad4fbb79445daa56b5d2071e6e31dcef4567b7cafa492544d6dd84c091e574","new_sha256":"671c6adcf3378699added30b7a02b2df67d1940dd6286b402936bc48973c83c5"}]}
+

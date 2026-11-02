@@ -1,6 +1,6 @@
 ﻿{
     "schema_version":  1,
-    "updated_at":  "2026-11-02T10:51:33.7421844Z",
+    "updated_at":  "2026-11-02T11:18:37.6410041Z",
     "feature_directory":  "specs/003-priority-tech-debt",
     "source_of_truth":  {
                             "constitution":  ".specify/memory/constitution.md",
@@ -26,11 +26,11 @@
 
                            ],
     "notes":  null,
-    "last_snapshot_id":  "20261102T1051337323524Z-complete",
+    "last_snapshot_id":  "20261102T1118376318476Z-complete",
     "instructions":  "Use /speckit-superpowers-bridge (Claude Code) or $speckit-superpowers-bridge (Codex). The bridge orchestrates native Superpowers skills against tasks.md; do not run speckit.implement and do not invoke superpowers:writing-plans / :brainstorming for an active Spec Kit feature.",
     "artifacts_sha256":  {
                              "spec.md":  "c917ece567d056069259b37a5c2e4cb51dbb7b74b87572d4e70fce671299ee5f",
-                             "plan.md":  "d92abd794348b2d2af4646ece3f1764d82c4382f10a9398a37ab29736612a1c2",
-                             "tasks.md":  "2ba8cf6a26cee0103f1f1590b44b9ca15b494a68ba4ce6b992c3b62099a1e93b"
+                             "plan.md":  "3aaad2cd93d77d00d1ddc38ce2198fefc055e5e17e1ea7505ff6572d99f329b6",
+                             "tasks.md":  "671c6adcf3378699added30b7a02b2df67d1940dd6286b402936bc48973c83c5"
                          }
 }

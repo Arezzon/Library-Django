@@ -1546,8 +1546,8 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
 Added on 2026-11-02 at the user's request, after PR 12 merged with 2 P1 items open: the user reported
 T162 and T163 done and asked for the Jira descriptions to be corrected, after they approved each
 draft, and for TD-35 to be removed. T173 and T174 run on `main` after PR 12, and PR 13 records them.
-PR 13 also carries Phases 17 and 18, at the user's direction, so it changes code too: T191, T199 and
-T200.
+PR 13 also carries Phases 17 to 19, at the user's direction, so it changes code too: T191, T199, T200
+and T201.
 
 - [x] T187 [US9] Create branch `docs/kan-62-close` from a freshly fetched `origin/main`, with PR 12
   merged.
@@ -1614,7 +1614,7 @@ T200.
   audited.
 - **PR 10 (Phase 14)** needs PR 7, because it audits the finished reservation pages.
 - **PR 12 (Phase 15)** needs all the others, and **Polish (Phase 16)** follows it.
-- **PR 13 (Phases 15, 17 and 18)** follows PR 12 and records the checks that close KAN-62, Polish's
+- **PR 13 (Phases 15 and 17 to 19)** follows PR 12 and records the checks that close KAN-62, Polish's
   among them, with the convergence tasks.
 
 ### Minimum dependencies (spec FR-059) and the recommended order (R1)
@@ -1830,3 +1830,14 @@ section are the gate.
   Done: `RecommendationQueryTests`. Both lists use the same number of queries with 1 eligible book
   and with 50. Without the authors prefetch, For You used 9 queries with 1 and 18 with 50, the API
   8 and 27, and both tests failed.
+
+## Phase 19: Convergence
+
+- [x] T201 In `library/book/test_queries.py`, fix the query count of `/api/v1/me/book-preferences/`
+  (`library/book/preference_api.py::BookPreferenceListView`, from #48) with 1 and with 50 saved books.
+  T199 covers only the Saved Books page, which renders no authors, so a query per row added to the
+  API's serializer, for authors or anything else, fails no test per FR-047, US7/AC3 (partial)
+
+  Done: `BookListQueryTests.test_the_api_saved_books`. The API uses 4 queries with 1 saved book and
+  with 50. Without the authors prefetch it used 53 with 50 and the test failed, while the page's
+  test still passed.

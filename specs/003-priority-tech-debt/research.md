@@ -1153,7 +1153,7 @@ items.
 ### Final checks on `main` (T174, FR-062)
 
 - **Date**: 2026-11-02, on `main` at `cfb5e5c`, after PR 12 merged. PR 13 later took on Phases 17
-  and 18, whose T191, T199 and T200 change code; the last bullet covers them.
+  to 19, whose T191, T199, T200 and T201 change code; the last bullet covers them.
 - **CI**: the run on `main` ([41371422354](https://github.com/Arezzon/Library-Django/actions/runs/41371422354))
   passed lint, the smoke test on five runners, and the publish and deploy jobs. On `ubuntu-latest`
   it verified the backup restore, the tests with coverage, the key endpoints, the accessibility of 39
@@ -1188,10 +1188,10 @@ items.
   | 11 | [#54](https://github.com/Arezzon/Library-Django/pull/54) | `feat/kan-70-administrator-role` | 2026-11-01 |
   | 12 | [#57](https://github.com/Arezzon/Library-Django/pull/57) | `docs/kan-71-debt-register` | 2026-11-02 |
 
-- **PR 13 with Phases 17 and 18**, on its branch, 2026-11-02: lint and format are clean, the full
-  test command passes 592 tests with 4 skipped, and the test output holds no demo password or search
-  word. Neither phase changes a page, so the accessibility result above stands. CI checks the branch
-  on its pull request.
+- **PR 13 with Phases 17 to 19**, on its branch, 2026-11-02: lint and format are clean, the full
+  test command passes 593 tests with 4 skipped, and the test output holds no demo password or search
+  word. None of these phases changes a page, so the accessibility result above stands. CI checks the
+  branch on its pull request.
 
 ### Closing KAN-62 (T171, FR-056, FR-058)
 

@@ -110,6 +110,12 @@ class BookListQueryTests(FakeEncoderMixin, TestCase):
         )
         self.assertEqual(len(response.context["books"]), 50)
 
+    def test_the_api_saved_books(self):
+        response = assert_same_query_count(
+            self, self.client, "/api/v1/me/book-preferences/", self.save_books
+        )
+        self.assertEqual(len(response.json()), 50)
+
 
 class RecommendationQueryTests(FakeEncoderMixin, TestCase):
     """For You recommends available books that the reader neither borrows nor holds.
