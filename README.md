@@ -585,7 +585,9 @@ helpers.
 ├── requirements-dev.txt       # pinned lint, format and coverage tools
 ├── pyproject.toml             # ruff, black and coverage settings
 ├── .env.example               # safe configuration template
-├── scripts/                   # model fetch, smoke and stack budget checks
+├── scripts/                   # model fetch, smoke, stack budget and accessibility checks
+├── docs/                      # ADRs, operator guide, feature guides, changelog and debt register
+├── specs/                     # feature specifications, plans and tasks
 └── library/
     ├── manage.py
     ├── library/               # settings, URLs, WSGI/ASGI and Celery
@@ -594,8 +596,12 @@ helpers.
     ├── book/                  # books and embeddings
     ├── order/                 # borrowing workflow
     ├── events/                # tracking, queue tasks and analytics UI
-    └── audit/                 # audit trail of critical changes, read in the admin site
+    ├── audit/                 # audit trail of critical changes, read in the admin site
+    └── ai/                    # read-only catalog assistant
 ```
+
+Design decisions are recorded in [docs/adr/](docs/adr/README.md). The technical debt that remains,
+with its owners and evidence, is in the [debt register](docs/shared/debt-register.md).
 
 ## Deployment
 

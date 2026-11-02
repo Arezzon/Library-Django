@@ -36,7 +36,7 @@ implementation tasks.
 - **Markers**:
   - **(manual)**: done by a person, in a browser or with a screen reader.
   - **(Pi)**: done by the operator on the Raspberry Pi.
-  - **(Arsen)**: a repository setting that only the repository administrator can change.
+  - **(@Arezzon)**: a repository setting that only the repository administrator can change.
   - **(Jira)**: a change in Jira, made by the issue's assignee or with their approval.
 
 ## Conventions for every pull request phase
@@ -450,13 +450,13 @@ tests.
 These tasks change repository settings, not files. They can run at any time, in parallel with the
 other phases.
 
-- [ ] T053 [US8] (Arsen) KAN-72: add `lint` to the required status checks of ruleset 23898585 for
+- [ ] T053 [US8] (@Arezzon) KAN-72: add `lint` to the required status checks of ruleset 23898585 for
   `main`, beside `smoke-test` (R27). The check's name comes from the `lint` job in
   `.github/workflows/docker-build.yml`.
-- [ ] T054 [US8] (Arsen) KAN-73: add the ruleset's "Require code scanning results" rule for CodeQL,
+- [ ] T054 [US8] (@Arezzon) KAN-73: add the ruleset's "Require code scanning results" rule for CodeQL,
   with security alerts set to "High or higher" and alerts set to "Errors". The analysis comes from
   `.github/workflows/codeql.yml`.
-- [ ] T055 [US8] (Arsen) KAN-74: turn on "Require review from Code Owners" in ruleset 23898585, so that
+- [ ] T055 [US8] (@Arezzon) KAN-74: turn on "Require review from Code Owners" in ruleset 23898585, so that
   `.github/CODEOWNERS` is enforced.
 - [ ] T056 [US8] Record the evidence (SC-012, quickstart.md §12):
   - save the output of `gh api repos/Arezzon/Library-Django/rulesets/23898585` after each change;
@@ -1587,7 +1587,7 @@ section are the gate.
 
 - One person carries PR 1 to merge quickly, while others prepare PR 9, which has no code dependency.
 - After PR 1 merges, the people assigned to KAN-18, KAN-21, KAN-68 and KAN-67 work in parallel.
-- Arsen applies KAN-72 to KAN-74 at any point.
+- @Arezzon applies KAN-72 to KAN-74 at any point.
 - The reservation stages, KAN-55 to KAN-58, then run in sequence.
 
 ---
@@ -1605,4 +1605,4 @@ section are the gate.
   their pull request opens, choosing the newest release that is at least two weeks old, and record
   any change in research.md.
 - KAN-72, KAN-73 and KAN-74 sit in the closed "Lab 3" sprint, inherited from their parents. Whether to
-  move them is for the user or Arsen to decide.
+  move them is for the user or @Arezzon to decide.

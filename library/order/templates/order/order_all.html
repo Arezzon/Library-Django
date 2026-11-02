@@ -54,14 +54,14 @@
                         <td class="table-td text-right whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-2">
                                 <a href="{% url 'order_update' order.id %}" class="btn-sm-primary">
-                                    Edit
+                                    Edit<span class="sr-only"> loan #{{ order.id }}</span>
                                 </a>
                                 {% if order.end_at %}
                                     <span class="badge-success">
                                         Closed
                                     </span>
                                 {% else %}
-                                    <a href="{% url 'order_close' order.id %}" class="btn-sm-success">Record Return<span class="sr-only"> of {{ order.book.name }}</span></a>
+                                    <a href="{% url 'order_close' order.id %}" class="btn-sm-success">Record Return<span class="sr-only"> of {{ order.book.name }}, loan #{{ order.id }}</span></a>
                                 {% endif %}
                             </div>
                         </td>
@@ -109,10 +109,10 @@
 
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
                     <a href="{% url 'order_update' order.id %}" class="btn-sm-primary flex-1 text-center justify-center">
-                        Edit
+                        Edit<span class="sr-only"> loan #{{ order.id }}</span>
                     </a>
                     {% if not order.end_at %}
-                        <a href="{% url 'order_close' order.id %}" class="btn-sm-success w-full justify-center flex-1">Record Return<span class="sr-only"> of {{ order.book.name }}</span></a>
+                        <a href="{% url 'order_close' order.id %}" class="btn-sm-success w-full justify-center flex-1">Record Return<span class="sr-only"> of {{ order.book.name }}, loan #{{ order.id }}</span></a>
                     {% endif %}
                 </div>
             </div>

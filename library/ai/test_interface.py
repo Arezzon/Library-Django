@@ -70,6 +70,14 @@ class AssistantInterfaceTests(FakeEncoderMixin, TestCase):
         self.assertIn("no-store", response["Cache-Control"])
         self.assertEqual(response["Referrer-Policy"], "same-origin")
 
+    def test_the_page_does_not_show_when_the_answer_was_checked(self):
+        """The page once showed that time as a bare UTC timestamp (TD-30, FR-044).
+        Only the API gives it now, with its offset, for programs."""
+        response = self.ask("книга: Кобзар")
+        checked_at = response.context["result"]["checked_at"]
+        self.assertIsNotNone(checked_at)
+        self.assertNotContains(response, checked_at)
+
     def test_form_validation_and_selectors(self):
         for data in (
             {"q": "x" * 257, "intent": "auto"},

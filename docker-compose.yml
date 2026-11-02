@@ -126,6 +126,7 @@ services:
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
     volumes:
       - pgbackups:/backups
+      - pgbackupdata:/var/lib/postgresql
     depends_on:
       db:
         condition: service_healthy
@@ -232,3 +233,4 @@ volumes:
   pgdata18:
   redisdata8:
   pgbackups:
+  pgbackupdata:
