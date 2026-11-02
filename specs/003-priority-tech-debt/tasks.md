@@ -1546,7 +1546,7 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
 Added on 2026-11-02 at the user's request, after PR 12 merged with 2 P1 items open: the user reported
 T162 and T163 done and asked for the Jira descriptions to be corrected, after they approved each
 draft, and for TD-35 to be removed. T173 and T174 run on `main` after PR 12, and PR 13 records them.
-PR 13 also carries Phases 17 to 20, at the user's direction, so it changes code too: T191, T199,
+PR 13 also carries Phases 17 to 21, at the user's direction, so it changes code too: T191, T199,
 T200, T201 and T202.
 
 - [x] T187 [US9] Create branch `docs/kan-62-close` from a freshly fetched `origin/main`, with PR 12
@@ -1614,7 +1614,7 @@ T200, T201 and T202.
   audited.
 - **PR 10 (Phase 14)** needs PR 7, because it audits the finished reservation pages.
 - **PR 12 (Phase 15)** needs all the others, and **Polish (Phase 16)** follows it.
-- **PR 13 (Phases 15 and 17 to 20)** follows PR 12 and records the checks that close KAN-62, Polish's
+- **PR 13 (Phases 15 and 17 to 21)** follows PR 12 and records the checks that close KAN-62, Polish's
   among them, with the convergence tasks.
 
 ### Minimum dependencies (spec FR-059) and the recommended order (R1)
@@ -1816,8 +1816,8 @@ section are the gate.
 - [x] T199 In `library/book/test_queries.py`, fix the query count of Saved Books (`/book/preferences/`,
   added by #48) with 1 and with 50 saved books per FR-047, US7/AC3 (partial)
 
-  Done: `BookListQueryTests.test_saved_books`. The page uses 7 queries with 1 saved book and with 50.
-  Without the availability annotation it used 105 with 50, and the test failed.
+  Done: `BookListQueryTests.test_saved_books`. The page uses 5 queries with 1 saved book and with 50.
+  Without the availability annotation it used 7 with 1 and 105 with 50, and the test failed.
 
 ## Phase 18: Convergence
 
@@ -1859,3 +1859,21 @@ section are the gate.
   `test_a_model_that_fails_to_load_is_logged_without_the_searches` and
   `test_a_search_that_fails_to_encode_is_logged_without_its_text`. Both fail without the change,
   and the second also fails when the search reaches the log line.
+
+## Phase 21: Convergence
+
+- [x] T203 In `specs/003-priority-tech-debt/research.md` "Query counts per list", record the query
+  counts with 1 row and with 50, the audience, the method and the date of each list whose test came
+  after PR 2's measurement: My reservations (`/order/reservations/`) and the API reservation list
+  (`/api/v1/reservation/`, as a reader and as a librarian) from T104, the desk
+  (`/order/reservations/desk/`) from T130, Saved Books (`/book/preferences/`) and
+  `/api/v1/me/book-preferences/` from T199 and T201, and For You (`/book/recommendations/`) and
+  `/api/v1/books/recommendations/` from T200. Today the table holds only the 14 lists PR 2
+  measured, though R8 has the reservation lists join with PRs 5 to 7, and T200's counts are
+  recorded nowhere per FR-048, US7/AC4, plan R8 (partial)
+
+  Done on 2026-11-02: research.md records the seven lists, the API reservation list for both
+  audiences, at the counts their tests measure, each the same with 1 row and with 50. The same run
+  measured PR 2's lists again and explains why the web pages and the search now count more. Saved
+  Books uses 5 queries, not the 7 in T199's note, which was its count with 1 row without the
+  availability annotation; T199's note is corrected.

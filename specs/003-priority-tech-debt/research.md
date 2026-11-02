@@ -888,7 +888,7 @@ accurate after every merge.
 PRs 1 to 11 fill this section, and PRs 12 and 13 add the closing checks. Each entry gives the date,
 the method and the result, and the register links the entries that close its items.
 
-- Query counts per list, before and after PR 2 (FR-048).
+- Query counts per list: before and after PR 2, and every list on 2026-11-02 (FR-048).
 - Coverage of added and changed lines, per PR (FR-051).
 - Catalog page load p95 on the Pi (SC-010).
 - Memory and search p95 on the Pi after PRs 5, 8 and 9 (FR-033, SC-014).
@@ -936,6 +936,27 @@ author list changed. It read each author's books with a separate query, so it gr
 | API loan list, `/api/v1/order/` | librarian | 3 / 3 | 3 / 3 |
 | API list of one user's loans, `/api/v1/user/<id>/order/` | reader | 3 / 3 | 3 / 3 |
 | Analytics dashboard, `/events/` (25 events per page) | librarian | 11 / 11 | 11 / 11 |
+
+**Lists added later, and every list on 2026-11-02** (T203): the same method, on PR 13's branch at
+`f831703`. Like CI's test command, the run sets `CELERY_TASK_ALWAYS_EAGER=True`, so background
+tasks run inside the request. Every list uses the same number of queries with 1 row and with 50.
+
+| List | Signed in as | Test added by | 1 row / 50 rows |
+|---|---|---|---|
+| My reservations, `/order/reservations/` | reader | T104 (PR 5) | 4 / 4 |
+| API reservation list, `/api/v1/reservation/` | reader | T104 (PR 5) | 3 / 3 |
+| API reservation list, `/api/v1/reservation/` | librarian | T104 (PR 5) | 3 / 3 |
+| Reservation desk, `/order/reservations/desk/` (active reservations) | librarian | T130 (PR 7) | 4 / 4 |
+| Saved Books, `/book/preferences/` (each book liked and kept in favorites) | reader | T199 (PR 13) | 5 / 5 |
+| API saved books, `/api/v1/me/book-preferences/` | reader | T201 (PR 13) | 4 / 4 |
+| For You, `/book/recommendations/` (1 and 50 eligible books, at most 10 shown) | reader | T200 (PR 13) | 9 / 9 |
+| API recommendations, `/api/v1/books/recommendations/?limit=20` (at most 20 shown) | reader | T200 (PR 13) | 8 / 8 |
+
+The same run measured PR 2's lists again, and each still uses the same number with 1 row and with
+50. Each web page now runs one more query than in the first table: the check for unseen
+reservation cancellations, which PR 6 added to every page. The search API and the author-filtered
+catalog run five more: the queries that store the search in the history, which on the server run
+in the worker. The other API lists are unchanged.
 
 ### Coverage of added and changed lines (FR-051)
 
@@ -1153,7 +1174,7 @@ items.
 ### Final checks on `main` (T174, FR-062)
 
 - **Date**: 2026-11-02, on `main` at `cfb5e5c`, after PR 12 merged. PR 13 later took on Phases 17
-  to 20, whose T191, T199, T200, T201 and T202 change code; the last bullet covers them.
+  to 21, whose T191, T199, T200, T201 and T202 change code; the last bullet covers them.
 - **CI**: the run on `main` ([41371422354](https://github.com/Arezzon/Library-Django/actions/runs/41371422354))
   passed lint, the smoke test on five runners, and the publish and deploy jobs. On `ubuntu-latest`
   it verified the backup restore, the tests with coverage, the key endpoints, the accessibility of 39
@@ -1188,7 +1209,7 @@ items.
   | 11 | [#54](https://github.com/Arezzon/Library-Django/pull/54) | `feat/kan-70-administrator-role` | 2026-11-01 |
   | 12 | [#57](https://github.com/Arezzon/Library-Django/pull/57) | `docs/kan-71-debt-register` | 2026-11-02 |
 
-- **PR 13 with Phases 17 to 20**, on its branch, 2026-11-02: lint and format are clean, the full
+- **PR 13 with Phases 17 to 21**, on its branch, 2026-11-02: lint and format are clean, the full
   test command passes 595 tests with 4 skipped, and the test output holds no demo password or search
   word. None of these phases changes a page, so the accessibility result above stands. CI checks the
   branch on its pull request.

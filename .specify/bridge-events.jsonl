@@ -210,3 +210,13 @@
 
 {"timestamp":"2026-11-02T12:00:14.8145265Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1200147573038Z-complete"}
 
+{"timestamp":"2026-11-02T12:18:55.1479753Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1218550972497Z-executing"}
+
+{"timestamp":"2026-11-02T12:18:55.4911674Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T12:27:06.5770338Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"plan.md: PR 13\u0027s paragraph adds Phase 21 (T203), which the user put in #61","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1227065607127Z-blocked"}
+
+{"timestamp":"2026-11-02T12:27:20.3540272Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1227203070864Z-executing"}
+
+{"timestamp":"2026-11-02T12:30:26.0251080Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1230259704448Z-complete"}
+
