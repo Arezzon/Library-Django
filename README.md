@@ -596,7 +596,9 @@ helpers.
 ├── requirements-dev.txt       # pinned lint, format and coverage tools
 ├── pyproject.toml             # ruff, black and coverage settings
 ├── .env.example               # safe configuration template
-├── scripts/                   # model fetch, smoke and stack budget checks
+├── scripts/                   # model fetch, smoke, stack budget and accessibility checks
+├── docs/                      # ADRs, operator guide, feature guides, changelog and debt register
+├── specs/                     # feature specifications, plans and tasks
 └── library/
     ├── manage.py
     ├── library/               # settings, URLs, WSGI/ASGI and Celery
@@ -605,8 +607,12 @@ helpers.
     ├── book/                  # books and embeddings
     ├── order/                 # borrowing workflow
     ├── events/                # tracking, queue tasks and analytics UI
-    └── audit/                 # audit trail of critical changes, read in the admin site
+    ├── audit/                 # audit trail of critical changes, read in the admin site
+    └── ai/                    # read-only catalog assistant
 ```
+
+Design decisions are recorded in [docs/adr/](docs/adr/README.md). The technical debt that remains,
+with its owners and evidence, is in the [debt register](docs/shared/debt-register.md).
 
 ## Deployment
 
@@ -694,3 +700,12 @@ The catalog assistant and shared reader controls follow the English site interfa
 See [the reader walkthrough](docs/features/reader-verification.md) for KAN-31 onward
 and [deployment checks](docs/features/deployment-verification.md) when a server
 appears to be running older code.
+
+### Natural-language catalog questions
+
+Ask the Assistant `знайди твори Шевченка`, `Find books by Taras Shevchenko`,
+`Is 1984 available?` or `Порадь книги про програмування`. No command prefix or
+intent selection is required. Topic queries reuse the existing CPU encoder;
+name/title lookups do not load a model. The reader page supports a short
+availability follow-up without retaining question text. See
+[the contract and verified controls](docs/ba/catalog-assistant.md).

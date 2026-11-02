@@ -254,11 +254,12 @@ def reservation_notice_dismiss(
         reservation.cancellation_seen_at = timezone.now()
         reservation.save(update_fields=["cancellation_seen_at"])
     target = request.POST.get("next", "")
-    if not url_has_allowed_host_and_scheme(
+    # Redirect only inside the check, where code scanning can see it (TD-32).
+    if url_has_allowed_host_and_scheme(
         target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
     ):
-        target = reverse("reservation_my")
-    return redirect(target)
+        return redirect(target)
+    return redirect("reservation_my")
 
 
 @librarian_required

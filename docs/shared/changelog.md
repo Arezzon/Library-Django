@@ -2,6 +2,30 @@
 Library overview page (KAN-54)
 **Analytics** now opens on an **Overview** tab for librarians and administrators, built from the KAN-34 figures: six tiles with the value and its change against the previous period, their details behind an "i" button that works by keyboard and without JavaScript; loans and returns over time with months, weeks or days before the history start hatched as no data and the same numbers in a table for screen readers; the most borrowed books with copies available now, the most viewed books, deleted ones named without a link; and reader counts. The period is the last 7, 30 or 90 days or 12 months, and an unknown one falls back to 30 days. A notice says where each source's history starts, and an empty library says so instead of drawing an empty chart. The page shows no reader's name, email or search text and runs a fixed number of queries. The per-event screen moved to the **Activity log** tab at `/events/activity/`, unchanged. The accessibility check covers both tabs, and the tracking smoke test checks that the overview shows the borrowed book.
 
+2026-11-02
+Complete assistant navigation regression coverage
+Cover invalid saved-reference shapes and metadata, direct service and view authorization, rejected result selectors and catalog failure during GET result hydration. Achieve 100% coverage of the 68 changed application lines with the full 596-test PostgreSQL suite; preserve existing assistant, CSRF and browser checks.
+
+2026-11-02
+Safe assistant back and refresh navigation
+Redirect successful assistant forms with HTTP 303 to a GET-only result page backed by bounded, account-bound catalog references. Re-read current records and stock without storing question text or replaying semantic queries. Cover back/refresh after CSRF-cookie rotation, repeated questions, expiry, privacy and genuine CSRF rejection in server and browser regressions.
+
+2026-11-02
+The last P1 items of KAN-62 close (KAN-62)
+The debt register has no P1 item open or blocked, so KAN-62 is done. The keyboard, screen-reader and walkthrough checks passed with no problems, as the technical lead reported, and so did the Pi's reboot counts, cold start and backups. The Jira descriptions of KAN-18 and KAN-19 now match the product, and KAN-62 links the register. Each embedding failure is now logged with its cause, never with the book's text or the search text, and tests fix the query counts of Saved Books and For You, on the site and in the API. A security review of the access rules, log redaction, backup file permissions and the scripts' handling of passwords found no serious problem. The final checks on `main` passed, and each of the feature's 12 pull requests met its rules. The register drops TD-35 and adds three gaps: no test requires the pages' access test to list every page, unknown addresses get no page in the site's style, and librarian pages answer readers with 403 instead of 404. Bug report #62 covers TD-29. The specification is marked implemented.
+
+2026-11-02
+The debt register, and the accessibility follow-ups (KAN-71)
+`docs/shared/debt-register.md` lists the priority technical debt of v1.0 and the gaps found while closing it. It has 35 items, each with a priority, an owner named by GitHub handle, and evidence or a plan. 2 P1 items remain open, so KAN-62 stays open: the keyboard, screen-reader and walkthrough checks, and the Jira descriptions of KAN-18 and KAN-19. The research notes record the operator's results on the Raspberry Pi, where speed, memory, the reservation load, persistence and a restore rehearsal all pass, and the designated administrator exists. They also add every pull request's coverage and the merge rules on `main`. The README points to the ADRs and the register. The book deletion page says at once why a book with loans or reservations cannot be deleted. Warnings have their own colour. The book page's title starts with "Error:" when a rating has errors. Repeated actions name their item for screen readers, with its number when two books share a title. The notice's Dismiss redirects in a way code scanning can verify, which resolves CodeQL alert 15. The backup service keeps its image's data directory in a named volume, so recreating it leaves no anonymous volume behind.
+
+2026-11-01
+Natural Ukrainian and English catalog questions
+Extend the catalog assistant with bounded natural-language interpretation, Ukrainian case and transliteration matching, CPU topic retrieval through the existing semantic model, and account-bound ten-minute availability follow-ups without saving question text. Preserve grounded links, current stock, privacy and read-only operations; add 16 real seeded demo queries to HTTP CI plus grammar, service, session and browser regressions.
+
+2026-11-01
+Book.create links authors after saving the book (KAN-77)
+`Book.create` with a non-empty `authors` list no longer fails with `ValueError`: the book is saved first, then its authors are linked, and both happen in one transaction, so a failed link leaves neither the book nor its embedding behind. New tests cover no authors, an empty list, one and several authors, the rollback and a too-long name.
+
 2026-11-01
 Library overview metrics and API (KAN-34)
 Librarians and administrators can read the library overview at `GET /api/v1/analytics/overview/?period=30d&limit=10`: loans issued, returns, active borrowers, overdue loans now, reservations by their current state and book views, each compared with the period before; loans and returns per day, Monday-based week or month; the most borrowed and most viewed books with their current availability; and first-time, returning and per-borrower counts. The periods are `7d`, `30d`, `90d` and `12m`, in Kyiv time. Loans come from orders and interest from tracked events, and a comparison or bucket that the history does not reach is reported as unknown rather than zero. Staff who borrow books count as borrowers. The response holds no account data, readers get 403, and the endpoint runs a fixed number of queries. The access contract, README and the dashboard design describe it.
@@ -152,7 +176,7 @@ Added a CodeQL workflow that scans GitHub Actions workflows, JavaScript and Pyth
 
 2026-10-18
 Code ownership by module
-Assigned owners for borrowing, books, and events; grouped business analysis and shared documentation; and updated test ownership so Dima and Arezzon can review test changes.
+Assigned owners for borrowing, books, and events; grouped business analysis and shared documentation; and updated test ownership so @Dima22820 and @Arezzon can review test changes.
 
 2026-10-18
 Delete books from the edit page
@@ -176,7 +200,7 @@ Added a skill and repository rule to create feature branches from an updated ori
 
 2026-10-06
 Code ownership by role
-Limited Anastasiia's code ownership to documentation and Dima's to test files and test directories. The other four collaborators remain owners across the repository.
+Limited @anastasiiaMirovska's code ownership to documentation and @Dima22820's to test files and test directories. The other four collaborators remain owners across the repository.
 
 2026-10-06
 Repository guidance and delivery skills

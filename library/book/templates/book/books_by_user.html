@@ -46,7 +46,7 @@
                                     </span>
                                 </td>
                                 <td class="table-td text-right whitespace-nowrap">
-                                    <a href="{% url 'order_close' order.id %}" class="btn-sm-success">Record Return<span class="sr-only"> of {{ order.book.name }}</span></a>
+                                    <a href="{% url 'order_close' order.id %}" class="btn-sm-success">Record Return<span class="sr-only"> of {{ order.book.name }}, loan #{{ order.id }}</span></a>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -74,7 +74,7 @@
                     </div>
 
                     <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
-                        <a href="{% url 'order_close' order.id %}" class="btn-sm-success w-full justify-center">Record Return<span class="sr-only"> of {{ order.book.name }}</span></a>
+                        <a href="{% url 'order_close' order.id %}" class="btn-sm-success w-full justify-center">Record Return<span class="sr-only"> of {{ order.book.name }}, loan #{{ order.id }}</span></a>
                     </div>
                 </div>
             {% endfor %}

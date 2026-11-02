@@ -4,14 +4,21 @@ The time zone check reads the template files, so it covers pages that no test op
 """
 
 import re
+from collections import defaultdict
+from datetime import timedelta
 from html.parser import HTMLParser
 from pathlib import Path
 
 from django.conf import settings
 from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 
+from author.models import Author
 from book.models import Book
+from book.preferences import set_preferences
 from book.testing import FakeEncoderMixin
+from events.models import EventType, UserEvent
+from order.models import Order, Reservation, ReservationState
 
 from .models import ROLE_LIBRARIAN
 from .test_access import account
@@ -56,6 +63,59 @@ class StatusRegions(HTMLParser):
     def handle_data(self, data):
         if self.depth:
             self.texts.append(data)
+
+
+class Actions(HTMLParser):
+    """The accessible name of each link and button, with what it acts on: a link's
+    address, or a button's form address, name and value."""
+
+    def __init__(self, page):
+        super().__init__()
+        self.found = []
+        self.form = None
+        self.action = None  # [tag, target, aria-label, texts]
+        self.hidden = []  # one flag per element open inside the action
+        self.feed(page)
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if self.action:
+            if tag not in VOID_ELEMENTS:
+                self.hidden.append(attrs.get("aria-hidden") == "true")
+        elif tag == "form":
+            self.form = attrs.get("action")
+        elif tag == "a" and "href" in attrs:
+            self.action = [tag, attrs["href"], attrs.get("aria-label"), []]
+        elif tag == "button":
+            target = (self.form, attrs.get("name"), attrs.get("value"))
+            self.action = [tag, target, attrs.get("aria-label"), []]
+
+    def handle_startendtag(self, tag, attrs):
+        if not self.action:
+            self.handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag):
+        if self.action and self.hidden:
+            self.hidden.pop()
+        elif self.action and tag == self.action[0]:
+            tag, target, label, texts = self.action
+            self.found.append((tag, label or " ".join("".join(texts).split()), target))
+            self.action = None
+        elif tag == "form":
+            self.form = None
+
+    def handle_data(self, data):
+        if self.action and not any(self.hidden):
+            self.action[3].append(data)
+
+
+def shared_names(page):
+    """The names that two links, or two buttons, share while acting on different
+    things, so that only their surroundings tell them apart."""
+    targets = defaultdict(set)
+    for tag, name, target in Actions(page).found:
+        targets[tag, name].add(target)
+    return sorted(name for (tag, name), found in targets.items() if len(found) > 1)
 
 
 # Format characters of Django's date filter that show a time, and those that show the zone.
@@ -167,6 +227,25 @@ class LayoutTests(FakeEncoderMixin, TestCase):
             "Welcome to the library.", StatusRegions(response.content.decode()).text
         )
 
+    def test_a_warning_has_its_own_colour(self):
+        self.client.force_login(account("stock@example.com", ROLE_LIBRARIAN))
+        book = Book.objects.create(name="Kobzar", count=1)
+        Reservation.objects.create(book=book, user=account("hold@example.com"))
+        response = self.client.post(
+            f"/book/update/{book.pk}/",
+            {"name": "Kobzar", "description": "", "count": 0},
+            follow=True,
+        )
+        warning = re.search(
+            r'<div class="([^"]*)">\s*<span>This book now has 0 copies',
+            response.content.decode(),
+        )
+        self.assertEqual(warning.group(1), "alert-warning")
+        styles = BASE_TEMPLATE.read_text("utf-8")
+        rule = re.search(r"\.alert-warning \{\s*@apply ([^;]*);", styles).group(1)
+        # Amber 800 on amber 50 is about 6.8:1; amber 700 would be 4.8:1.
+        self.assertIn("text-amber-800", rule.split())
+
     def test_every_page_says_which_zone_its_times_are_in(self):
         page = self.page("/authentication/login/")
         self.assertEqual(page.count("Times are shown in Kyiv time (EET/EEST)."), 1)
@@ -178,6 +257,108 @@ class LayoutTests(FakeEncoderMixin, TestCase):
             rf'<a href="/authentication/users/{reader.pk}/"[^>]*>', self.page()
         )
         self.assertEqual(len(links), 2)  # the desktop and the mobile menu
+
+
+class ActionNameTests(FakeEncoderMixin, TestCase):
+    """A repeated action in a list or a notice names its item, so the list of a
+    page's links or buttons that a screen reader offers tells them apart, even when
+    two books share a title or two authors a name (T178, T182). A link that shows a
+    book's title is that book's name, which two books may share."""
+
+    SHARED_TITLE = "Kobzar"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.librarian = account("names-desk@example.com", ROLE_LIBRARIAN)
+        cls.holder = account("names-holder@example.com")
+        cls.borrower = account("names-borrower@example.com")
+        cls.notified = account("names-notified@example.com")
+        cls.saver = account("names-saver@example.com")
+        # With no history, For You falls back to the available books.
+        cls.newcomer = account("names-newcomer@example.com")
+        due = timezone.now() + timedelta(days=14)
+        books = []
+        for title, name, surname in (
+            (cls.SHARED_TITLE, "Taras", "Shevchenko"),
+            (cls.SHARED_TITLE, "Taras", "Shevchenko"),  # another book and author
+            ("Forest Song", "Lesya", "Ukrainka"),
+        ):
+            book = Book.objects.create(name=title, count=5)
+            Author.objects.create(name=name, surname=surname).books.add(book)
+            Reservation.objects.create(book=book, user=cls.holder)
+            Order.objects.create(book=book, user=cls.borrower, plated_end_at=due)
+            set_preferences(cls.saver, book.pk, liked=True, favorite=True)
+            UserEvent.objects.create(
+                user=cls.saver,
+                event_type=EventType.BOOK_VIEW,
+                source="server",
+                book_id=book.pk,
+                occurred_at=timezone.now(),
+            )
+            books.append(book)
+        kobzar, other_kobzar, forest_song = books
+        # Two notices about one book, a day apart, and one about the other book with
+        # that title, cancelled at the same moment as the first.
+        yesterday = timezone.now() - timedelta(days=1)
+        for book, cancelled_at in (
+            (kobzar, yesterday),
+            (kobzar, yesterday - timedelta(days=1)),
+            (other_kobzar, yesterday),
+            (forest_song, yesterday),
+        ):
+            Reservation.objects.create(
+                book=book,
+                user=cls.notified,
+                state=ReservationState.CANCELLED,
+                cancelled_by=cls.librarian,
+                cancelled_at=cancelled_at,
+                cancel_reason="The copy is damaged.",
+            )
+
+    def test_the_check_finds_actions_told_apart_only_by_their_surroundings(self):
+        edit = '<a href="/author/update/{}/">Edit{}</a>'
+        self.assertEqual(
+            shared_names(edit.format(1, "") + edit.format(2, "")), ["Edit"]
+        )
+        named = '<span class="sr-only"> Taras Shevchenko</span>'
+        other = '<span class="sr-only"> Lesya Ukrainka</span>'
+        self.assertEqual(
+            shared_names(edit.format(1, named) + edit.format(2, other)), []
+        )
+        self.assertEqual(shared_names('<a href="/">Home</a><a href="/">Home</a>'), [])
+        dismiss = '<form action="/notices/{}/"><button>Dismiss</button></form>'
+        self.assertEqual(
+            shared_names(dismiss.format(1) + dismiss.format(2)), ["Dismiss"]
+        )
+        arrow = '<a href="/book/{}/">Details <span aria-hidden="true">{}</span></a>'
+        self.assertEqual(
+            shared_names(arrow.format(1, "Kobzar") + arrow.format(2, "Forest Song")),
+            ["Details"],
+        )
+
+    def test_every_list_names_the_item_of_each_action(self):
+        # Each page, and a text that shows it lists the data above.
+        pages = [
+            (self.librarian, "/author/", "Forest Song"),
+            (self.librarian, "/book/", "Forest Song"),
+            (self.librarian, "/order/all/", "Forest Song"),
+            (self.librarian, "/authentication/users/", self.borrower.email),
+            (self.librarian, "/order/reservations/desk/", "Forest Song"),
+            (self.librarian, f"/book/user/{self.borrower.pk}/", "Forest Song"),
+            (self.holder, "/order/reservations/", "Forest Song"),
+            (self.borrower, "/order/my/", "Forest Song"),
+            (self.notified, "/", "Forest Song"),
+            (self.saver, "/book/preferences/", "Forest Song"),
+            (self.newcomer, "/book/recommendations/", "Forest Song"),
+            (self.librarian, "/events/", "Forest Song"),
+        ]
+        for user, path, shown in pages:
+            with self.subTest(path=path):
+                self.client.force_login(user)
+                response = self.client.get(path)
+                self.assertContains(response, shown)
+                shared = shared_names(response.content.decode())
+                self.assertEqual([n for n in shared if n != self.SHARED_TITLE], [])
 
 
 class FormTests(FakeEncoderMixin, TestCase):
@@ -211,6 +392,18 @@ class FormTests(FakeEncoderMixin, TestCase):
         self.assertNotIn(
             "<title>Error: ",
             self.client.get("/authentication/register/").content.decode(),
+        )
+
+    def test_the_book_page_says_so_in_its_title_when_the_rating_has_errors(self):
+        self.client.force_login(account("rater@example.com"))
+        book = Book.objects.create(name="Kobzar", count=1)
+        response = self.client.post(
+            f"/book/{book.pk}/rating/", {"action": "set", "value": "9"}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertRegex(response.content.decode(), r"<title>Error: ")
+        self.assertNotIn(
+            "<title>Error: ", self.client.get(f"/book/{book.pk}/").content.decode()
         )
 
     def test_required_fields_are_marked(self):

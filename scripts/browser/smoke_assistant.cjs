@@ -1,6 +1,8 @@
 // Disposable stack only: temporarily rename the catalog table to test source failure.
 const assert = require('node:assert/strict');
 const {execFileSync} = require('node:child_process');
+const {readFileSync} = require('node:fs');
+const path = require('node:path');
 const {chromium} = require('playwright-core');
 const {default: AxeBuilder} = require('@axe-core/playwright');
 const base = process.env.ASSISTANT_BASE_URL || 'http://localhost:8000';
@@ -21,10 +23,9 @@ function sql(command) {
     await Promise.all([page.waitForNavigation(), page.locator('form button[type=submit]').click()]);
     await page.goto(base + '/assistant/');
     const before = sql('SELECT (SELECT count(*) FROM order_order), (SELECT count(*) FROM order_reservation)');
-    await page.locator('#id_intent').focus();
-    await page.keyboard.press('Tab');
+    await page.locator('#id_q').focus();
     assert.equal(await page.locator(':focus').getAttribute('id'), 'id_q');
-    await page.keyboard.type('книга: Kobzar');
+    await page.keyboard.type('Знайди твори Шевченка');
     await page.keyboard.press('Tab');
     assert.equal(await page.locator(':focus').innerText(), 'Ask');
     await Promise.all([page.waitForNavigation(), page.keyboard.press('Enter')]);
@@ -34,10 +35,30 @@ function sql(command) {
     const accessibility = await new AxeBuilder({page}).include('#assistant-interface').analyze();
     assert.deepEqual(accessibility.violations.map(v => ({id:v.id, nodes:v.nodes.map(n=>n.target)})), []);
     if (process.env.ASSISTANT_SCREENSHOT) await page.locator('#assistant-result').screenshot({path:process.env.ASSISTANT_SCREENSHOT});
+    for (const question of ['Which of these are available?', 'Find books by Shevchenko', 'А які з них доступні?']) {
+      await page.locator('#id_q').fill(question);
+      const [answer]=await Promise.all([page.waitForNavigation(),page.getByRole('button',{name:'Ask',exact:true}).click()]);
+      assert.equal(answer.status(),200);
+      assert.match(await page.locator('#assistant-result').innerText(),/Kobzar/);
+    }
     const source = page.locator('#assistant-result a[href^="/book/"]').first();
     await source.focus();
     await Promise.all([page.waitForNavigation(), page.keyboard.press('Enter')]);
     assert.match(new URL(page.url()).pathname, /^\/book\/\d+\/$/);
+    // The result must be GET history, including after CSRF-cookie rotation.
+    const csrfCookie=(await context.cookies()).find(cookie=>cookie.name==='csrftoken');
+    await context.addCookies([{...csrfCookie,value:'A'.repeat(32)}]);
+    const back=await page.goBack();
+    assert.equal(back.status(),200);
+    assert.equal(back.request().method(),'GET');
+    assert.match(new URL(page.url()).pathname,/^\/assistant\/result\/$/);
+    assert(await page.locator('#assistant-result').isVisible());
+    const refreshed=await page.reload();
+    assert.equal(refreshed.status(),200);
+    assert.equal(refreshed.request().method(),'GET');
+    await page.locator('#id_q').fill('Find books by Shevchenko');
+    const [resubmitted]=await Promise.all([page.waitForNavigation(),page.getByRole('button',{name:'Ask',exact:true}).click()]);
+    assert.equal(resubmitted.status(),200);
     await page.goto(base + '/assistant/');
     await page.locator('#id_q').fill(marker);
     await Promise.all([page.waitForNavigation(), page.getByRole('button',{name:'Ask',exact:true}).click()]);
@@ -45,7 +66,7 @@ function sql(command) {
     assert.equal(new URL(page.url()).search, '');
     sql('ALTER TABLE book_book RENAME TO kan53_catalog_outage');
     try {
-      await page.locator('#id_q').fill('наявність: Kobzar');
+      await page.locator('#id_q').fill('Is Kobzar available?');
       const [response] = await Promise.all([page.waitForNavigation(), page.getByRole('button',{name:'Ask',exact:true}).click()]);
       assert.equal(response.status(), 503);
       assert.match(await page.locator('#assistant-result [role=alert]').innerText(), /The catalog is temporarily unavailable/);
@@ -53,11 +74,19 @@ function sql(command) {
     } finally {
       sql('ALTER TABLE kan53_catalog_outage RENAME TO book_book');
     }
+    const controls=JSON.parse(readFileSync(path.join(__dirname,'../../library/ai/control/questions_natural.json'),'utf8'));
+    for (const control of controls) {
+      await page.locator('#id_q').fill(control.question);
+      const [answer]=await Promise.all([page.waitForNavigation(),page.getByRole('button',{name:'Ask',exact:true}).click()]);
+      assert.equal(answer.status(),200,control.question);
+      const titles=await page.locator('#assistant-result a').evaluateAll(links=>links.filter(a=>/^\/book\/\d+\/$/.test(a.getAttribute('href'))).map(a=>a.textContent.trim()).sort());
+      assert.deepEqual(titles,[...control.titles].sort(),control.question);
+    }
     const after = sql('SELECT (SELECT count(*) FROM order_order), (SELECT count(*) FROM order_reservation)');
     assert.equal(after, before);
     const logs = execFileSync('docker', [...compose, 'logs', '--no-color', 'web'], {encoding:'utf8'});
     assert(!logs.includes(marker), 'Private question leaked to logs');
     assert(logs.includes('status=source_unavailable'));
-    console.log('PASS: keyboard submit/source link, axe accessibility, source outage, private logs and unchanged loans/holds');
+    console.log('PASS: 16 UA/EN questions, GET back/refresh after CSRF rotation, follow-ups, keyboard/source links, axe, source outage, private logs and unchanged loans/holds');
   } finally { await browser.close(); }
 })().catch(error => {console.error(error); process.exitCode=1;});

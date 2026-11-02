@@ -45,10 +45,10 @@
                                 <td class="table-td text-right whitespace-nowrap">
                                     <div class="inline-flex items-center justify-end gap-2">
                                         <a href="{% url 'user_detail' user.id %}" class="btn-sm-secondary">
-                                            Profile
+                                            Profile<span class="sr-only"> of {{ user.email }}</span>
                                         </a>
                                         <a href="{% url 'books_by_user' user.id %}" class="btn-sm-primary">
-                                            Borrowed Books
+                                            Borrowed Books<span class="sr-only"> of {{ user.email }}</span>
                                         </a>
                                     </div>
                                 </td>
@@ -84,10 +84,10 @@
 
                     <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
                         <a href="{% url 'user_detail' user.id %}" class="btn-sm-secondary flex-1 text-center justify-center">
-                            Profile
+                            Profile<span class="sr-only"> of {{ user.email }}</span>
                         </a>
                         <a href="{% url 'books_by_user' user.id %}" class="btn-sm-primary flex-1 text-center justify-center">
-                            Borrowed Books
+                            Borrowed Books<span class="sr-only"> of {{ user.email }}</span>
                         </a>
                     </div>
                 </div>

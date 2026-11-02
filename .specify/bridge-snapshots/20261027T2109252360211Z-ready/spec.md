@@ -86,7 +86,7 @@ sources that KAN-62 cites by name are in neither the team folder nor Confluence.
   restore, accessibility and clarity, and the debt register), with the assignee's confirmation, and
   deliver one pull request per sub-task. Access control stays its own KAN-24 pull request.
 - Q: How are the merge requirements for code scanning (KAN-15) and the lint check (KAN-22) applied?
-  → A: As repository settings, by Arsen, through a Jira sub-task under each issue that is assigned
+  → A: As repository settings, by @Arezzon, through a Jira sub-task under each issue that is assigned
   to him (KAN-73 under KAN-15, KAN-72 under KAN-22). Neither needs a pull request.
 - Q: Should the KAN-62 sub-tasks be drafted for the assignee's confirmation before they are created?
   → A: No. They were created directly, as KAN-67 to KAN-71.
@@ -96,9 +96,9 @@ sources that KAN-62 cites by name are in neither the team folder nor Confluence.
 - Q: Should a reservation hold one unit of a book's stock, or one specific physical copy that the
   library tracks individually? → A: One unit of stock, counted the same way loans are. No copy records
   are added, and the ADR delivered with KAN-55 records the choice and the rejected alternative.
-- Q: Should Arsen also get a sub-task under KAN-13 to switch on required code-owner review for
+- Q: Should @Arezzon also get a sub-task under KAN-13 to switch on required code-owner review for
   `main`? → A: Yes. KAN-13 is marked Done, but the ruleset still merges without a code owner's
-  approval. Like the sub-tasks of KAN-15 and KAN-22, it is a repository setting that Arsen applies
+  approval. Like the sub-tasks of KAN-15 and KAN-22, it is a repository setting that @Arezzon applies
   (KAN-74).
 
 ## User Scenarios & Testing *(mandatory)*
@@ -721,7 +721,7 @@ no P1 item is open.
   changes MUST be covered, and every exception MUST be listed with its reason in its pull request.
 - **FR-052**: A merge into `main` MUST require the lint and format check, the full smoke test on every
   runner and code scanning to pass, and an approval from a code owner of every path the pull request
-  touches. The three requirements missing today are repository settings, not file changes: Arsen, the
+  touches. The three requirements missing today are repository settings, not file changes: @Arezzon, the
   repository administrator, MUST apply them through the Jira sub-tasks KAN-72 of KAN-22 (the lint
   check), KAN-73 of KAN-15 (code scanning) and KAN-74 of KAN-13 (code-owner review), and each applied
   setting MUST be recorded as evidence.
@@ -774,7 +774,7 @@ no P1 item is open.
   | 10 | KAN-69 (KAN-62): accessibility and clarity | Story 6, FR-041 to FR-045 | 7 |
   | 11 | KAN-70 (KAN-62): administrator role | FR-063 | 1 |
   | 12 | KAN-71 (KAN-62): debt register | Story 9, FR-054 to FR-058, and the closing evidence | all others |
-  | none | KAN-72 (KAN-22), KAN-73 (KAN-15), KAN-74 (KAN-13), assigned to Arsen | The lint, code-scanning and code-owner merge requirements, applied as repository settings (FR-052) | none |
+  | none | KAN-72 (KAN-22), KAN-73 (KAN-15), KAN-74 (KAN-13), assigned to @Arezzon | The lint, code-scanning and code-owner merge requirements, applied as repository settings (FR-052) | none |
   | none | KAN-17, KAN-19 | Evidence in the register | none |
 
   Each reservation stage MUST meet FR-020 and FR-021 for the actions it adds, so every operation
@@ -873,7 +873,7 @@ no P1 item is open.
 - KAN-17 was completed by feature 002 (pull requests #30 to #32 and #34) and needs evidence only. The
   code for KAN-19 is complete, and only its Jira description is out of date. KAN-15, KAN-22 and KAN-24
   are complete as written. Their remaining parts here belong to them because KAN-62 groups the items
-  that way: the merge requirements, which Arsen applies as repository settings through sub-tasks of
+  that way: the merge requirements, which @Arezzon applies as repository settings through sub-tasks of
   KAN-15 and KAN-22 (and of KAN-13 for code-owner review), and the access-control gap.
 - The access-control gap is attributed to KAN-24 because KAN-62 lists "a secure configuration" under
   it and LR1 includes access control in the security requirement. Its pull request names both KAN-24
@@ -917,7 +917,7 @@ no P1 item is open.
   public site.
 - P2 search work, recommendations, the AI assistant, ratings and demand forecasting are out of scope.
 - At the assignee's request, the sub-tasks KAN-67 to KAN-71 of KAN-62 (assigned to the KAN-62
-  assignee) and KAN-72, KAN-73 and KAN-74 of KAN-22, KAN-15 and KAN-13 (assigned to Arsen) were
+  assignee) and KAN-72, KAN-73 and KAN-74 of KAN-22, KAN-15 and KAN-13 (assigned to @Arezzon) were
   created on 2026-10-27. Every other Jira change is made by the assignee, or at their explicit request.
 - Owners in the debt register start from the owner roles in the team's risk register: the senior
   engineer for the race condition (R2), the QA lead for test coverage (R3), and the product owner with

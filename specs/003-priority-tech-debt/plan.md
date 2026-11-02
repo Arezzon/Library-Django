@@ -16,7 +16,8 @@ KAN-62 closes only when the priority debt of v1.0 is verified, not merely planne
 4. PRs 4 to 7;
 5. PR 11;
 6. PR 10;
-7. PR 12.
+7. PR 12;
+8. PR 13, which records the checks that close KAN-62.
 
 The reasons for this order are in R1.
 
@@ -85,9 +86,22 @@ system (R25).
 operator creates the first administrator on the server, and every change is audited (R26).
 
 **PR 12, debt register (KAN-71).** The register with evidence for every item, the README and ADRs
-reviewed, and KAN-62 closed with no P1 item open (R28).
+reviewed, and KAN-62 closed with no P1 item open (R28). At the user's request, it also fixes the four
+minor findings that PR 10's final review deferred (T175 to T178). After it opened, it also resolves
+CodeQL alert 15, adds a test for TD-30, and fixes the two minor findings that its own review deferred
+(T179 to T184). It also records the operator's results from the Pi, and refers to people by their
+GitHub handles (T185, T186).
 
-**Settings, applied by Arsen.** KAN-72, KAN-73 and KAN-74 make lint, code scanning and code owners'
+**PR 13, the closing record (KAN-62).** PR 12 merged with 2 P1 items open. PR 13 records what
+closed them: the keyboard, screen-reader and walkthrough checks (T162, T163) and the corrected Jira
+descriptions (T039, T171). It also records the final security review and checks on `main` (T173,
+T174), removes TD-35 at the user's decision, and marks the spec Implemented (T169). Its own tasks
+are T187 to T190. At the user's direction it also carries Phases 17 to 21, the convergence tasks,
+five of which change code: embedding failures are logged (T191, T202), and tests fix the query
+counts of Saved Books and its API (T199, T201) and of For You and its API (T200). T203 records
+every list's query count.
+
+**Settings, applied by @Arezzon.** KAN-72, KAN-73 and KAN-74 make lint, code scanning and code owners'
 approval required on `main` (R27).
 
 ## Technical Context

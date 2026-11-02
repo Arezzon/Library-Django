@@ -34,7 +34,9 @@ class AssistantInterfaceTests(FakeEncoderMixin, TestCase):
         self.client.force_login(self.reader)
 
     def ask(self, q, **kwargs):
-        return self.client.post("/assistant/", {"q": q, "intent": "auto"}, **kwargs)
+        return self.client.post(
+            "/assistant/", {"q": q, "intent": "auto"}, follow=True, **kwargs
+        )
 
     def test_ukrainian_control_questions(self):
         cases = json.loads(
@@ -69,6 +71,14 @@ class AssistantInterfaceTests(FakeEncoderMixin, TestCase):
             self.assertContains(response, fragment)
         self.assertIn("no-store", response["Cache-Control"])
         self.assertEqual(response["Referrer-Policy"], "same-origin")
+
+    def test_the_page_does_not_show_when_the_answer_was_checked(self):
+        """The page once showed that time as a bare UTC timestamp (TD-30, FR-044).
+        Only the API gives it now, with its offset, for programs."""
+        response = self.ask("книга: Кобзар")
+        checked_at = response.context["result"]["checked_at"]
+        self.assertIsNotNone(checked_at)
+        self.assertNotContains(response, checked_at)
 
     def test_form_validation_and_selectors(self):
         for data in (
@@ -131,7 +141,12 @@ class AssistantInterfaceTests(FakeEncoderMixin, TestCase):
         )
         self.client.logout()
         self.assertEqual(self.client.get("/assistant/").status_code, 302)
-        self.assertEqual(self.ask("Кобзар").status_code, 302)
+        self.assertEqual(
+            self.client.post(
+                "/assistant/", {"q": "Кобзар", "intent": "auto"}
+            ).status_code,
+            302,
+        )
         self.reader.is_active = False
         self.reader.save(update_fields=["is_active"])
         self.client.force_login(self.reader)
@@ -139,7 +154,9 @@ class AssistantInterfaceTests(FakeEncoderMixin, TestCase):
 
     def test_html_is_escaped_and_initial_page_has_no_previous_question(self):
         book = Book.objects.create(name='<script>alert("x")</script>', count=1)
-        response = self.client.post("/assistant/", {"q": book.name, "intent": "title"})
+        response = self.client.post(
+            "/assistant/", {"q": book.name, "intent": "title"}, follow=True
+        )
         self.assertNotContains(response, book.name)
         self.assertContains(response, "&lt;script&gt;")
         response = self.client.get("/assistant/")

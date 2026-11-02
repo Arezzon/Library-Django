@@ -84,3 +84,139 @@
 
 {"timestamp":"2026-10-28T10:22:35.7120231Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
 
+{"timestamp":"2026-10-28T11:42:55.3581133Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-28T12:24:13.5822606Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Constitution MINOR amendment for PR 8 (KAN-67, R29)","actor":"claude","prior_actor":"claude","snapshot_id":"20261028T1224135664412Z-blocked"}
+
+{"timestamp":"2026-10-28T12:24:13.8975749Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-10-28T12:25:59.4321298Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261028T1225593822745Z-executing"}
+
+{"timestamp":"2026-10-28T16:57:35.3458232Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-28T17:34:43.2439633Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-28T22:24:33.1933682Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-30T21:03:56.9667712Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-30T21:37:57.2827601Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-30T23:39:01.3426715Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-30T23:39:46.6750795Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"PR 7 (KAN-58) constitution PATCH amendment (R29): workflow item 4 adds the reservation burst to the smoke-test job","actor":"claude","prior_actor":"claude","snapshot_id":"20261030T2339466580911Z-blocked"}
+
+{"timestamp":"2026-10-30T23:39:47.0280392Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-10-30T23:41:28.4521976Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261030T2341283843050Z-executing"}
+
+{"timestamp":"2026-10-30T23:41:28.8391756Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T13:43:03.9153405Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T13:51:11.7189860Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"T147: constitution MINOR amendment for PR 11 (KAN-70): Principle II adds the administrator audience (ROLE_ADMINISTRATOR)","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1351117022109Z-blocked"}
+
+{"timestamp":"2026-11-01T13:51:12.0411662Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-11-01T13:52:43.8620292Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1352438101807Z-executing"}
+
+{"timestamp":"2026-11-01T15:48:02.7448895Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T16:33:56.2451135Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Constitution PATCH amendment for PR 10 (T161, R29): workflow item 4, the smoke test runs the accessibility check","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1633562297490Z-blocked"}
+
+{"timestamp":"2026-11-01T16:33:56.5752045Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-11-01T16:35:37.5812941Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1635375310899Z-executing"}
+
+{"timestamp":"2026-11-01T19:18:06.4740064Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T19:41:10.8263779Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"tasks.md lacks the four PR 10 review follow-ups that the user asked to ship in PR 12; adding them as T175 to T178","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1941108106291Z-blocked"}
+
+{"timestamp":"2026-11-01T19:41:36.4357542Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1941363834810Z-executing"}
+
+{"timestamp":"2026-11-01T19:41:36.7648584Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T20:28:46.7347941Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T21:01:03.8585649Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Contract amendment: PR 12 adds T179-T184 at the user\u0027s request (CodeQL alert 15, a guard for TD-30, the two minors PR 12\u0027s review deferred, and the records), and T056 is done by the technical lead\u0027s own check","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T2101038422807Z-blocked"}
+
+{"timestamp":"2026-11-01T21:01:36.2738399Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T2101362227547Z-executing"}
+
+{"timestamp":"2026-11-01T21:01:36.5776323Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T21:37:20.5550143Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T00:37:15.8946961Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Contract amendment: PR 12 records the operator\u0027s Pi results (T039 Pi part, T067, T137, T149, T172), refers to people by GitHub handle (T185), and records the results and new findings (T186), at the user\u0027s request","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0037158789298Z-blocked"}
+
+{"timestamp":"2026-11-02T00:38:00.6900263Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0038006401478Z-executing"}
+
+{"timestamp":"2026-11-02T00:38:01.0074125Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T01:42:21.5770363Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"PR 13 contract: tasks.md gains the closing record (T187 to T190) after PR 12 merged with 2 P1 items open; plan.md names PR 13","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0142215541699Z-blocked"}
+
+{"timestamp":"2026-11-02T01:42:55.7093895Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0142556594569Z-executing"}
+
+{"timestamp":"2026-11-02T01:42:56.0381015Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T02:00:23.7001794Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0200236346909Z-complete"}
+
+{"event":"artifact_drift_detected","timestamp":"2026-11-02T02:00:23.7051919Z","actor":"claude","feature_directory":"specs/003-priority-tech-debt","drifted_artifacts":[{"path":"spec.md","old_sha256":"d58e22c2d2e47ceee159dfda883f6f93ed29510c94ccd0b2460336358500a737","new_sha256":"c917ece567d056069259b37a5c2e4cb51dbb7b74b87572d4e70fce671299ee5f"},{"path":"tasks.md","old_sha256":"0fd402ee4c655ed5326838d7d39e8699bfd1340b7e16acc7d7d508d5512210bc","new_sha256":"bb0290788b59df638f7cd2fc9874835ee5737034fed2530519044c4011e527f8"}]}
+
+{"timestamp":"2026-11-02T02:39:58.7565005Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0239586979177Z-executing"}
+
+{"timestamp":"2026-11-02T02:39:59.0704233Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T03:03:07.4971556Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"plan.md says PR 13 changes only documents; at the user\u0027s direction PR 13 also carries Phase 17 (T191, T199 change code)","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0303074816437Z-blocked"}
+
+{"timestamp":"2026-11-02T03:03:24.0878359Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0303240361722Z-executing"}
+
+{"timestamp":"2026-11-02T03:03:40.4390509Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Reword the plan.md PR 13 sentence written in the previous block","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0303404153113Z-blocked"}
+
+{"timestamp":"2026-11-02T03:03:41.7719660Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0303417226977Z-executing"}
+
+{"timestamp":"2026-11-02T10:16:12.0392896Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1016119861115Z-complete"}
+
+{"timestamp":"2026-11-02T10:42:16.3138427Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1042162618579Z-executing"}
+
+{"timestamp":"2026-11-02T10:42:16.6279187Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T10:50:32.6706317Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"plan.md\u0027s PR 13 paragraph names Phase 17 only; at the user\u0027s direction PR 13 also carries Phase 18 (T200)","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1050326528972Z-blocked"}
+
+{"timestamp":"2026-11-02T10:50:33.9357861Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1050338858437Z-executing"}
+
+{"timestamp":"2026-11-02T10:51:33.7963937Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1051337323524Z-complete"}
+
+{"event":"artifact_drift_detected","timestamp":"2026-11-02T10:51:33.8013793Z","actor":"claude","feature_directory":"specs/003-priority-tech-debt","drifted_artifacts":[{"path":"tasks.md","old_sha256":"f2a47c36b9a04d726e80fc145ddbd45cd0a102d1c634b1139c7b2c19e1558107","new_sha256":"2ba8cf6a26cee0103f1f1590b44b9ca15b494a68ba4ce6b992c3b62099a1e93b"}]}
+
+{"timestamp":"2026-11-02T11:11:13.1201672Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1111130693501Z-executing"}
+
+{"timestamp":"2026-11-02T11:11:13.4263067Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T11:17:47.2806838Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"plan.md\u0027s PR 13 paragraph names Phases 17 and 18; at the user\u0027s direction PR 13 also carries Phase 19 (T201)","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1117472652613Z-blocked"}
+
+{"timestamp":"2026-11-02T11:17:48.5747187Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1117485245876Z-executing"}
+
+{"timestamp":"2026-11-02T11:18:37.6890923Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1118376318476Z-complete"}
+
+{"event":"artifact_drift_detected","timestamp":"2026-11-02T11:18:37.6933592Z","actor":"claude","feature_directory":"specs/003-priority-tech-debt","drifted_artifacts":[{"path":"tasks.md","old_sha256":"6bad4fbb79445daa56b5d2071e6e31dcef4567b7cafa492544d6dd84c091e574","new_sha256":"671c6adcf3378699added30b7a02b2df67d1940dd6286b402936bc48973c83c5"}]}
+
+{"timestamp":"2026-11-02T11:46:47.5526417Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1146475032755Z-executing"}
+
+{"timestamp":"2026-11-02T11:46:47.8665058Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T11:56:53.6812196Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"plan.md: PR 13\u0027s paragraph adds Phase 20 (T202), which the user put in #61","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1156536649816Z-blocked"}
+
+{"timestamp":"2026-11-02T11:57:05.9180318Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1157058682653Z-executing"}
+
+{"timestamp":"2026-11-02T12:00:14.8145265Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1200147573038Z-complete"}
+
+{"timestamp":"2026-11-02T12:18:55.1479753Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1218550972497Z-executing"}
+
+{"timestamp":"2026-11-02T12:18:55.4911674Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T12:27:06.5770338Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"plan.md: PR 13\u0027s paragraph adds Phase 21 (T203), which the user put in #61","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1227065607127Z-blocked"}
+
+{"timestamp":"2026-11-02T12:27:20.3540272Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1227203070864Z-executing"}
+
+{"timestamp":"2026-11-02T12:30:26.0251080Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1230259704448Z-complete"}
+

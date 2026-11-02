@@ -3,6 +3,7 @@
 import argparse
 import http.cookiejar
 import json
+from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import HTTPCookieProcessor, Request, build_opener
@@ -73,8 +74,32 @@ def main():
         assert error.code == 401
     else:
         raise AssertionError("Anonymous request was accepted")
+    # These inputs and exact expected titles are the PR's reproducible live demo.
+    controls = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "library/ai/control/questions_natural.json"
+        ).read_text()
+    )
+    for control in controls:
+        result = ask(control["question"])
+        assert result["status"] == control["status"], (control["question"], result)
+        titles = sorted(book["title"] for book in result["books"])
+        assert titles == sorted(control["titles"]), (control["question"], titles)
+        for book in result["books"]:
+            assert book["url"].startswith("/book/") and book["available_count"] >= 0
+        print(
+            json.dumps(
+                {
+                    "question": control["question"],
+                    "status": result["status"],
+                    "titles": titles,
+                },
+                ensure_ascii=False,
+            )
+        )
     print(
-        "PASS: catalog assistant title/author links, availability, missing data, clarification and authentication"
+        "PASS: catalog facts, auth and all 16 natural UA/EN demo queries with the real CPU encoder"
     )
 
 

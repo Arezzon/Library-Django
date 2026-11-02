@@ -7,7 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'></path></svg>">
-    <title>{% if form.errors %}Error: {% endif %}{% block title %}Library Management System{% endblock %}</title>
+    {# A page whose form is not named "form" overrides error_prefix. #}
+    <title>{% block error_prefix %}{% if form.errors %}Error: {% endif %}{% endblock %}{% block title %}Library Management System{% endblock %}</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -112,6 +113,9 @@
             }
             .alert-info {
                 @apply bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2;
+            }
+            .alert-warning {
+                @apply bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm flex items-center gap-2;
             }
         }
     </style>
@@ -273,7 +277,7 @@
         {# until the reader dismisses them (FR-017). #}
         <div role="status" class="{% if request.reservation_notices or messages %}mb-6 space-y-2{% endif %}">
             {% for message in messages %}
-                <div class="{% if message.tags == 'error' %}alert-error{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %}">
+                <div class="{% if message.tags == 'error' %}alert-error{% elif message.tags == 'success' %}alert-success{% elif message.tags == 'warning' %}alert-warning{% else %}alert-info{% endif %}">
                     <span>{{ message }}</span>
                 </div>
             {% endfor %}
@@ -287,7 +291,7 @@
                         <form method="post" action="{% url 'reservation_notice_dismiss' notice.id %}">
                             {% csrf_token %}
                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                            <button type="submit" class="btn-secondary w-full sm:w-auto justify-center">Dismiss</button>
+                            <button type="submit" class="btn-secondary w-full sm:w-auto justify-center">Dismiss<span class="sr-only"> the notice about “{{ notice.book.name }}”, book #{{ notice.book_id }}, cancelled on {{ notice.cancelled_at|date:"j M Y, H:i T" }}</span></button>
                         </form>
                     </div>
                 {% endfor %}
