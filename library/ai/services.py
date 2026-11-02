@@ -100,6 +100,14 @@ def catalog_assistant(user, query="", intent="auto", *, context_book_ids=()):
             intent,
             "Каталог або пошук тимчасово недоступний. Не можу підтвердити книги, авторів чи наявність. Спробуйте пізніше.",
         )
+    return _catalog_response(
+        books, authors, truncated, intent, now, collection=parsed.available_only
+    )
+
+
+def _catalog_response(
+    books, authors, truncated, intent, now, *, collection=False, status=None
+):
     if not books and not authors:
         return _response(
             "not_found",
@@ -110,7 +118,7 @@ def catalog_assistant(user, query="", intent="auto", *, context_book_ids=()):
     ambiguous = truncated or (
         len(authors) > 1
         if intent == "author"
-        else (len(books) > 1 and intent != "topic" and not parsed.available_only)
+        else (len(books) > 1 and intent != "topic" and not collection)
     )
     lines = ["Схожі за темою книги каталогу:"] if intent == "topic" else []
     for author in authors:
@@ -137,11 +145,55 @@ def catalog_assistant(user, query="", intent="auto", *, context_book_ids=()):
         )
     lines.append(AVAILABILITY_NOTICE)
     return _response(
-        "clarification_required" if ambiguous else "found",
+        status or ("clarification_required" if ambiguous else "found"),
         intent,
         "\n".join(lines),
         books=books,
         authors=authors,
         checked_at=now.isoformat(),
         truncated=truncated,
+    )
+
+
+def catalog_page_result(user, state):
+    """Rehydrate confirmed references for GET/back/refresh without replaying a query."""
+    if not is_signed_in(user) or user.pk is None:
+        raise PermissionDenied("Sign in to use the catalog assistant.")
+    if not state["books"] and not state["authors"]:
+        return _response(
+            state["status"],
+            state["intent"],
+            (
+                HELP
+                if state["status"] == "clarification_required"
+                else "У каталозі немає підтверджених збігів. " + HELP
+            ),
+        )
+    now = timezone.now()
+    try:
+        books, authors, _ = lookup_catalog(
+            user,
+            "",
+            now=now,
+            book_ids=state["books"],
+            by_author=bool(state["authors"]),
+            author_ids=state["authors"],
+            available_only=state["available_only"],
+        )
+    except DatabaseError:
+        return _response(
+            "source_unavailable",
+            state["intent"],
+            "Каталог тимчасово недоступний. Не можу підтвердити книги, авторів чи наявність. Спробуйте пізніше.",
+        )
+    order = {pk: i for i, pk in enumerate(state["books"])}
+    books.sort(key=lambda book: order[book["id"]])
+    return _catalog_response(
+        books,
+        authors,
+        state["truncated"],
+        state["intent"],
+        now,
+        collection=state["available_only"],
+        status=state["status"],
     )

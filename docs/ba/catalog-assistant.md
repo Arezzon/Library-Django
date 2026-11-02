@@ -79,8 +79,11 @@ refused. POST/PATCH/DELETE API operations are refused. Responses are private/no-
 The CSRF-protected POST page `/assistant/` uses automatic interpretation by default;
 manual intent selection remains under Search options. It supports follow-ups such
 as “А які з них доступні?” and “Which of these are available?”. For ten minutes the
-session retains only the previous result's at most ten book IDs, account ID and
-timestamp. It saves no question, answer, title or chat history. IDs are bound to
+session retains the previous result's bounded book/author IDs, account ID,
+timestamp, intent/status and display flags. It saves no question, answer, title or
+chat history. Successful forms use a 303 redirect to a GET result page so Back and
+refresh do not replay POST. Selected records and stock are read again without
+repeating a semantic query. IDs are bound to
 the signed-in account, and stock is queried again. Singular “Is it available?”
 requires one preceding book; missing/expired/ambiguous context asks for clarification.
 Clear/new GET, sign-out and empty results withdraw references. API callers do not

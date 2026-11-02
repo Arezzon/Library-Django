@@ -1,4 +1,12 @@
 2026-11-02
+Complete assistant navigation regression coverage
+Cover invalid saved-reference shapes and metadata, direct service and view authorization, rejected result selectors and catalog failure during GET result hydration. Achieve 100% coverage of the 68 changed application lines with the full 596-test PostgreSQL suite; preserve existing assistant, CSRF and browser checks.
+
+2026-11-02
+Safe assistant back and refresh navigation
+Redirect successful assistant forms with HTTP 303 to a GET-only result page backed by bounded, account-bound catalog references. Re-read current records and stock without storing question text or replaying semantic queries. Cover back/refresh after CSRF-cookie rotation, repeated questions, expiry, privacy and genuine CSRF rejection in server and browser regressions.
+
+2026-11-02
 The last P1 items of KAN-62 close (KAN-62)
 The debt register has no P1 item open or blocked, so KAN-62 is done. The keyboard, screen-reader and walkthrough checks passed with no problems, as the technical lead reported, and so did the Pi's reboot counts, cold start and backups. The Jira descriptions of KAN-18 and KAN-19 now match the product, and KAN-62 links the register. Each embedding failure is now logged with its cause, never with the book's text or the search text, and tests fix the query counts of Saved Books and For You, on the site and in the API. A security review of the access rules, log redaction, backup file permissions and the scripts' handling of passwords found no serious problem. The final checks on `main` passed, and each of the feature's 12 pull requests met its rules. The register drops TD-35 and adds three gaps: no test requires the pages' access test to list every page, unknown addresses get no page in the site's style, and librarian pages answer readers with 403 instead of 404. Bug report #62 covers TD-29. The specification is marked implemented.
 

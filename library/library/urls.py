@@ -22,12 +22,13 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
-from ai.views import assistant_page
+from ai.views import assistant_page, assistant_result
 
 from . import views
 
 urlpatterns = [
     path("assistant/", assistant_page, name="assistant-page"),
+    path("assistant/result/", assistant_result, name="assistant-result"),
     path("admin/", admin.site.urls),
     path("authentication/", include("authentication.urls")),
     path("", views.home, name="home"),
