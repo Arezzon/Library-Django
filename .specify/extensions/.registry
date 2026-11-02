@@ -23,9 +23,9 @@
       "installed_at": "2026-10-19T16:21:19.882410+00:00"
     },
     "github": {
-      "version": "1.0.2",
+      "version": "1.0.3",
       "source": "local",
-      "manifest_hash": "sha256:384027822560387c1b5573452e64d63e20de9edb79305fa4d57ace2d9d69848c",
+      "manifest_hash": "sha256:a533b88a1888aa456167f9b4b6bcf956d5837dcb0e7bc7c6be31be8ae618bc38",
       "enabled": true,
       "priority": 10,
       "registered_commands": {
@@ -33,10 +33,8 @@
           "speckit.github.taskstoissues"
         ]
       },
-      "registered_skills": [
-        "speckit-github-taskstoissues"
-      ],
-      "installed_at": "2026-10-19T17:51:26.781182+00:00"
+      "registered_skills": [],
+      "installed_at": "2026-11-02T13:24:58.086072+00:00"
     }
   }
 }
