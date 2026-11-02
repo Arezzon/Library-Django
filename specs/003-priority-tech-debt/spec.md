@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-27
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Complete KAN-62 from Jira (https://arsensworkspace-47040086.atlassian.net/browse/KAN-62), each sub-KAN should go into seperate PR if it need to change or implement something"
 

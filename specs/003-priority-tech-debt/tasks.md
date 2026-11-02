@@ -349,15 +349,16 @@ published.
   - use the title `perf(author): load every list in a fixed number of queries (KAN-18)`.
 
   Commit and open it when the user asks.
-- [ ] T039 [US7] After deployment:
+- [x] T039 [US7] After deployment:
   - (Pi) Run `smoke_stack_budget.py` with `--max-catalog-p95-ms 2000` (quickstart.md §2 step 3) and
     record the result in research.md "Measurements".
   - (Jira) Correct KAN-18's description to match the product (FR-058): availability is the total
     copies minus active loans, and, from KAN-56, minus active reservations; there is no order status
     field.
 
-  The Pi part is done: research.md "On the Raspberry Pi" records it (2026-11-02). The Jira part
-  waits (register TD-28).
+  The Pi part is done: research.md "On the Raspberry Pi" records it (2026-11-02). The Jira part is
+  done too: KAN-18's description was corrected on 2026-11-02, after the user approved the draft
+  (research.md "Closing KAN-62").
 
 **Checkpoint**: Story 7 is done, and every list's query count is fixed by a test.
 
@@ -1373,9 +1374,12 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
   handoff set to `blocked`, use `/speckit-constitution` to add the accessibility check to the
   smoke-test in workflow item 4. Add its entry to `docs/shared/changelog.md`, then set the handoff
   back.
-- [ ] T162 [US6] (manual) Complete each main task of Story 6 with the keyboard alone, and with NVDA in
+- [x] T162 [US6] (manual) Complete each main task of Story 6 with the keyboard alone, and with NVDA in
   Firefox or Chrome. Fix what fails, and record the results in research.md "Measurements" (SC-009).
-- [ ] T163 [US6] (manual) Run the walkthrough (FR-045):
+
+  Done: on 2026-11-02 @fazelukario, the technical lead, reported the checks completed and verified,
+  with no problems found. research.md "Accessibility" records the overall result.
+- [x] T163 [US6] (manual) Run the walkthrough (FR-045):
   - at least 3 people who are new to the system, at least 1 of them with little digital experience;
   - each attempts every main task without help;
   - record the anonymous results in `specs/003-priority-tech-debt/research.md` "Measurements": the
@@ -1383,6 +1387,10 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
   - fix each problem, or note it for the register with an owner and a plan.
 
   At least 80% of the attempts must finish without help.
+
+  Done: on 2026-11-02 @fazelukario reported the walkthrough completed and verified, with every
+  attempt finished without help and no problems. research.md "Accessibility" records the overall
+  result, not each attempt.
 - [x] T164 [US6] Verify and prepare the pull request:
   - run quickstart.md §10, lint, format and the diff coverage;
   - add the changelog entry;
@@ -1402,6 +1410,7 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
 - KAN-62 closed, with no P1 item open.
 - The four minor findings that PR 10's final review deferred, fixed.
 - CodeQL alert 15, a test for TD-30, and the two minor findings that PR 12's own review deferred.
+- The closing record, after PR 12 merged (PR 13).
 
 **Independent Test**: pick any item KAN-62 names, follow its link to the evidence, and confirm that no
 P1 item is open.
@@ -1497,30 +1506,65 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
     lead for R3, and the product owner with the tech lead for R7. Ask the user for the others.
   - plans with target sprints for open items;
   - rows for unfixed walkthrough problems, and for defects filed under FR-053.
-- [ ] T167 [US9] Check the register in `docs/shared/debt-register.md` (FR-056, SC-013):
+- [x] T167 [US9] Check the register in `docs/shared/debt-register.md` (FR-056, SC-013):
   - every item that KAN-62 names has a row;
   - every closed row's evidence link works;
   - every open row has an owner, a priority, a plan and a target sprint;
   - no P1 row is open or blocked.
+
+  Done on 2026-11-02, in PR 13: 37 rows after Phase 17, every link and cited test holds, and no P1
+  row is open or blocked.
 - [x] T168 [P] [US9] Review `README.md` and `docs/adr/README.md`. They must describe reservations,
   issuing by librarians, the roles, backups and logs as delivered, and list ADRs 0001 to 0003 (Story
   9 scenario 6).
-- [ ] T169 [P] [US9] In `specs/003-priority-tech-debt/`, set the spec's Status to Implemented, complete
+- [x] T169 [P] [US9] In `specs/003-priority-tech-debt/`, set the spec's Status to Implemented, complete
   research.md "Measurements", and mark every task done in tasks.md. Mark the handoff complete with
   the bridge, and commit its records in `.specify/` with these files.
+
+  Done on 2026-11-02, in PR 13, after the last task closed.
 - [x] T170 [US9] Verify and prepare the pull request:
   - run quickstart.md §13 and lint;
   - add the changelog entry;
   - use the title `docs(shared): add the debt register and close KAN-62 (KAN-71)`.
 
   Commit and open it when the user asks.
-- [ ] T171 [US9] (Jira) With the assignee (FR-056, FR-058):
+- [x] T171 [US9] (Jira) With the assignee (FR-056, FR-058):
   - correct KAN-19's description: issuing locks the book and rechecks the derived availability, and
     no stored counter decreases;
   - confirm KAN-18's description;
   - link the register (`docs/shared/debt-register.md` on `main`) and the evidence from KAN-62;
   - make every sub-task's status match its pull request;
   - move KAN-62 to Done only when no P1 item is open or blocked.
+
+  Done on 2026-11-02: after the user approved each draft, KAN-18's and KAN-19's descriptions were
+  corrected, and KAN-62 links the register. KAN-19 is @myrrhfawn's issue; the user asked for its
+  correction. Once the checks passed, KAN-69, KAN-71 and KAN-62 moved to Done (research.md "Closing
+  KAN-62").
+
+### The closing record (PR 13)
+
+Added on 2026-11-02 at the user's request, after PR 12 merged with 2 P1 items open: the user reported
+T162 and T163 done and asked for the Jira descriptions to be corrected, after they approved each
+draft, and for TD-35 to be removed. T173 and T174 run on `main` after PR 12, and PR 13 records them.
+PR 13 also carries Phases 17 to 21, at the user's direction, so it changes code too: T191, T199,
+T200, T201 and T202.
+
+- [x] T187 [US9] Create branch `docs/kan-62-close` from a freshly fetched `origin/main`, with PR 12
+  merged.
+- [x] T188 [US9] Remove TD-35 from `docs/shared/debt-register.md`, and its finding from research R30,
+  at the user's decision on 2026-11-02.
+- [x] T189 [US9] Record the closing checks:
+  - in research.md "Measurements": T162 and T163 as the user reported them, the Jira corrections
+    and moves (T039, T171), the security review (T173) and the final checks (T174);
+  - in the register: close TD-15 and TD-28, link #57 from TD-15, TD-16 and TD-32, and update the
+    KAN-62 line;
+  - re-run T167's check.
+- [x] T190 [US9] Verify and prepare the pull request:
+  - run quickstart.md §13 and lint;
+  - add the changelog entry;
+  - use the title `docs(shared): close the last P1 items of the debt register (KAN-62)`.
+
+  Commit and open it when the user asks.
 
 **Checkpoint**: every story is done, and KAN-62 can close.
 
@@ -1533,12 +1577,20 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
 - [x] T172 (Pi) With everything running, run `smoke_stack_budget.py` with the memory, search and
   catalog limits. Record that the stack stays within 4 GB and that search p95 stays under 500 ms
   (SC-014).
-- [ ] T173 Review the combined changes for security with the code-review or security-review skill:
+- [x] T173 Review the combined changes for security with the code-review or security-review skill:
   the access rules, redaction, backup file permissions, and how the scripts handle passwords. Fix
   what it finds, or record it in `docs/shared/debt-register.md`.
-- [ ] T174 Run every automated check in quickstart.md once more on the final `main`. Confirm that each
+
+  Done on 2026-11-02 as a self-review of the four areas on `main`, without either skill: the
+  security-review skill reviews only a branch's pending changes. It found no Critical or Important
+  problem and one P3 gap, register TD-36 (research.md "Security review of the combined changes").
+- [x] T174 Run every automated check in quickstart.md once more on the final `main`. Confirm that each
   pull request met FR-062: the template, a changelog entry, the code owners' review and CI. Note any
   gap in the register.
+
+  Done on 2026-11-02 on `main` at `cfb5e5c`, through CI's run on `main` and locally: lint, 587
+  tests, 39 pages with 0 violations, the ruleset and the register. All 12 pull requests met FR-062,
+  so the register gains no rows (research.md "Final checks on `main`").
 
 ---
 
@@ -1562,6 +1614,8 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
   audited.
 - **PR 10 (Phase 14)** needs PR 7, because it audits the finished reservation pages.
 - **PR 12 (Phase 15)** needs all the others, and **Polish (Phase 16)** follows it.
+- **PR 13 (Phases 15 and 17 to 21)** follows PR 12 and records the checks that close KAN-62, Polish's
+  among them, with the convergence tasks.
 
 ### Minimum dependencies (spec FR-059) and the recommended order (R1)
 
@@ -1700,3 +1754,126 @@ section are the gate.
   any change in research.md.
 - KAN-72, KAN-73 and KAN-74 sit in the closed "Lab 3" sprint, inherited from their parents. Whether to
   move them is for the user or @Arezzon to decide.
+
+## Phase 17: Convergence
+
+- [x] T191 Log each embedding failure, with its cause and without the book's text or the search text,
+  through a `book.embeddings` logger in `library/book/embeddings.py` and `library/book/search.py`.
+  Today no log line records the cause: the catalog, the book forms, the admin site, the API and the
+  assistant turn the failure into a message or a 400 or 503 response. Test it with `assertLogs` in
+  `library/book/tests.py` per FR-035, plan R18 (missing)
+
+  Done on 2026-11-02: each failure is logged at ERROR with its traceback, and a failed save names
+  the book's id. Neither the book's text nor the search text is logged.
+  `library/book/tests.py::EmbeddingFailureLogTests` fails without the change.
+- [x] T192 (Pi) Take the record counts of quickstart.md §0.2 before and after a reboot of the Pi,
+  record them in research.md "On the Raspberry Pi", and update TD-13 per FR-030, SC-005, US4/AC1
+  (partial)
+
+  Done: on 2026-11-02 @fazelukario, the operator, reported the counts taken and verified: they
+  match. research.md and TD-13 record it.
+- [x] T193 (Pi) After 24 hours with no visits, measure the first catalog load with
+  `smoke_stack_budget.py` (quickstart.md §2 step 3), and record it in research.md "On the Raspberry
+  Pi" per US4/AC2 (partial)
+
+  Done: on 2026-11-02 @fazelukario, the operator, confirmed that the cold-start check already in
+  research.md is this measurement, and that it passed and was verified.
+- [x] T194 (Pi) Find why the backup at 03:34 on 2026-11-02 kept 1 file when the run at 02:04 had kept
+  5: check which volume the backup service mounts at `/backups`, confirm that daily backups
+  accumulate until 7 are kept, and record the result in research.md per FR-026, US4/AC6 (partial)
+
+  Done: on 2026-11-02 @fazelukario, the operator, reported that the log line had been copied with
+  the wrong time and figures, and verified that the backups are in order. research.md drops the
+  misquoted line.
+- [x] T195 Add rows to `docs/shared/debt-register.md` for KAN-79 (no 404 page in the site's style)
+  and KAN-80 (staff pages answer readers with 403 instead of 404), filed on 2026-11-01 while this
+  feature's pages were checked, each with an owner, a priority and a plan. Note that KAN-80
+  conflicts with FR-004, under which a refusal says that the action is not permitted per FR-054,
+  FR-055 (missing)
+
+  Done: TD-37 (KAN-79) and TD-38 (KAN-80), both P3 like their Jira priority, and both owned by
+  @fazelukario, the technical lead, since Jira assigns neither. TD-38 notes the conflict with
+  FR-004.
+- [x] T196 In `docs/shared/debt-register.md`, link the merged pull requests of the items done before
+  this feature, with a CI run that verifies lint and CodeQL today: #4 (KAN-19) from TD-03, #20
+  (KAN-22) from TD-06 and #18 (KAN-15) from TD-07 per US9/AC5 (partial)
+
+  Done: TD-03 links #4; TD-06 links #20 and CI's run on `main` at `cfb5e5c`, whose `lint` job
+  passed; TD-07 links #18 and CodeQL's run on the same commit.
+- [x] T197 File a bug report for TD-29, a book saved with an empty title, which PR 10's
+  accessibility check revealed and PR 10 did not fix, with the repository's bug report template
+  (`.github/ISSUE_TEMPLATE/bug_report.md`), and link it from TD-29 per FR-053 (partial)
+
+  Done on 2026-11-02: #62, filed with the template after @fazelukario approved the draft, and
+  assigned to @OLEkSandrKoniaiev, TD-29's owner. It was reproduced first, on the web and through
+  the API. TD-29 and research R30 link it.
+- [x] T198 (Jira) Have @OLEkSandrKoniaiev, KAN-77's assignee, move KAN-77 to Done, since its fix
+  merged in #58 per FR-058 (partial)
+
+  Done: on 2026-11-02 @fazelukario, the technical lead, reported asking the assignee to check KAN-77.
+  The move is the assignee's, so this task is complete without it, at the technical lead's
+  direction.
+- [x] T199 In `library/book/test_queries.py`, fix the query count of Saved Books (`/book/preferences/`,
+  added by #48) with 1 and with 50 saved books per FR-047, US7/AC3 (partial)
+
+  Done: `BookListQueryTests.test_saved_books`. The page uses 5 queries with 1 saved book and with 50.
+  Without the availability annotation it used 7 with 1 and 105 with 50, and the test failed.
+
+## Phase 18: Convergence
+
+- [x] T200 In `library/book/test_queries.py`, fix the query counts of For You (`/book/recommendations/`)
+  and of `/api/v1/books/recommendations/`, from #45 and #55, with 1 eligible book and with 50. Today
+  only the recommendation service is pinned, at 7 queries for 2 books
+  (`library/book/test_recommendation_reasons.py`), so a query per row added in the page's template or
+  the API's serializer fails no test per FR-047, US7/AC3 (partial)
+
+  Done: `RecommendationQueryTests`. Both lists use the same number of queries with 1 eligible book
+  and with 50. Without the authors prefetch, For You used 9 queries with 1 and 18 with 50, the API
+  8 and 27, and both tests failed.
+
+## Phase 19: Convergence
+
+- [x] T201 In `library/book/test_queries.py`, fix the query count of `/api/v1/me/book-preferences/`
+  (`library/book/preference_api.py::BookPreferenceListView`, from #48) with 1 and with 50 saved books.
+  T199 covers only the Saved Books page, which renders no authors, so a query per row added to the
+  API's serializer, for authors or anything else, fails no test per FR-047, US7/AC3 (partial)
+
+  Done: `BookListQueryTests.test_the_api_saved_books`. The API uses 4 queries with 1 saved book and
+  with 50. Without the authors prefetch it used 53 with 50 and the test failed, while the page's
+  test still passed.
+
+## Phase 20: Convergence
+
+- [x] T202 Log each embedding failure of the recommendation service, with its cause and without the
+  search text, through the `book.embeddings` logger in `library/book/recommendations.py`. Today
+  `_profile` drops a reader's search signals when the model fails to load or to encode one of
+  their searches, and writes no log line, so For You and `/api/v1/books/recommendations/` lose
+  them without a trace. Keep the fallback to book signals. Test it with `assertLogs` beside
+  `test_search_encoder_failure_preserves_books_or_uses_fallback` in
+  `library/book/test_recommendations.py`, and extend the "Embedding failures" paragraph of
+  `docs/deployment/raspberry-pi-portainer.md` per FR-035, FR-039, plan R18 (partial)
+
+  Done on 2026-11-02: when the model fails to load or to encode a past search, `_profile` logs an
+  ERROR with the traceback that gives the cause, and still recommends from the reader's other
+  activity. The search text is not logged. `RecommendationTests` gains
+  `test_a_model_that_fails_to_load_is_logged_without_the_searches` and
+  `test_a_search_that_fails_to_encode_is_logged_without_its_text`. Both fail without the change,
+  and the second also fails when the search reaches the log line.
+
+## Phase 21: Convergence
+
+- [x] T203 In `specs/003-priority-tech-debt/research.md` "Query counts per list", record the query
+  counts with 1 row and with 50, the audience, the method and the date of each list whose test came
+  after PR 2's measurement: My reservations (`/order/reservations/`) and the API reservation list
+  (`/api/v1/reservation/`, as a reader and as a librarian) from T104, the desk
+  (`/order/reservations/desk/`) from T130, Saved Books (`/book/preferences/`) and
+  `/api/v1/me/book-preferences/` from T199 and T201, and For You (`/book/recommendations/`) and
+  `/api/v1/books/recommendations/` from T200. Today the table holds only the 14 lists PR 2
+  measured, though R8 has the reservation lists join with PRs 5 to 7, and T200's counts are
+  recorded nowhere per FR-048, US7/AC4, plan R8 (partial)
+
+  Done on 2026-11-02: research.md records the seven lists, the API reservation list for both
+  audiences, at the counts their tests measure, each the same with 1 row and with 50. The same run
+  measured PR 2's lists again and explains why the web pages and the search now count more. Saved
+  Books uses 5 queries, not the 7 in T199's note, which was its count with 1 row without the
+  availability annotation; T199's note is corrected.

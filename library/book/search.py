@@ -1,5 +1,7 @@
 """Bounded semantic retrieval with the configured embedding model and pgvector."""
 
+import logging
+
 from pgvector.django import CosineDistance
 
 from . import embeddings
@@ -8,6 +10,9 @@ from .embeddings import EmbeddingGenerationError, normalized_vector
 
 MAX_QUERY_LENGTH = 512
 RESULT_LIMIT = 20
+
+# Embedding failures share one logger (research R18).
+logger = logging.getLogger("book.embeddings")
 
 
 def validate_query(value):
@@ -31,6 +36,8 @@ def search_books(books, query):
             )
         )
     except Exception as error:
+        # The cause, never the query: it is a person's search (FR-039).
+        logger.exception("Could not encode a search query")
         raise EmbeddingGenerationError(
             "Search is temporarily unavailable. Please retry."
         ) from error
