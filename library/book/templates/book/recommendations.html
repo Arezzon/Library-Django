@@ -15,7 +15,7 @@
                 <p class="text-sm text-slate-500">{% for author in book.authors.all %}{{ author.name }} {{ author.surname }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
                 <p class="text-sm text-slate-600">{{ book.reason }}</p>
             </div>
-            <div class="card-footer"><a href="{% url 'book_detail' book.pk %}" class="btn-sm-primary">View book<span class="sr-only">: {{ book.name }}</span></a></div>
+            <div class="card-footer"><a href="{% url 'book_detail' book.pk %}" class="btn-sm-primary">View book<span class="sr-only"> #{{ book.pk }}: {{ book.name }}</span></a></div>
         </article>
         {% empty %}
         <div class="card card-body sm:col-span-2"><h2 class="font-semibold">No available recommendations yet</h2><p class="mt-2 text-sm text-slate-500">Check back when more books are available.</p><a href="{% url 'book_list' %}" class="btn-secondary mt-4">Browse books</a></div>

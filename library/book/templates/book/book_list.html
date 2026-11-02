@@ -103,7 +103,7 @@
                                 </td>
                                 <td class="table-td text-right whitespace-nowrap">
                                     <a data-track-event="book_click" data-book-id="{{ book.id }}" href="{% url 'book_detail' book.id %}" class="btn-sm-secondary">
-                                        Details →
+                                        Details<span class="sr-only"> of “{{ book.name }}”, book #{{ book.id }}</span> <span aria-hidden="true">→</span>
                                     </a>
                                 </td>
                             </tr>
@@ -156,7 +156,7 @@
 
                     <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
                         <a data-track-event="book_click" data-book-id="{{ book.id }}" href="{% url 'book_detail' book.id %}" class="btn-sm-secondary w-full text-center justify-center">
-                            View Details →
+                            View Details<span class="sr-only"> of “{{ book.name }}”, book #{{ book.id }}</span> <span aria-hidden="true">→</span>
                         </a>
                     </div>
                 </div>

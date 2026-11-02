@@ -84,3 +84,71 @@
 
 {"timestamp":"2026-10-28T10:22:35.7120231Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
 
+{"timestamp":"2026-10-28T11:42:55.3581133Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-28T12:24:13.5822606Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Constitution MINOR amendment for PR 8 (KAN-67, R29)","actor":"claude","prior_actor":"claude","snapshot_id":"20261028T1224135664412Z-blocked"}
+
+{"timestamp":"2026-10-28T12:24:13.8975749Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-10-28T12:25:59.4321298Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261028T1225593822745Z-executing"}
+
+{"timestamp":"2026-10-28T16:57:35.3458232Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-28T17:34:43.2439633Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-28T22:24:33.1933682Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-30T21:03:56.9667712Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-30T21:37:57.2827601Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-30T23:39:01.3426715Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-10-30T23:39:46.6750795Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"PR 7 (KAN-58) constitution PATCH amendment (R29): workflow item 4 adds the reservation burst to the smoke-test job","actor":"claude","prior_actor":"claude","snapshot_id":"20261030T2339466580911Z-blocked"}
+
+{"timestamp":"2026-10-30T23:39:47.0280392Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-10-30T23:41:28.4521976Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261030T2341283843050Z-executing"}
+
+{"timestamp":"2026-10-30T23:41:28.8391756Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T13:43:03.9153405Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T13:51:11.7189860Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"T147: constitution MINOR amendment for PR 11 (KAN-70): Principle II adds the administrator audience (ROLE_ADMINISTRATOR)","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1351117022109Z-blocked"}
+
+{"timestamp":"2026-11-01T13:51:12.0411662Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-11-01T13:52:43.8620292Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1352438101807Z-executing"}
+
+{"timestamp":"2026-11-01T15:48:02.7448895Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T16:33:56.2451135Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Constitution PATCH amendment for PR 10 (T161, R29): workflow item 4, the smoke test runs the accessibility check","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1633562297490Z-blocked"}
+
+{"timestamp":"2026-11-01T16:33:56.5752045Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.constitution"}
+
+{"timestamp":"2026-11-01T16:35:37.5812941Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1635375310899Z-executing"}
+
+{"timestamp":"2026-11-01T19:18:06.4740064Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T19:41:10.8263779Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"tasks.md lacks the four PR 10 review follow-ups that the user asked to ship in PR 12; adding them as T175 to T178","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1941108106291Z-blocked"}
+
+{"timestamp":"2026-11-01T19:41:36.4357542Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T1941363834810Z-executing"}
+
+{"timestamp":"2026-11-01T19:41:36.7648584Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T20:28:46.7347941Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T21:01:03.8585649Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Contract amendment: PR 12 adds T179-T184 at the user\u0027s request (CodeQL alert 15, a guard for TD-30, the two minors PR 12\u0027s review deferred, and the records), and T056 is done by the technical lead\u0027s own check","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T2101038422807Z-blocked"}
+
+{"timestamp":"2026-11-01T21:01:36.2738399Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261101T2101362227547Z-executing"}
+
+{"timestamp":"2026-11-01T21:01:36.5776323Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-01T21:37:20.5550143Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T00:37:15.8946961Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Contract amendment: PR 12 records the operator\u0027s Pi results (T039 Pi part, T067, T137, T149, T172), refers to people by GitHub handle (T185), and records the results and new findings (T186), at the user\u0027s request","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0037158789298Z-blocked"}
+
+{"timestamp":"2026-11-02T00:38:00.6900263Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0038006401478Z-executing"}
+
+{"timestamp":"2026-11-02T00:38:01.0074125Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+

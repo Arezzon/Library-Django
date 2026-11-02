@@ -170,10 +170,15 @@ def _held_warning(count, held):
 
 @librarian_required
 def book_delete(request: HttpRequest, book_id: int) -> HttpResponse:
-    """GET asks for confirmation; POST deletes (FR-043)."""
+    """GET asks for confirmation, or says why the book cannot be deleted; POST
+    deletes (FR-043)."""
     if request.method != "POST":
         book = get_object_or_404(Book, pk=book_id)
-        return render(request, "book/book_delete.html", {"book": book})
+        return render(
+            request,
+            "book/book_delete.html",
+            {"book": book, "refusal": book.deletion_refusal()},
+        )
     try:
         with transaction.atomic():
             book = get_object_or_404(Book.objects.select_for_update(), pk=book_id)

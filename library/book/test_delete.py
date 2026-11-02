@@ -197,6 +197,21 @@ class ProtectedHistoryTests(FakeEncoderMixin, TestCase):
                 self.assertContains(response, REFUSAL)
                 self.assertKept(book, record)
 
+    def test_the_deletion_page_refuses_before_asking(self):
+        self.client.force_login(self.librarian)
+        for book, record in self.histories():
+            with self.subTest(record=record):
+                url = reverse("book_delete", args=[book.pk])
+                response = self.client.get(url)
+                self.assertContains(response, f"“{book.name}” Cannot Be Deleted")
+                self.assertContains(response, REFUSAL)
+                self.assertNotContains(response, f'<form method="post" action="{url}">')
+                self.assertNotContains(response, "Yes, Delete the Book")
+                self.assertContains(
+                    response, f'href="{reverse("book_update", args=[book.pk])}"'
+                )
+                self.assertKept(book, record)
+
     def test_the_api_answers_409(self):
         self.client.force_login(self.librarian)
         for book, record in self.histories():

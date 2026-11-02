@@ -6,21 +6,30 @@
 <div class="max-w-xl mx-auto px-0 sm:px-4 py-4 sm:py-8">
     <div class="card">
         <div class="card-header">
-            <h1 class="text-lg sm:text-xl font-bold text-slate-900">Delete the book “{{ book.name }}”?</h1>
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900">
+                {% if refusal %}“{{ book.name }}” Cannot Be Deleted{% else %}Delete the book “{{ book.name }}”?{% endif %}
+            </h1>
         </div>
 
         <div class="card-body">
-            <p class="mb-5 text-sm text-slate-600">
-                The book and its search data are removed from the catalog. This cannot be undone.
-                A book that has been borrowed or reserved cannot be deleted.
-            </p>
-            <form method="post" action="{% url 'book_delete' book.id %}">
-                {% csrf_token %}
-                <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
-                    <a href="{% url 'book_update' book.id %}" class="btn-secondary w-full sm:w-auto justify-center">Keep the Book</a>
-                    <button type="submit" class="btn-danger w-full sm:w-auto justify-center">Yes, Delete the Book</button>
+            {% if refusal %}
+                <div class="alert-error mb-5"><span>{{ refusal }}</span></div>
+                <div class="pt-4 border-t border-slate-100 flex justify-end">
+                    <a href="{% url 'book_update' book.id %}" class="btn-secondary w-full sm:w-auto justify-center">Back to Editing</a>
                 </div>
-            </form>
+            {% else %}
+                <p class="mb-5 text-sm text-slate-600">
+                    The book and its search data are removed from the catalog. This cannot be undone.
+                    A book that has been borrowed or reserved cannot be deleted.
+                </p>
+                <form method="post" action="{% url 'book_delete' book.id %}">
+                    {% csrf_token %}
+                    <div class="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
+                        <a href="{% url 'book_update' book.id %}" class="btn-secondary w-full sm:w-auto justify-center">Keep the Book</a>
+                        <button type="submit" class="btn-danger w-full sm:w-auto justify-center">Yes, Delete the Book</button>
+                    </div>
+                </form>
+            {% endif %}
         </div>
     </div>
 </div>

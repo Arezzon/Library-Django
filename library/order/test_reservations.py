@@ -1301,6 +1301,24 @@ class CancellationNoticeTests(ReservationTestCase):
         held.refresh_from_db()
         self.assertIsNotNone(held.cancellation_seen_at)
 
+    def test_a_missing_or_foreign_next_leads_to_the_readers_reservations(self):
+        held = self.cancelled_by_the_library()
+        dismiss = reverse("reservation_notice_dismiss", args=[held.pk])
+        self.client.force_login(self.reader)
+        for target in (
+            None,
+            "https://elsewhere.example/",
+            "//elsewhere.example/",
+            "/\\elsewhere.example/",
+        ):
+            with self.subTest(next=target):
+                response = self.client.post(
+                    dismiss, {} if target is None else {"next": target}
+                )
+                self.assertRedirects(
+                    response, reverse("reservation_my"), fetch_redirect_response=False
+                )
+
     def test_a_readers_own_cancellation_shows_no_notice(self):
         held = reserve(self.reader, self.book)
         cancel(self.reader, held)

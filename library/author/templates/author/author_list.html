@@ -52,9 +52,9 @@
                         <td class="table-td text-right whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-2">
                                 <a href="{% url 'author_update' author.id %}" class="btn-sm-primary">
-                                    Edit
+                                    Edit<span class="sr-only"> {{ author.name }} {{ author.surname }}, author #{{ author.id }}</span>
                                 </a>
-                                <a href="{% url 'author_delete' author.id %}" class="btn-sm-danger">Delete<span class="sr-only"> {{ author.name }} {{ author.surname }}</span></a>
+                                <a href="{% url 'author_delete' author.id %}" class="btn-sm-danger">Delete<span class="sr-only"> {{ author.name }} {{ author.surname }}, author #{{ author.id }}</span></a>
                             </div>
                         </td>
                     </tr>
@@ -96,9 +96,9 @@
                 <!-- Actions -->
                 <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
                     <a href="{% url 'author_update' author.id %}" class="btn-sm-primary flex-1 text-center justify-center">
-                        Edit
+                        Edit<span class="sr-only"> {{ author.name }} {{ author.surname }}, author #{{ author.id }}</span>
                     </a>
-                    <a href="{% url 'author_delete' author.id %}" class="btn-sm-danger w-full justify-center flex-1">Delete<span class="sr-only"> {{ author.name }} {{ author.surname }}</span></a>
+                    <a href="{% url 'author_delete' author.id %}" class="btn-sm-danger w-full justify-center flex-1">Delete<span class="sr-only"> {{ author.name }} {{ author.surname }}, author #{{ author.id }}</span></a>
                 </div>
             </div>
         {% endfor %}

@@ -87,7 +87,7 @@ operator creates the first administrator on the server, and every change is audi
 **PR 12, debt register (KAN-71).** The register with evidence for every item, the README and ADRs
 reviewed, and KAN-62 closed with no P1 item open (R28).
 
-**Settings, applied by Arsen.** KAN-72, KAN-73 and KAN-74 make lint, code scanning and code owners'
+**Settings, applied by @Arezzon.** KAN-72, KAN-73 and KAN-74 make lint, code scanning and code owners'
 approval required on `main` (R27).
 
 ## Technical Context

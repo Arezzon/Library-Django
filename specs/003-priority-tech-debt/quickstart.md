@@ -11,7 +11,7 @@ Shorthand used below:
 
 ```bash
 DC="docker compose -f docker-compose-dev.yml"
-APPS="authentication author book order events"      # PR 8 adds audit
+APPS="authentication author book order events audit ai"  # as CI runs them: PR 8 added audit, KAN-52 ai
 BASE=http://localhost:8000
 ```
 
@@ -369,7 +369,7 @@ $DC start db
 3. As an administrator, the same role change works: the account is kept, and the audit entry exists
    (Story 1 scenario 8).
 
-## 12. Repository settings (KAN-72, KAN-73, KAN-74; Arsen)
+## 12. Repository settings (KAN-72, KAN-73, KAN-74; @Arezzon)
 
 ```bash
 gh api repos/Arezzon/Library-Django/rulesets/23898585 > ruleset-$(date +%F).json
