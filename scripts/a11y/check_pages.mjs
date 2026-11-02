@@ -292,6 +292,7 @@ try {
     await visit(page, "library overview", "/events/");
     await visit(page, "library overview, 12 months", "/events/?period=12m");
     await visit(page, "activity log", "/events/activity/");
+    await visit(page, "demand forecast", "/events/forecast/");
   }
 
   if (reserved) {

@@ -149,8 +149,8 @@ issued, 1 active, 1 expired, 41 views, 12 clicks, 6 "Reserve" presses, 2 likes,
 | SP | 4 × 1.0 + 2 × 1 | 6 |
 
 With `A(W) / A(P) = 1.2`: `F = 14 × 1.2 ≈ 17` loans. Loans last 14 days on average,
-so a copy serves `30 / 14 ≈ 2.1` loans a month; `⌈17 / 2.1⌉ = 9` copies are needed,
-so the recommendation is **buy 4**. (Figures are illustrative.)
+so a copy serves `30 / 14 ≈ 2.14` loans a month; `⌈17 × 14 / 30⌉ = ⌈7.9⌉ = 8` copies
+are needed, so the recommendation is **buy 3**. (Figures are illustrative.)
 
 ## The Forecast page
 
@@ -199,12 +199,20 @@ Book demand forecast                          Next 30 days, from the last 30 · 
 - Recording refused reservations or a waiting list.
 - An API endpoint for the forecast; it can reuse the service later.
 
-## Implementation plan
+## Implementation
+
+Built in `events/forecast.py` (`demand_forecast(now=None, limit=25)` and `WEIGHTS`),
+`events/forecast_page.py`, `events/templates/events/forecast.html` and the third tab
+in `events/_tabs.html`; tested in `events/test_forecast.py` and
+`events/test_forecast_page.py`. The page computes everything in a fixed number of
+queries: one per source, plus the books and their loan lengths. "How the forecast
+works" is rendered from `WEIGHTS`, so the page always shows the weights in use.
 
 The Forecast tab sits next to the KAN-54 tabs and reuses the KAN-34 window
-helpers, so the code starts once PR #63 (KAN-33, KAN-34, KAN-54) is merged into
-`main` and `main` is merged into this branch. This branch starts from `main`
-before that merge and holds only this document until then.
+helpers, so this branch merges the PR #63 branch (KAN-33, KAN-34, KAN-54); once
+that PR is merged into `main`, this one carries only KAN-35.
+
+## Implementation plan
 
 1. **Service** — `events/forecast.py`: the windows, `WEIGHTS`, one bulk query per
    source (loans, reservations, events, preferences, availability, loan lengths),

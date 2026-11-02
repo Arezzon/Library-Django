@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Book demand forecast - Library{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">Library insights</p>
+            <h1 class="text-2xl font-bold text-slate-900">Book demand forecast</h1>
+            <p class="text-sm text-slate-600 mt-1">Which books are in demand and how many copies they need next month.</p>
+        </div>
+    </div>
+
+    {% include 'events/_tabs.html' with active='forecast' %}
+    <p class="text-xs text-slate-600 -mt-3">{{ window_text }} · times are in Kyiv time</p>
+
+    {% if not has_activity %}
+    <div role="note" class="flex gap-3 items-start p-4 rounded-xl border border-blue-200 bg-blue-50 text-sm text-blue-900">
+        <svg aria-hidden="true" class="w-5 h-5 flex-none mt-px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+        <p>No loans, reservations or tracked activity yet. The forecast appears once books are borrowed, reserved or viewed.</p>
+    </div>
+    {% else %}
+    <section aria-label="Summary" class="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        {% for label, value in tiles %}
+        <div class="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+            <h2 class="text-sm font-medium text-slate-600">{{ label }}</h2>
+            <p class="text-3xl font-bold text-slate-900 tabular-nums mt-1.5">{{ value }}</p>
+        </div>
+        {% endfor %}
+    </section>
+
+    <section aria-labelledby="forecast-heading" class="card">
+        <div class="card-header">
+            <h2 id="forecast-heading" class="font-semibold text-slate-900">Books by demand</h2>
+            <span class="text-xs text-slate-600">Demand 0–100; trend against the 30 days before</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="table-custom">
+                <thead class="table-thead">
+                    <tr>
+                        <th scope="col" class="table-th">#</th>
+                        <th scope="col" class="table-th">Book</th>
+                        <th scope="col" class="table-th text-right">Demand</th>
+                        <th scope="col" class="table-th">Trend</th>
+                        <th scope="col" class="table-th text-right">Forecast loans</th>
+                        <th scope="col" class="table-th text-right whitespace-nowrap">Available</th>
+                        <th scope="col" class="table-th">Recommendation</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in rows %}
+                    <tr>
+                        <td class="table-td text-slate-600 tabular-nums">{{ row.rank }}</td>
+                        <td class="table-td">
+                            <div class="flex items-center gap-1">
+                                <a href="{% url 'book_detail' row.book_id %}" class="font-medium text-indigo-700 hover:text-indigo-800">{{ row.title }}</a>
+                                <details class="relative">
+                                    <summary class="list-none [&::-webkit-details-marker]:hidden w-11 h-11 flex items-center justify-center rounded-xl text-slate-500 hover:text-indigo-700 hover:bg-slate-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+                                        <svg aria-hidden="true" class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                                        <span class="sr-only">{{ row.about }}</span>
+                                    </summary>
+                                    <div class="absolute z-10 top-11 left-0 w-72 sm:w-80 p-3 rounded-xl bg-slate-900 text-slate-50 text-xs leading-relaxed shadow-lg space-y-1.5 whitespace-normal">
+                                        {% for line in row.details %}<p>{{ line }}</p>{% endfor %}
+                                    </div>
+                                </details>
+                            </div>
+                        </td>
+                        <td class="table-td text-right font-semibold tabular-nums">{{ row.demand }}</td>
+                        <td class="table-td whitespace-nowrap">{{ row.trend_text }}</td>
+                        <td class="table-td text-right tabular-nums">{{ row.forecast }}</td>
+                        <td class="table-td text-right whitespace-nowrap"><span class="{% if row.available %}badge-success{% else %}badge-danger{% endif %}">{{ row.available }} / {{ row.copies }}</span></td>
+                        <td class="table-td whitespace-nowrap">{% if row.to_buy %}<span class="font-semibold text-rose-700">{{ row.recommendation }}</span>{% else %}<span class="text-slate-700">{{ row.recommendation }}</span>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    <details class="card group">
+        <summary class="list-none [&::-webkit-details-marker]:hidden px-4 sm:px-6 py-4 flex items-center justify-between gap-3 cursor-pointer font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded-xl">
+            How the forecast works
+            <svg aria-hidden="true" class="w-5 h-5 text-slate-500 transition group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+        </summary>
+        <div class="px-4 sm:px-6 pb-5 space-y-3 text-sm text-slate-700">
+            <p>Five scores per book, over the last 30 days and the 30 before. Page views, clicks and “Reserve” presses count once per reader and day.</p>
+            <ul class="list-disc pl-5 space-y-1">{% for line in recipe.scores %}<li>{{ line }}</li>{% endfor %}</ul>
+            <p>{{ recipe.demand }}</p>
+            <p>{{ recipe.trend }}</p>
+            <p>{{ recipe.forecast }}</p>
+            <p class="text-xs text-slate-600">The weights are starting assumptions, not a trained model. Deleting an account also removes its loans and reservations.</p>
+        </div>
+    </details>
+</div>
+{% endblock %}
