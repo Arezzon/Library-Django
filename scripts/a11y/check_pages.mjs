@@ -289,7 +289,9 @@ try {
     await visit(page, "deleting an author", () =>
       linkFrom(page, "/author/", /^\/author\/delete\/\d+\/$/, "delete an author"),
     );
-    await visit(page, "analytics dashboard", "/events/");
+    await visit(page, "library overview", "/events/");
+    await visit(page, "library overview, 12 months", "/events/?period=12m");
+    await visit(page, "activity log", "/events/activity/");
   }
 
   if (reserved) {

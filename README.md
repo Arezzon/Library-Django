@@ -371,14 +371,19 @@ changes are tracked as events. Librarians can open **Analytics** at
 
 | Dashboard | Visibility |
 | --- | --- |
-| Global activity, filters and recent events | Librarians |
+| Library overview: aggregated loans, reservations and views | Librarians |
+| Global activity, filters and recent events (Activity log) | Librarians |
 | Selected user's activity | Librarians |
 | Analytics dashboard | Not available to readers |
 | Raw tracking API | Authenticated clients with CSRF |
 
-The figures for the library overview (KAN-34) come from
-`GET /api/v1/analytics/overview/`: loans and returns from orders, interest from
-these events, with every metric defined in
+**Analytics** opens on the **Overview** tab (KAN-54): loans, returns, borrowers,
+overdue loans, reservations and book views for the last 7, 30 or 90 days or 12
+months, each against the period before, with loans over time, the most borrowed
+and most viewed books and reader counts. It shows no personal data. The per-event
+screen above is the **Activity log** tab at <http://localhost:8000/events/activity/>.
+The same figures come from `GET /api/v1/analytics/overview/` (KAN-34): loans and
+returns from orders, interest from these events, with every metric defined in
 [the dashboard design](docs/ba/analytics-dashboard.md).
 
 Client events are sent to:

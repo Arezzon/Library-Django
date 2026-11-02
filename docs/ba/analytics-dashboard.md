@@ -22,8 +22,13 @@ Navigation already shows the **Analytics** link only to these roles.
 
 The new overview becomes the landing page of **Analytics** at `/events/`.
 The existing per-event screen stays one tab away as **Activity log**, unchanged,
-because it serves a different job (auditing what happened) and shows reader emails,
-which the overview does not.
+at `/events/activity/`, because it serves a different job (auditing what happened)
+and shows reader emails, which the overview does not.
+
+KAN-54 builds the page as `events/overview_page.py` (what the page shows, from the
+KAN-34 service), `events/views.py` and `events/templates/events/overview.html`,
+tested in `events/test_overview_page.py`. The approved mock-up kept the app's own
+header and moved each tile's details behind an "i" button.
 
 ```text
 Analytics:  [ Overview ]  [ Activity log ]
@@ -62,7 +67,11 @@ back further than tracking does. Events add the *interest* that orders cannot sh
 
 ### Summary tiles
 
-Each tile shows the value for the period and the change against the previous period.
+Each tile shows the value for the period and the short change against the previous
+period ("−11 (−6%)"). Everything else about the figure sits behind an "i" button: a
+native `<details>` disclosure that works by keyboard and without JavaScript. It says
+what the figure counts, the previous period's value or why there is no comparison,
+and, for reservations, how they split by state.
 
 | Tile | Definition | Comparison |
 | --- | --- | --- |

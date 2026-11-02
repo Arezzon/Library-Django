@@ -191,7 +191,7 @@ class EventTests(FakeEncoderMixin, TestCase):
             ),
         )
         persist_event(payload)  # what the worker does with it
-        summary = client.get("/events/").context["summary"]
+        summary = client.get("/events/activity/").context["summary"]
         self.assertEqual((summary["borrows"], summary["users"]), (1, 1))
         event = UserEvent.objects.get(event_type=EventType.ORDER_CREATED)
         self.assertEqual(event.user, self.user)
@@ -431,16 +431,16 @@ class AnalyticsTests(FakeEncoderMixin, TestCase):
 
     def test_dashboard_is_librarian_only_and_navigation_matches_role(self):
         self.assertRedirects(
-            self.client.get("/events/"),
-            "/authentication/login/?next=/events/",
+            self.client.get("/events/activity/"),
+            "/authentication/login/?next=/events/activity/",
             fetch_redirect_response=False,
         )
         self.client.force_login(self.reader)
-        response = self.client.get("/events/")
+        response = self.client.get("/events/activity/")
         self.assertEqual(response.status_code, 403)
         self.assertNotContains(self.client.get("/book/"), "Activity Analytics")
         self.client.force_login(self.librarian)
-        response = self.client.get("/events/")
+        response = self.client.get("/events/activity/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Activity Analytics")
         self.assertContains(response, "No activity yet")
@@ -452,7 +452,7 @@ class AnalyticsTests(FakeEncoderMixin, TestCase):
         self.event(EventType.SEARCH, properties={"query": "poetry"})
         self.event(EventType.BOOK_VIEW, occurred_at=timezone.now() - timedelta(days=40))
         self.client.force_login(self.librarian)
-        response = self.client.get("/events/")
+        response = self.client.get("/events/activity/")
         self.assertEqual(
             response.context["summary"],
             {"total": 4, "users": 1, "views": 1, "borrows": 1},
@@ -461,14 +461,14 @@ class AnalyticsTests(FakeEncoderMixin, TestCase):
         self.assertEqual(sum(bar["total"] for bar in response.context["bars"]), 4)
         self.assertContains(response, "Popular book")
         filtered = self.client.get(
-            "/events/", {"event_type": "book_view", "days": "90"}
+            "/events/activity/", {"event_type": "book_view", "days": "90"}
         )
         self.assertEqual(filtered.context["summary"]["total"], 2)
 
     def test_the_daily_chart_has_a_table_with_the_same_numbers(self):
         self.event(EventType.BOOK_VIEW, book_id=self.book.pk)
         self.client.force_login(self.librarian)
-        response = self.client.get("/events/")
+        response = self.client.get("/events/activity/")
         page = response.content.decode()
         table = re.search(
             r"<caption[^>]*>Actions per day</caption>(.*?)</table>", page, re.S
@@ -487,13 +487,15 @@ class AnalyticsTests(FakeEncoderMixin, TestCase):
                 EventType.SEARCH, properties={"query": "<script>alert(1)</script>"}
             )
         self.client.force_login(self.librarian)
-        response = self.client.get("/events/", {"days": "30", "event_type": "search"})
+        response = self.client.get(
+            "/events/activity/", {"days": "30", "event_type": "search"}
+        )
         self.assertEqual(len(response.context["page_obj"]), 25)
         self.assertContains(response, "days=30&amp;event_type=search&amp;page=2")
         self.assertContains(response, "&lt;script&gt;alert(1)&lt;/script&gt;")
         self.assertNotContains(response, "<script>alert(1)</script>")
         second = self.client.get(
-            "/events/", {"days": "30", "event_type": "search", "page": 2}
+            "/events/activity/", {"days": "30", "event_type": "search", "page": 2}
         )
         self.assertEqual(len(second.context["page_obj"]), 1)
 
@@ -504,7 +506,7 @@ class AnalyticsTests(FakeEncoderMixin, TestCase):
         self.reader.delete()
         self.client.force_login(self.librarian)
         response = self.client.get(
-            "/events/", {"days": "bad", "event_type": "bad", "page": "bad"}
+            "/events/activity/", {"days": "bad", "event_type": "bad", "page": "bad"}
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["days"], 7)
