@@ -1546,7 +1546,8 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
 Added on 2026-11-02 at the user's request, after PR 12 merged with 2 P1 items open: the user reported
 T162 and T163 done and asked for the Jira descriptions to be corrected, after they approved each
 draft, and for TD-35 to be removed. T173 and T174 run on `main` after PR 12, and PR 13 records them.
-PR 13 also carries Phase 17, at the user's direction, so it changes code too: T191 and T199.
+PR 13 also carries Phases 17 and 18, at the user's direction, so it changes code too: T191, T199 and
+T200.
 
 - [x] T187 [US9] Create branch `docs/kan-62-close` from a freshly fetched `origin/main`, with PR 12
   merged.
@@ -1613,8 +1614,8 @@ PR 13 also carries Phase 17, at the user's direction, so it changes code too: T1
   audited.
 - **PR 10 (Phase 14)** needs PR 7, because it audits the finished reservation pages.
 - **PR 12 (Phase 15)** needs all the others, and **Polish (Phase 16)** follows it.
-- **PR 13 (Phases 15 and 17)** follows PR 12 and records the checks that close KAN-62, Polish's among
-  them, with the convergence tasks.
+- **PR 13 (Phases 15, 17 and 18)** follows PR 12 and records the checks that close KAN-62, Polish's
+  among them, with the convergence tasks.
 
 ### Minimum dependencies (spec FR-059) and the recommended order (R1)
 
@@ -1817,3 +1818,15 @@ section are the gate.
 
   Done: `BookListQueryTests.test_saved_books`. The page uses 7 queries with 1 saved book and with 50.
   Without the availability annotation it used 105 with 50, and the test failed.
+
+## Phase 18: Convergence
+
+- [x] T200 In `library/book/test_queries.py`, fix the query counts of For You (`/book/recommendations/`)
+  and of `/api/v1/books/recommendations/`, from #45 and #55, with 1 eligible book and with 50. Today
+  only the recommendation service is pinned, at 7 queries for 2 books
+  (`library/book/test_recommendation_reasons.py`), so a query per row added in the page's template or
+  the API's serializer fails no test per FR-047, US7/AC3 (partial)
+
+  Done: `RecommendationQueryTests`. Both lists use the same number of queries with 1 eligible book
+  and with 50. Without the authors prefetch, For You used 9 queries with 1 and 18 with 50, the API
+  8 and 27, and both tests failed.

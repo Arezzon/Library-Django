@@ -13,6 +13,7 @@ from library.testing import assert_same_query_count
 from order.models import Order
 
 from .models import Book, BookLike, FavoriteBook
+from .recommendations import DEFAULT_LIMIT, MAX_LIMIT
 from .search import RESULT_LIMIT
 from .testing import FakeEncoderMixin
 
@@ -108,3 +109,55 @@ class BookListQueryTests(FakeEncoderMixin, TestCase):
             self, self.client, reverse("my_book_preferences"), self.save_books
         )
         self.assertEqual(len(response.context["books"]), 50)
+
+
+class RecommendationQueryTests(FakeEncoderMixin, TestCase):
+    """For You recommends available books that the reader neither borrows nor holds.
+
+    Each book has an author and a copy on loan to another reader, so every column is
+    filled.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.reader = CustomUser.objects.create_user(
+            email="recommended-reader@example.com",
+            password="queries-password",
+            first_name="Query",
+            middle_name="",
+            last_name="Reader",
+            is_active=True,
+        )
+        cls.borrower = CustomUser.objects.create_user(
+            email="queries-borrower@example.com",
+            password="queries-password",
+            first_name="Query",
+            middle_name="",
+            last_name="Borrower",
+            is_active=True,
+        )
+        cls.author = Author.objects.create(name="Lina", surname="Kostenko")
+
+    def setUp(self):
+        self.client.force_login(self.reader)
+
+    def add_books(self, count):
+        for _ in range(count):
+            book = Book.objects.create(name="Recommended book", count=2)
+            book.authors.add(self.author)
+            Order.objects.create(
+                user=self.borrower,
+                book=book,
+                plated_end_at=timezone.now() + timedelta(days=14),
+            )
+
+    def test_for_you(self):
+        response = assert_same_query_count(
+            self, self.client, reverse("book_recommendations"), self.add_books
+        )
+        self.assertEqual(len(response.context["books"]), DEFAULT_LIMIT)
+
+    def test_the_api_recommendations(self):
+        url = f"/api/v1/books/recommendations/?limit={MAX_LIMIT}"
+        response = assert_same_query_count(self, self.client, url, self.add_books)
+        self.assertEqual(len(response.json()), MAX_LIMIT)

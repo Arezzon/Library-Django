@@ -176,3 +176,15 @@
 
 {"timestamp":"2026-11-02T10:16:12.0392896Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1016119861115Z-complete"}
 
+{"timestamp":"2026-11-02T10:42:16.3138427Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1042162618579Z-executing"}
+
+{"timestamp":"2026-11-02T10:42:16.6279187Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T10:50:32.6706317Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"plan.md\u0027s PR 13 paragraph names Phase 17 only; at the user\u0027s direction PR 13 also carries Phase 18 (T200)","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1050326528972Z-blocked"}
+
+{"timestamp":"2026-11-02T10:50:33.9357861Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1050338858437Z-executing"}
+
+{"timestamp":"2026-11-02T10:51:33.7963937Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1051337323524Z-complete"}
+
+{"event":"artifact_drift_detected","timestamp":"2026-11-02T10:51:33.8013793Z","actor":"claude","feature_directory":"specs/003-priority-tech-debt","drifted_artifacts":[{"path":"tasks.md","old_sha256":"f2a47c36b9a04d726e80fc145ddbd45cd0a102d1c634b1139c7b2c19e1558107","new_sha256":"2ba8cf6a26cee0103f1f1590b44b9ca15b494a68ba4ce6b992c3b62099a1e93b"}]}
+

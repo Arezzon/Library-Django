@@ -96,9 +96,9 @@ GitHub handles (T185, T186).
 closed them: the keyboard, screen-reader and walkthrough checks (T162, T163) and the corrected Jira
 descriptions (T039, T171). It also records the final security review and checks on `main` (T173,
 T174), removes TD-35 at the user's decision, and marks the spec Implemented (T169). Its own tasks
-are T187 to T190. At the user's direction it also carries Phase 17, the convergence tasks, two of
-which change code: embedding failures are logged (T191), and a test fixes the query count of Saved
-Books (T199).
+are T187 to T190. At the user's direction it also carries Phases 17 and 18, the convergence tasks,
+three of which change code: embedding failures are logged (T191), and tests fix the query counts of
+Saved Books (T199) and of For You and its API (T200).
 
 **Settings, applied by @Arezzon.** KAN-72, KAN-73 and KAN-74 make lint, code scanning and code owners'
 approval required on `main` (R27).
