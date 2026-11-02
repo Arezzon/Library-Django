@@ -150,9 +150,14 @@ class Command(BaseCommand):
                 lambda: recorded(EventType.BOOK_VIEW) and recorded(EventType.SEARCH),
                 "view/search events",
             )
-            _, html = request("/events/")
+            _, html = request("/events/activity/")
             if book.name not in html or "Activity Analytics" not in html:
                 raise CommandError("Analytics UI did not display the tracked book.")
+            _, overview = request("/events/")
+            if "Library overview" not in overview or book.name not in overview:
+                raise CommandError(
+                    "Library overview did not display the borrowed book."
+                )
             _, profile_html = request(f"/authentication/users/{user.pk}/")
             if "User activity" not in profile_html or book.name not in profile_html:
                 raise CommandError("User profile did not display scoped activity.")

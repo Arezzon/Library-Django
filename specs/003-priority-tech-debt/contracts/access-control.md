@@ -50,6 +50,7 @@ This table is the source for PR 1's access tests. A change to it changes the tes
 | `/api/v1/user/{uid}/order/{id}/` | GET | 401 | Own: 200. Otherwise: 404. | 200 |
 | `/api/v1/user/{uid}/order/{id}/` | PUT, PATCH, DELETE | 401 | 403 | 200 or 204 |
 | `/api/v1/events/` | POST | 401 | 202 | 202 |
+| `/api/v1/analytics/overview/` (KAN-34) | GET | 401 | 403 | 200; 400 for an unknown period, a limit outside 1–20 or any other parameter |
 
 Operations added later, detailed in [reservations-api.md](reservations-api.md):
 
@@ -83,7 +84,8 @@ body, or 409 for a refused reservation.
 | `/authentication/users/` | Redirect to sign-in | 403 | The page |
 | `/authentication/users/<id>/` | Redirect to sign-in | Own: the page. Other: 403. | The page |
 | `/authentication/users/<id>/update/` | Redirect to sign-in | Own: names only. A POST with `role` or `is_active` gets 403, and nothing changes. Other: 403. | Names, role and status. From PR 11, role only for administrators, offered as reader or librarian; an administrator's account answers 403 unless the caller is an administrator, and its role is never offered. |
-| `/events/` | Redirect to sign-in | 403 | The dashboard |
+| `/events/` | Redirect to sign-in | 403 | The dashboard. From KAN-54, the library overview. |
+| `/events/activity/` (KAN-54) | Redirect to sign-in | 403 | The activity log, which `/events/` showed before |
 | `/admin/` | Admin sign-in | Admin sign-in (not staff) | The admin site. From PR 11, `role` is read-only unless the caller is an administrator, and an administrator's account is read-only, and cannot be deleted, unless the caller is an administrator. |
 
 PRs 5 to 7 add the reservation routes listed in [reservations-api.md](reservations-api.md).

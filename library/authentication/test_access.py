@@ -147,6 +147,7 @@ SCHEMA_AUDIENCES = {
     ("/api/v1/version/", "get"): "anonymous",
     ("/api/v1/books/search/", "get"): "signed-in",
     ("/api/v1/events/", "post"): "signed-in",
+    ("/api/v1/analytics/overview/", "get"): "librarian",
     ("/api/v1/book/", "get"): "signed-in-read",
     ("/api/v1/book/{id}/", "delete"): "signed-in-read",
     ("/api/v1/author/", "post"): "signed-in-read",

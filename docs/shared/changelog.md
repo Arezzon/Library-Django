@@ -1,4 +1,8 @@
 2026-11-02
+Library overview page (KAN-54)
+**Analytics** now opens on an **Overview** tab for librarians and administrators, built from the KAN-34 figures: six tiles with the value and its change against the previous period, their details behind an "i" button that works by keyboard and without JavaScript; loans and returns over time with months, weeks or days before the history start hatched as no data and the same numbers in a table for screen readers; the most borrowed books with copies available now, the most viewed books, deleted ones named without a link; and reader counts. The period is the last 7, 30 or 90 days or 12 months, and an unknown one falls back to 30 days. A notice says where each source's history starts, and an empty library says so instead of drawing an empty chart. The page shows no reader's name, email or search text and runs a fixed number of queries. The per-event screen moved to the **Activity log** tab at `/events/activity/`, unchanged. The accessibility check covers both tabs, and the tracking smoke test checks that the overview shows the borrowed book.
+
+2026-11-02
 Complete assistant navigation regression coverage
 Cover invalid saved-reference shapes and metadata, direct service and view authorization, rejected result selectors and catalog failure during GET result hydration. Achieve 100% coverage of the 68 changed application lines with the full 596-test PostgreSQL suite; preserve existing assistant, CSRF and browser checks.
 
@@ -21,6 +25,14 @@ Extend the catalog assistant with bounded natural-language interpretation, Ukrai
 2026-11-01
 Book.create links authors after saving the book (KAN-77)
 `Book.create` with a non-empty `authors` list no longer fails with `ValueError`: the book is saved first, then its authors are linked, and both happen in one transaction, so a failed link leaves neither the book nor its embedding behind. New tests cover no authors, an empty list, one and several authors, the rollback and a too-long name.
+
+2026-11-01
+Library overview metrics and API (KAN-34)
+Librarians and administrators can read the library overview at `GET /api/v1/analytics/overview/?period=30d&limit=10`: loans issued, returns, active borrowers, overdue loans now, reservations by their current state and book views, each compared with the period before; loans and returns per day, Monday-based week or month; the most borrowed and most viewed books with their current availability; and first-time, returning and per-borrower counts. The periods are `7d`, `30d`, `90d` and `12m`, in Kyiv time. Loans come from orders and interest from tracked events, and a comparison or bucket that the history does not reach is reported as unknown rather than zero. Staff who borrow books count as borrowers. The response holds no account data, readers get 403, and the endpoint runs a fixed number of queries. The access contract, README and the dashboard design describe it.
+
+2026-11-01
+Analytics dashboard design (KAN-33)
+The librarian analytics overview is designed in `docs/ba/analytics-dashboard.md`: who may open it, the periods and their Kyiv-time buckets, a definition with source and time field for every figure (loans, returns, active and first-time borrowers, overdue loans, reservations, book views, the most borrowed and most viewed books), how zero differs from missing history, what stays private, and desktop, mobile, empty-database and reader wireframes. It also outlines the KAN-34 API that the KAN-54 panel will read. No code changes.
 
 2026-11-01
 The main pages meet WCAG 2.2 AA (KAN-69)

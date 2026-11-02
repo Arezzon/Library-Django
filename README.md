@@ -371,10 +371,20 @@ changes are tracked as events. Librarians can open **Analytics** at
 
 | Dashboard | Visibility |
 | --- | --- |
-| Global activity, filters and recent events | Librarians |
+| Library overview: aggregated loans, reservations and views | Librarians |
+| Global activity, filters and recent events (Activity log) | Librarians |
 | Selected user's activity | Librarians |
 | Analytics dashboard | Not available to readers |
 | Raw tracking API | Authenticated clients with CSRF |
+
+**Analytics** opens on the **Overview** tab (KAN-54): loans, returns, borrowers,
+overdue loans, reservations and book views for the last 7, 30 or 90 days or 12
+months, each against the period before, with loans over time, the most borrowed
+and most viewed books and reader counts. It shows no personal data. The per-event
+screen above is the **Activity log** tab at <http://localhost:8000/events/activity/>.
+The same figures come from `GET /api/v1/analytics/overview/` (KAN-34): loans and
+returns from orders, interest from these events, with every metric defined in
+[the dashboard design](docs/ba/analytics-dashboard.md).
 
 Client events are sent to:
 
@@ -433,6 +443,7 @@ changes. Each operation is open only to its audience:
 | `/api/v1/user/<id>/order/` | Orders for one user | That user or a librarian reads; only librarians start, change or delete |
 | `/api/v1/reservation/` | Reservations | Signed-in accounts reserve for themselves, and read and cancel their own; librarians read every reservation, issue it (`<id>/issue/`) or cancel it with a reason (`<id>/cancel/`) |
 | `/api/v1/events/` | Queue an activity event | Signed-in accounts |
+| `/api/v1/analytics/overview/?period=30d&limit=10` | Aggregated loans, returns, reservations, book views, top books and reader counts for `7d`, `30d`, `90d` or `12m`, compared with the period before; no personal data ([metrics](docs/ba/analytics-dashboard.md)) | Librarians and administrators |
 
 A request that is not signed in gets `401` with `WWW-Authenticate: Session`. A signed-in
 account without the right role gets `403`, and so does a reader who sends `role`,

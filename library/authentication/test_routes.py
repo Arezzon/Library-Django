@@ -101,6 +101,7 @@ ROUTES = [
     ("get", "/authentication/users/{reader}/update/", SIGN_IN, PAGE, PAGE),
     ("get", "/authentication/users/{other}/update/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/events/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/events/activity/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/admin/", ADMIN_SIGN_IN, ADMIN_SIGN_IN, PAGE),
 ]
 
