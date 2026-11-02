@@ -349,15 +349,16 @@ published.
   - use the title `perf(author): load every list in a fixed number of queries (KAN-18)`.
 
   Commit and open it when the user asks.
-- [ ] T039 [US7] After deployment:
+- [x] T039 [US7] After deployment:
   - (Pi) Run `smoke_stack_budget.py` with `--max-catalog-p95-ms 2000` (quickstart.md §2 step 3) and
     record the result in research.md "Measurements".
   - (Jira) Correct KAN-18's description to match the product (FR-058): availability is the total
     copies minus active loans, and, from KAN-56, minus active reservations; there is no order status
     field.
 
-  The Pi part is done: research.md "On the Raspberry Pi" records it (2026-11-02). The Jira part
-  waits (register TD-28).
+  The Pi part is done: research.md "On the Raspberry Pi" records it (2026-11-02). The Jira part is
+  done too: KAN-18's description was corrected on 2026-11-02, after the user approved the draft
+  (research.md "Closing KAN-62").
 
 **Checkpoint**: Story 7 is done, and every list's query count is fixed by a test.
 
@@ -1373,9 +1374,12 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
   handoff set to `blocked`, use `/speckit-constitution` to add the accessibility check to the
   smoke-test in workflow item 4. Add its entry to `docs/shared/changelog.md`, then set the handoff
   back.
-- [ ] T162 [US6] (manual) Complete each main task of Story 6 with the keyboard alone, and with NVDA in
+- [x] T162 [US6] (manual) Complete each main task of Story 6 with the keyboard alone, and with NVDA in
   Firefox or Chrome. Fix what fails, and record the results in research.md "Measurements" (SC-009).
-- [ ] T163 [US6] (manual) Run the walkthrough (FR-045):
+
+  Done: on 2026-11-02 @fazelukario, the technical lead, reported the checks completed and verified,
+  with no problems found. research.md "Accessibility" records the overall result.
+- [x] T163 [US6] (manual) Run the walkthrough (FR-045):
   - at least 3 people who are new to the system, at least 1 of them with little digital experience;
   - each attempts every main task without help;
   - record the anonymous results in `specs/003-priority-tech-debt/research.md` "Measurements": the
@@ -1383,6 +1387,10 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
   - fix each problem, or note it for the register with an owner and a plan.
 
   At least 80% of the attempts must finish without help.
+
+  Done: on 2026-11-02 @fazelukario reported the walkthrough completed and verified, with every
+  attempt finished without help and no problems. research.md "Accessibility" records the overall
+  result, not each attempt.
 - [x] T164 [US6] Verify and prepare the pull request:
   - run quickstart.md §10, lint, format and the diff coverage;
   - add the changelog entry;
@@ -1402,6 +1410,7 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
 - KAN-62 closed, with no P1 item open.
 - The four minor findings that PR 10's final review deferred, fixed.
 - CodeQL alert 15, a test for TD-30, and the two minor findings that PR 12's own review deferred.
+- The closing record, after PR 12 merged (PR 13).
 
 **Independent Test**: pick any item KAN-62 names, follow its link to the evidence, and confirm that no
 P1 item is open.
@@ -1497,30 +1506,64 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
     lead for R3, and the product owner with the tech lead for R7. Ask the user for the others.
   - plans with target sprints for open items;
   - rows for unfixed walkthrough problems, and for defects filed under FR-053.
-- [ ] T167 [US9] Check the register in `docs/shared/debt-register.md` (FR-056, SC-013):
+- [x] T167 [US9] Check the register in `docs/shared/debt-register.md` (FR-056, SC-013):
   - every item that KAN-62 names has a row;
   - every closed row's evidence link works;
   - every open row has an owner, a priority, a plan and a target sprint;
   - no P1 row is open or blocked.
+
+  Done on 2026-11-02, in PR 13: 35 rows, every link and cited test holds, and no P1 row is open or
+  blocked.
 - [x] T168 [P] [US9] Review `README.md` and `docs/adr/README.md`. They must describe reservations,
   issuing by librarians, the roles, backups and logs as delivered, and list ADRs 0001 to 0003 (Story
   9 scenario 6).
-- [ ] T169 [P] [US9] In `specs/003-priority-tech-debt/`, set the spec's Status to Implemented, complete
+- [x] T169 [P] [US9] In `specs/003-priority-tech-debt/`, set the spec's Status to Implemented, complete
   research.md "Measurements", and mark every task done in tasks.md. Mark the handoff complete with
   the bridge, and commit its records in `.specify/` with these files.
+
+  Done on 2026-11-02, in PR 13, after the last task closed.
 - [x] T170 [US9] Verify and prepare the pull request:
   - run quickstart.md §13 and lint;
   - add the changelog entry;
   - use the title `docs(shared): add the debt register and close KAN-62 (KAN-71)`.
 
   Commit and open it when the user asks.
-- [ ] T171 [US9] (Jira) With the assignee (FR-056, FR-058):
+- [x] T171 [US9] (Jira) With the assignee (FR-056, FR-058):
   - correct KAN-19's description: issuing locks the book and rechecks the derived availability, and
     no stored counter decreases;
   - confirm KAN-18's description;
   - link the register (`docs/shared/debt-register.md` on `main`) and the evidence from KAN-62;
   - make every sub-task's status match its pull request;
   - move KAN-62 to Done only when no P1 item is open or blocked.
+
+  Done on 2026-11-02: after the user approved each draft, KAN-18's and KAN-19's descriptions were
+  corrected, and KAN-62 links the register. KAN-19 is @myrrhfawn's issue; the user asked for its
+  correction. Once the checks passed, KAN-69, KAN-71 and KAN-62 moved to Done (research.md "Closing
+  KAN-62").
+
+### The closing record (PR 13)
+
+Added on 2026-11-02 at the user's request, after PR 12 merged with 2 P1 items open: the user reported
+T162 and T163 done and asked for the Jira descriptions to be corrected, after they approved each
+draft, and for TD-35 to be removed. PR 13 changes only documents. T173 and T174 run on `main` after
+PR 12, the last pull request that changes code, and PR 13 records them.
+
+- [x] T187 [US9] Create branch `docs/kan-62-close` from a freshly fetched `origin/main`, with PR 12
+  merged.
+- [x] T188 [US9] Remove TD-35 from `docs/shared/debt-register.md`, and its finding from research R30,
+  at the user's decision on 2026-11-02.
+- [x] T189 [US9] Record the closing checks:
+  - in research.md "Measurements": T162 and T163 as the user reported them, the Jira corrections
+    and moves (T039, T171), the security review (T173) and the final checks (T174);
+  - in the register: close TD-15 and TD-28, link #57 from TD-15, TD-16 and TD-32, and update the
+    KAN-62 line;
+  - re-run T167's check.
+- [x] T190 [US9] Verify and prepare the pull request:
+  - run quickstart.md §13 and lint;
+  - add the changelog entry;
+  - use the title `docs(shared): close the last P1 items of the debt register (KAN-62)`.
+
+  Commit and open it when the user asks.
 
 **Checkpoint**: every story is done, and KAN-62 can close.
 
@@ -1533,12 +1576,20 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
 - [x] T172 (Pi) With everything running, run `smoke_stack_budget.py` with the memory, search and
   catalog limits. Record that the stack stays within 4 GB and that search p95 stays under 500 ms
   (SC-014).
-- [ ] T173 Review the combined changes for security with the code-review or security-review skill:
+- [x] T173 Review the combined changes for security with the code-review or security-review skill:
   the access rules, redaction, backup file permissions, and how the scripts handle passwords. Fix
   what it finds, or record it in `docs/shared/debt-register.md`.
-- [ ] T174 Run every automated check in quickstart.md once more on the final `main`. Confirm that each
+
+  Done on 2026-11-02 as a self-review of the four areas on `main`, without either skill: the
+  security-review skill reviews only a branch's pending changes. It found no Critical or Important
+  problem and one P3 gap, register TD-36 (research.md "Security review of the combined changes").
+- [x] T174 Run every automated check in quickstart.md once more on the final `main`. Confirm that each
   pull request met FR-062: the template, a changelog entry, the code owners' review and CI. Note any
   gap in the register.
+
+  Done on 2026-11-02 on `main` at `cfb5e5c`, through CI's run on `main` and locally: lint, 587
+  tests, 39 pages with 0 violations, the ruleset and the register. All 12 pull requests met FR-062,
+  so the register gains no rows (research.md "Final checks on `main`").
 
 ---
 
@@ -1562,6 +1613,7 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
   audited.
 - **PR 10 (Phase 14)** needs PR 7, because it audits the finished reservation pages.
 - **PR 12 (Phase 15)** needs all the others, and **Polish (Phase 16)** follows it.
+- **PR 13 (Phase 15)** follows PR 12 and records the checks that close KAN-62, Polish's among them.
 
 ### Minimum dependencies (spec FR-059) and the recommended order (R1)
 

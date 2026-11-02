@@ -152,3 +152,13 @@
 
 {"timestamp":"2026-11-02T00:38:01.0074125Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
 
+{"timestamp":"2026-11-02T01:42:21.5770363Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"PR 13 contract: tasks.md gains the closing record (T187 to T190) after PR 12 merged with 2 P1 items open; plan.md names PR 13","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0142215541699Z-blocked"}
+
+{"timestamp":"2026-11-02T01:42:55.7093895Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0142556594569Z-executing"}
+
+{"timestamp":"2026-11-02T01:42:56.0381015Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T02:00:23.7001794Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0200236346909Z-complete"}
+
+{"event":"artifact_drift_detected","timestamp":"2026-11-02T02:00:23.7051919Z","actor":"claude","feature_directory":"specs/003-priority-tech-debt","drifted_artifacts":[{"path":"spec.md","old_sha256":"d58e22c2d2e47ceee159dfda883f6f93ed29510c94ccd0b2460336358500a737","new_sha256":"c917ece567d056069259b37a5c2e4cb51dbb7b74b87572d4e70fce671299ee5f"},{"path":"tasks.md","old_sha256":"0fd402ee4c655ed5326838d7d39e8699bfd1340b7e16acc7d7d508d5512210bc","new_sha256":"bb0290788b59df638f7cd2fc9874835ee5737034fed2530519044c4011e527f8"}]}
+

@@ -880,13 +880,13 @@ accurate after every merge.
 | The assistant page showed when its answer was checked as a UTC timestamp, not in Kyiv time with the zone (FR-044) | `ai/services.py`, `ai/templates/ai/assistant.html` (KAN-52) | Fixed by #55, which removed it from the page; a test guards it since PR 12 (T180); register, closed |
 | The constitution's workflow item 4 and `AGENTS.md` give the test command without `ai`, which CI runs (found by PR 10) | `.specify/memory/constitution.md`, `AGENTS.md` | Register, P3 |
 | CodeQL alert 15 (URL redirection) on the reservation notice's Dismiss. The target already passed `url_has_allowed_host_and_scheme` with the request's own host, so the alert was a false positive (found by PR 12) | `order/views.py` (PR 6) | Fixed by PR 12 (T179), which moves the redirect inside the check, where CodeQL's model of it applies; register, closed |
-| Team members' real names remain in the Git history: commit authors and co-author lines, `LICENSE`, and earlier versions of the documentation. The files now name people by their GitHub handles (found by PR 12) | the history of `main` | Register, P2, blocked: rewriting the history needs a force push to `main` |
+| A page that forgets its access check fails no test: the pages' access test lists its routes by hand, and 6 routes are missing from it (found by the security review, T173) | `authentication/test_routes.py` | Register, P3 |
 | The gaps FR-055 lists: weekly-only off-device copies, analytics search text, English only, browser tests not in CI, P2 search and forecasting out of scope | — | Register |
 
 ## Measurements
 
-PRs 1 to 11 fill this section. Each entry gives the date, the method and the result. PR 12 links
-each entry from the register.
+PRs 1 to 11 fill this section, and PRs 12 and 13 add the closing checks. Each entry gives the date,
+the method and the result, and the register links the entries that close its items.
 
 - Query counts per list, before and after PR 2 (FR-048).
 - Coverage of added and changed lines, per PR (FR-051).
@@ -900,6 +900,8 @@ each entry from the register.
 - The accessibility results: automated, keyboard and screen reader (SC-009).
 - The walkthrough (FR-045).
 - The merge rules, and the check that they block merging (SC-012).
+- The security review and the final checks on `main` (T173, T174).
+- The Jira corrections and the closing of KAN-62 (FR-056, FR-058).
 
 ### Query counts per list (PR 2, FR-048)
 
@@ -1001,12 +1003,22 @@ no measurable memory. CI repeats the check on every run.
 
   CI repeats the check on every run, on the `ubuntu-latest` leg.
 
-**Keyboard and screen reader (T162)**: not yet run. A person completes each main task of Story 6
-with the keyboard alone and with NVDA in Firefox or Chrome, and the results go here.
+**Keyboard and screen reader (T162)**:
 
-**Walkthrough (T163, FR-045)**: not yet run. At least three people who are new to the system, at
-least one of them with little digital experience, attempt each main task; the anonymous results go
-here.
+- **Date**: reported on 2026-11-02 by @fazelukario, the technical lead.
+- **Method**: quickstart.md §10 steps 3 and 4. Each main task of Story 6 is completed with the
+  keyboard alone and with NVDA.
+- **Result**: every task was completed, and no problems were found. The report gives this overall
+  result, not a result for each task.
+
+**Walkthrough (T163, FR-045)**:
+
+- **Date**: reported on 2026-11-02 by @fazelukario.
+- **Method**: quickstart.md §10 step 5. At least three people who are new to the system, at least one
+  of them with little digital experience, each attempt every main task without help.
+- **Result**: every attempt finished without help, where SC-009 asks for at least 80%. No problems
+  were seen, so the register gains no rows from it (FR-045). The report gives this overall result,
+  not a record of each attempt.
 
 **Follow-ups (PR 12, T175 to T178)**: the four minor findings of PR 10's review are fixed:
 - the book deletion page refuses at once for a book with history;
@@ -1115,3 +1127,76 @@ items.
 - **Cold start (T067)**: the same check, run again later on 2026-11-02, after a period with no
   visits and no merge, as the operator reports: PASS. The first catalog load took 73.8 ms, against a
   p95 of 54.4 ms; search p95 306.4 ms; peak memory 2.554 GiB.
+
+### Security review of the combined changes (T173)
+
+- **Date**: 2026-11-02, on `main` at `cfb5e5c`, after PR 12 merged.
+- **Scope**: the four areas T173 names, across the changes since `34b5091`, the commit before PR 1.
+  Other features' pull requests merged meanwhile are included where they touch these areas.
+- **Method**: the author of PR 13 read the code of each area and checked the running development
+  stack. No separate reviewer took part, and the security-review skill was not used, because it
+  reviews only a branch's pending changes.
+
+| Area | What was checked | Result |
+|---|---|---|
+| Access rules | The API refuses a view that declares no audience, and `library/authentication/test_access.py::DeclaredAudienceTests` fails if an API view declares none. The pages' test, `library/authentication/test_routes.py::WebRouteAccessTests`, lists its routes by hand. Each of the 128 routes was compared with that list, and the routes missing from it were requested without signing in on the development stack. | 6 routes are missing from the list: the assistant, For You, Saved Books, a book's rating and preferences, and signing out. Each sends the caller to sign in, and its own app tests its access. Nothing makes the list complete, so a new page that forgot its check would fail no test: register TD-36, P3. |
+| Redaction | `library/library/logs.py` redacts secrets by name and by value, cookie and authorization headers, passwords in URLs, and search text (`q=`). The audit trail records an account's role and status, never its password hash. The assistant and analytics log no question or search text. | No gap. CI's "Verify the logs hold no secrets or search text" passed on `main`. |
+| Backup file permissions | The backup script writes each dump and its checksum under `umask 077`. The operator guide keeps the weekly copies `chmod 600`, and reads the secrets for a restore with `read -rs`. | No gap. The dumps and checksums on the development stack are `-rw-------`, owned by root. |
+| Scripts and passwords | `smoke_stack_budget.py` reads its password from `BUDGET_CHECK_PASSWORD` or asks for it. `smoke_reservation_load.py` makes accounts without passwords and deletes their sessions afterwards. `check_pages.mjs` signs in as the published demo accounts unless environment variables name others. | No gap: no script takes a password as an argument or prints one. Production does not create the demo accounts, because `DJANGO_SEED` defaults to `false`. |
+
+**Result**: no Critical or Important finding, and one P3 gap (TD-36).
+
+### Final checks on `main` (T174, FR-062)
+
+- **Date**: 2026-11-02, on `main` at `cfb5e5c`, after PR 12 merged. PR 13 changes only documents, so
+  this is the final code.
+- **CI**: the run on `main` ([41371422354](https://github.com/Arezzon/Library-Django/actions/runs/41371422354))
+  passed lint, the smoke test on five runners, and the publish and deploy jobs. On `ubuntu-latest`
+  it verified the backup restore, the tests with coverage, the key endpoints, the accessibility of 39
+  pages, the reservation burst, the 4 GiB memory budget, and that the logs hold no secrets or search
+  text. CodeQL passed on the same commit, alert 15 shows as fixed, and no alert is open.
+- **Locally**, on the development stack with demo data (quickstart.md §0.1, §10, §12 and §13):
+  - lint and format are clean (160 files);
+  - the full test command: 587 tests pass, 4 skipped;
+  - the accessibility check: 39 pages, 0 violations;
+  - ruleset 23898585, last changed on 2026-10-31, still requires `lint`, `smoke-test`, CodeQL and
+    code owners' review;
+  - the register check finds no problem, and no P1 item open or blocked.
+
+  The coverage of changed lines does not apply to `main` itself; CI measured it on each pull
+  request.
+- **FR-062**: each pull request has a conventional title, the template's sections with its
+  checklist, a changelog entry, an approval from a code owner of every path it touches, green CI,
+  and a branch of its own. No gap, so the register gains no rows from this check.
+
+  | PR | Pull request | Branch | Merged |
+  |---|---|---|---|
+  | 1 | [#36](https://github.com/Arezzon/Library-Django/pull/36) | `fix/kan-24-access-control` | 2026-10-28 |
+  | 2 | [#38](https://github.com/Arezzon/Library-Django/pull/38) | `perf/kan-18-query-counts` | 2026-10-28 |
+  | 3 | [#39](https://github.com/Arezzon/Library-Django/pull/39) | `test/kan-21-business-rules` | 2026-10-28 |
+  | 4 | [#41](https://github.com/Arezzon/Library-Django/pull/41) | `feat/kan-55-reservation-model` | 2026-10-28 |
+  | 5 | [#42](https://github.com/Arezzon/Library-Django/pull/42) | `feat/kan-56-reserve-a-book` | 2026-10-28 |
+  | 6 | [#43](https://github.com/Arezzon/Library-Django/pull/43) | `feat/kan-57-issue-at-the-desk` | 2026-10-30 |
+  | 7 | [#44](https://github.com/Arezzon/Library-Django/pull/44) | `feat/kan-58-reservation-pages` | 2026-10-31 |
+  | 8 | [#40](https://github.com/Arezzon/Library-Django/pull/40) | `feat/kan-67-logs-and-audit` | 2026-10-28 |
+  | 9 | [#37](https://github.com/Arezzon/Library-Django/pull/37) | `feat/kan-68-backups` | 2026-10-28 |
+  | 10 | [#56](https://github.com/Arezzon/Library-Django/pull/56) | `fix/kan-69-accessibility` | 2026-11-01 |
+  | 11 | [#54](https://github.com/Arezzon/Library-Django/pull/54) | `feat/kan-70-administrator-role` | 2026-11-01 |
+  | 12 | [#57](https://github.com/Arezzon/Library-Django/pull/57) | `docs/kan-71-debt-register` | 2026-11-02 |
+
+### Closing KAN-62 (T171, FR-056, FR-058)
+
+- **Jira descriptions (T039, T171)**: corrected on 2026-11-02, after @fazelukario approved each
+  draft:
+  - KAN-18: availability is the total copies minus unreturned loans and, from KAN-56, active
+    reservations, counted in the same query as each list. Loans have no status field.
+  - KAN-19: issuing locks the book, checks the derived availability again under the lock, and
+    decreases no stored counter.
+  - KAN-62 links this register and these measurements.
+
+  Each corrected description ends with the date and what the earlier version said.
+- **Statuses (T171)**: once the checks above passed, on 2026-11-02:
+  - KAN-69 and KAN-71 moved to Done, since their pull requests had merged;
+  - KAN-62 moved to Done, with no P1 item open or blocked (FR-056).
+
+  KAN-67, KAN-68 and KAN-70 were already Done.
