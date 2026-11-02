@@ -382,6 +382,10 @@ overdue loans, reservations and book views for the last 7, 30 or 90 days or 12
 months, each against the period before, with loans over time, the most borrowed
 and most viewed books and reader counts. It shows no personal data. The per-event
 screen above is the **Activity log** tab at <http://localhost:8000/events/activity/>.
+The **Forecast** tab (KAN-35, <http://localhost:8000/events/forecast/>) ranks books by
+a 0–100 demand index made of five weighted scores (loans, reservations, interest,
+preferences and stock pressure), forecasts each book's loans for the next 30 days
+and says how many copies to buy ([forecast design](docs/ba/demand-forecast.md)).
 The same figures come from `GET /api/v1/analytics/overview/` (KAN-34): loans and
 returns from orders, interest from these events, with every metric defined in
 [the dashboard design](docs/ba/analytics-dashboard.md).
