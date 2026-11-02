@@ -85,9 +85,13 @@ system (R25).
 operator creates the first administrator on the server, and every change is audited (R26).
 
 **PR 12, debt register (KAN-71).** The register with evidence for every item, the README and ADRs
-reviewed, and KAN-62 closed with no P1 item open (R28).
+reviewed, and KAN-62 closed with no P1 item open (R28). At the user's request, it also fixes the four
+minor findings that PR 10's final review deferred (T175 to T178). After it opened, it also resolves
+CodeQL alert 15, adds a test for TD-30, and fixes the two minor findings that its own review deferred
+(T179 to T184). It also records the operator's results from the Pi, and refers to people by their
+GitHub handles (T185, T186).
 
-**Settings, applied by Arsen.** KAN-72, KAN-73 and KAN-74 make lint, code scanning and code owners'
+**Settings, applied by @Arezzon.** KAN-72, KAN-73 and KAN-74 make lint, code scanning and code owners'
 approval required on `main` (R27).
 
 ## Technical Context

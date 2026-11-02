@@ -17,13 +17,13 @@
             {% if book.liked %}
             <form method="post" action="{% url 'book_preference_update' book.pk %}">
                 {% csrf_token %}<input type="hidden" name="action" value="unlike">
-                <button class="btn-secondary" type="submit" aria-label="Unlike {{ book.name }}">Unlike</button>
+                <button class="btn-secondary" type="submit">Unlike<span class="sr-only"> “{{ book.name }}”, book #{{ book.pk }}</span></button>
             </form>
             {% endif %}
             {% if book.favorite %}
             <form method="post" action="{% url 'book_preference_update' book.pk %}">
                 {% csrf_token %}<input type="hidden" name="action" value="unfavorite">
-                <button class="btn-secondary" type="submit" aria-label="Remove {{ book.name }} from favorites">Remove from favorites</button>
+                <button class="btn-secondary" type="submit">Remove from favorites<span class="sr-only">: “{{ book.name }}”, book #{{ book.pk }}</span></button>
             </form>
             {% endif %}
         </div>

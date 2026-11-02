@@ -183,6 +183,13 @@ class Book(models.Model):
             )
         return orders + reservations
 
+    def deletion_refusal(self):
+        """Why this book cannot be deleted, or None: a loan or a reservation refers
+        to it. Deleting still raises ProtectedError if one appears in between."""
+        if self.order_set.exists() or self.reservations.exists():
+            return self.DELETION_REFUSAL
+        return None
+
     @staticmethod
     def get_by_id(book_id):
         """

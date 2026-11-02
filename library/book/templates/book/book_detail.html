@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% block error_prefix %}{% if rating_form.errors %}Error: {% endif %}{% endblock %}
 {% block title %}{{ book.name }} - Book Details{% endblock %}
 
 {% block content %}

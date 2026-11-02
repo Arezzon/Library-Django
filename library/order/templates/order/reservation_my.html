@@ -53,7 +53,7 @@
                                 <td class="table-td text-slate-600">
                                     {{ row.next_step }}
                                     {% if row.state == 'active' %}
-                                        <a href="{% url 'reservation_cancel' row.reservation.id %}" class="ml-1 text-rose-600 hover:text-rose-700 font-medium">Cancel</a>
+                                        <a href="{% url 'reservation_cancel' row.reservation.id %}" class="ml-1 text-rose-600 hover:text-rose-700 font-medium">Cancel<span class="sr-only"> the reservation of “{{ row.reservation.book.name }}”, book #{{ row.reservation.book_id }}</span></a>
                                     {% endif %}
                                     {% if row.reservation.cancel_reason %}
                                         <span class="block text-xs text-slate-500">Reason: {{ row.reservation.cancel_reason }}</span>

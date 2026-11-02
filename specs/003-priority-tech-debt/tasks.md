@@ -36,7 +36,7 @@ implementation tasks.
 - **Markers**:
   - **(manual)**: done by a person, in a browser or with a screen reader.
   - **(Pi)**: done by the operator on the Raspberry Pi.
-  - **(Arsen)**: a repository setting that only the repository administrator can change.
+  - **(@Arezzon)**: a repository setting that only the repository administrator can change.
   - **(Jira)**: a change in Jira, made by the issue's assignee or with their approval.
 
 ## Conventions for every pull request phase
@@ -356,6 +356,9 @@ published.
     copies minus active loans, and, from KAN-56, minus active reservations; there is no order status
     field.
 
+  The Pi part is done: research.md "On the Raspberry Pi" records it (2026-11-02). The Jira part
+  waits (register TD-28).
+
 **Checkpoint**: Story 7 is done, and every list's query count is fixed by a test.
 
 ---
@@ -457,20 +460,24 @@ tests.
 These tasks change repository settings, not files. They can run at any time, in parallel with the
 other phases.
 
-- [ ] T053 [US8] (Arsen) KAN-72: add `lint` to the required status checks of ruleset 23898585 for
+- [x] T053 [US8] (@Arezzon) KAN-72: add `lint` to the required status checks of ruleset 23898585 for
   `main`, beside `smoke-test` (R27). The check's name comes from the `lint` job in
   `.github/workflows/docker-build.yml`.
-- [ ] T054 [US8] (Arsen) KAN-73: add the ruleset's "Require code scanning results" rule for CodeQL,
+- [x] T054 [US8] (@Arezzon) KAN-73: add the ruleset's "Require code scanning results" rule for CodeQL,
   with security alerts set to "High or higher" and alerts set to "Errors". The analysis comes from
   `.github/workflows/codeql.yml`.
-- [ ] T055 [US8] (Arsen) KAN-74: turn on "Require review from Code Owners" in ruleset 23898585, so that
+- [x] T055 [US8] (@Arezzon) KAN-74: turn on "Require review from Code Owners" in ruleset 23898585, so that
   `.github/CODEOWNERS` is enforced.
-- [ ] T056 [US8] Record the evidence (SC-012, quickstart.md §12):
+- [x] T056 [US8] Record the evidence (SC-012, quickstart.md §12):
   - save the output of `gh api repos/Arezzon/Library-Django/rulesets/23898585` after each change;
   - open one draft pull request per rule: a lint error, a failing test, a new CodeQL alert, and one
     without a code owner's approval;
   - confirm that each shows merging as blocked;
   - link them in research.md "Measurements", then close them.
+
+  Done on 2026-11-01 by another route, at the user's decision: @fazelukario, the technical lead,
+  checked each rule on GitHub, and no draft pull requests were opened. research.md "Merge rules on
+  `main` (SC-012)" records this.
 
 **Checkpoint**: Story 8 is done.
 
@@ -571,7 +578,7 @@ other phases.
   - use the title `feat(deploy): back up the database daily and rehearse a restore (KAN-68)`.
 
   Commit and open it when the user asks.
-- [ ] T067 [US4] (Pi) After deployment, follow quickstart.md §9.4 and record each result in
+- [x] T067 [US4] (Pi) After deployment, follow quickstart.md §9.4 and record each result in
   research.md "Measurements":
   - the next day's backup log line;
   - a weekly copy, checked on another machine;
@@ -1202,7 +1209,7 @@ themselves or by reserving (FR-061).
   - use the title `feat(order): complete the reservation pages and messages (KAN-58)`.
 
   Commit and open it when the user asks.
-- [ ] T137 [US3] (Pi) After deployment, at a quiet time, run `scripts/smoke_reservation_load.py
+- [x] T137 [US3] (Pi) After deployment, at a quiet time, run `scripts/smoke_reservation_load.py
   --burst 100 --readers 30` (quickstart.md §7 step 3), and record its JSON in research.md
   "Measurements" (SC-002, SC-003).
 
@@ -1279,7 +1286,7 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
   - use the title `feat(authentication): add the administrator role (KAN-70)`.
 
   Commit and open it when the user asks.
-- [ ] T149 [US1] (Pi) After deployment, create or promote the designated administrator on the server.
+- [x] T149 [US1] (Pi) After deployment, create or promote the designated administrator on the server.
   Record who and when in the pull request and in `specs/003-priority-tech-debt/research.md`
   "Measurements".
 
@@ -1393,15 +1400,94 @@ takes effect and leaves an audit entry (spec Story 1 scenario 8).
 - The debt register, with evidence or a plan for every item.
 - The README and ADRs, matching the product.
 - KAN-62 closed, with no P1 item open.
+- The four minor findings that PR 10's final review deferred, fixed.
+- CodeQL alert 15, a test for TD-30, and the two minor findings that PR 12's own review deferred.
 
 **Independent Test**: pick any item KAN-62 names, follow its link to the evidence, and confirm that no
 P1 item is open.
 
 ### Implementation for User Story 9 (PR 12)
 
-- [ ] T165 [US9] Create branch `docs/kan-71-debt-register` from a freshly fetched `origin/main`, with
+- [x] T165 [US9] Create branch `docs/kan-71-debt-register` from a freshly fetched `origin/main`, with
   PRs 1 to 11 merged. (Jira) Move KAN-71 to In Progress.
-- [ ] T166 [US9] Create `docs/shared/debt-register.md`, following contracts/debt-register.md (FR-054,
+
+### Follow-ups to User Story 6 from PR 10's review (PR 12)
+
+Added on 2026-11-01 at the user's request: PR 12 also fixes the four minor findings that PR 10's final
+review deferred. For each, write the test first and see it fail.
+
+- [x] T175 [US6] Make the book deletion page refuse at once, as the author deletion page does, in
+  `library/book/models.py`, `library/book/views.py` and
+  `library/book/templates/book/book_delete.html`:
+  - for a book with borrowing or reservation history, GET says why it cannot be deleted and offers
+    no delete button;
+  - POST still refuses if history appears after the page was shown.
+
+  Test in `library/book/test_delete.py`.
+- [x] T176 [P] [US6] In `library/library/templates/base.html`, show warning messages in their own
+  colour, with text contrast of at least 4.5:1, instead of the info style. Test with the book edit
+  page's warning about held copies, in `library/authentication/test_templates.py`.
+- [x] T177 [P] [US6] Start the title with "Error: " on the book page when its rating form has errors
+  (`rating_form` in `library/book/templates/book/book_detail.html`), as on pages whose form is
+  `form`. Test in `library/authentication/test_templates.py`.
+- [x] T178 [US6] Give every repeated action in a list or notice a name that identifies its item, for
+  screen readers, as Delete and Record Return already do. This covers Edit, Profile, Details, Issue,
+  Cancel and Dismiss in `library/*/templates/`. Test in `library/authentication/test_templates.py`
+  that no two links or buttons on a page share a name but act on different items.
+
+### Follow-ups from PR 12's review (PR 12)
+
+Added on 2026-11-01 at the user's request, after PR 12 opened: the code scanning alert and the TD-30
+finding met while writing the register, and the two minor findings that PR 12's own review deferred.
+For each, write the test first and see it fail.
+
+- [x] T179 [US3] Resolve CodeQL alert 15 (`py/url-redirection`, register TD-32) in
+  `reservation_notice_dismiss` in `library/order/views.py`. Redirect to `next` only inside the
+  branch where `url_has_allowed_host_and_scheme` accepts it, which is the shape that CodeQL's model of
+  that check recognizes, and to the reader's reservations otherwise.
+  - First, in `library/order/test_reservations.py`, test that each of these leads to the reader's
+    reservations: a missing `next`, one on another host, a protocol-relative one, and one with a
+    backslash.
+  - Those tests pass before and after, because the check was already right. The alert is what fails
+    first: CodeQL's analysis of the pull request must no longer report it.
+- [x] T180 [P] [US6] In `library/ai/test_interface.py`, test that the assistant page shows no
+  timestamp of when its answer was checked: the result's `checked_at` value appears nowhere on the
+  page (TD-30, FR-044). Restoring the line that #55 removed must make the test fail.
+- [x] T181 [US6] Add Saved Books, For You and analytics to the pages that `ActionNameTests` in
+  `library/authentication/test_templates.py` checks, with data that fills each of them.
+- [x] T182 [US6] Tell apart two books with the same title, and two authors with the same name, in
+  the actions that name them. Add the book's or the author's number, which the catalog and the
+  author list show as `#N`:
+  - to Details, View Details, Unlike, Remove from favorites, View book, Issue and Cancel;
+  - to the author list's Edit and Delete.
+
+  A link that shows a book's title stays as it is, because the title is the book's name. In
+  `ActionNameTests`, give two books the same title and two authors the same name; no action may then
+  share a name.
+- [x] T183 [US6] In each notice's Dismiss button in `library/library/templates/base.html`, name the
+  book's number and the time of the cancellation. Two notices about the same book, or about two books
+  with the same title, are then told apart. In `ActionNameTests`, give the notified reader two notices
+  about one book and one about the other book with that title.
+- [x] T184 [US9] Record T056 and T179 to T183:
+  - in the register, close TD-06 to TD-08 and TD-32, and add T180's test to TD-30;
+  - update research.md, the changelog entry and the pull request's description;
+  - re-run quickstart.md §13, lint, format and the diff coverage.
+
+### Results from the Pi, and names (PR 12)
+
+Added on 2026-11-02 at the user's request, when the operator's results from the Pi came back.
+
+- [x] T185 [US9] Refer to the six team members by their GitHub handles instead of their names, in
+  every file, the bridge snapshots in `.specify/` included: @fazelukario, @Arezzon, @Dima22820,
+  @anastasiiaMirovska, @OLEkSandrKoniaiev and @myrrhfawn. `LICENSE` keeps its copyright notice,
+  which only @Arezzon can change. A search of the tree for their names then finds only `LICENSE`.
+- [x] T186 [US9] Record the operator's results from the Pi:
+  - in research.md "On the Raspberry Pi", the measurements of T039, T067, T137, T149 and T172;
+  - in the register, close TD-02, TD-04, TD-10, TD-12, TD-13 and TD-33 (fixed by #58), and add a
+    row for the names that remain in the Git history;
+  - update the changelog entry and the pull request's description, then re-run quickstart.md §13
+    and lint.
+- [x] T166 [US9] Create `docs/shared/debt-register.md`, following contracts/debt-register.md (FR-054,
   FR-055):
   - the columns and the status rules;
   - rows TD-01 to TD-27, with their evidence: pull request links, CI runs, tests, anchors in
@@ -1416,13 +1502,13 @@ P1 item is open.
   - every closed row's evidence link works;
   - every open row has an owner, a priority, a plan and a target sprint;
   - no P1 row is open or blocked.
-- [ ] T168 [P] [US9] Review `README.md` and `docs/adr/README.md`. They must describe reservations,
+- [x] T168 [P] [US9] Review `README.md` and `docs/adr/README.md`. They must describe reservations,
   issuing by librarians, the roles, backups and logs as delivered, and list ADRs 0001 to 0003 (Story
   9 scenario 6).
 - [ ] T169 [P] [US9] In `specs/003-priority-tech-debt/`, set the spec's Status to Implemented, complete
   research.md "Measurements", and mark every task done in tasks.md. Mark the handoff complete with
   the bridge, and commit its records in `.specify/` with these files.
-- [ ] T170 [US9] Verify and prepare the pull request:
+- [x] T170 [US9] Verify and prepare the pull request:
   - run quickstart.md §13 and lint;
   - add the changelog entry;
   - use the title `docs(shared): add the debt register and close KAN-62 (KAN-71)`.
@@ -1444,7 +1530,7 @@ P1 item is open.
 
 **Purpose**: checks across the whole feature after the last pull request merges.
 
-- [ ] T172 (Pi) With everything running, run `smoke_stack_budget.py` with the memory, search and
+- [x] T172 (Pi) With everything running, run `smoke_stack_budget.py` with the memory, search and
   catalog limits. Record that the stack stays within 4 GB and that search p95 stays under 500 ms
   (SC-014).
 - [ ] T173 Review the combined changes for security with the code-review or security-review skill:
@@ -1595,7 +1681,7 @@ section are the gate.
 
 - One person carries PR 1 to merge quickly, while others prepare PR 9, which has no code dependency.
 - After PR 1 merges, the people assigned to KAN-18, KAN-21, KAN-68 and KAN-67 work in parallel.
-- Arsen applies KAN-72 to KAN-74 at any point.
+- @Arezzon applies KAN-72 to KAN-74 at any point.
 - The reservation stages, KAN-55 to KAN-58, then run in sequence.
 
 ---
@@ -1613,4 +1699,4 @@ section are the gate.
   their pull request opens, choosing the newest release that is at least two weeks old, and record
   any change in research.md.
 - KAN-72, KAN-73 and KAN-74 sit in the closed "Lab 3" sprint, inherited from their parents. Whether to
-  move them is for the user or Arsen to decide.
+  move them is for the user or @Arezzon to decide.
