@@ -1,5 +1,6 @@
 """Private, deterministic content-based recommendations using stored embeddings."""
 
+import logging
 from dataclasses import dataclass
 
 from django.core.exceptions import PermissionDenied
@@ -22,6 +23,9 @@ DEFAULT_LIMIT = 10
 MAX_LIMIT = 20
 SEARCH_WEIGHT = 1
 EXPLICIT_PREFERENCE_WEIGHT = 5
+
+# Embedding failures share one logger (research R18).
+logger = logging.getLogger("book.embeddings")
 
 
 FALLBACK_REASON = "Доступна книга із запасного списку рекомендацій."
@@ -130,6 +134,8 @@ def _profile(user, now, language="uk"):
         try:
             model = embeddings.load_embedding_model()
         except Exception:
+            # The cause, never the searches: they are a person's (FR-035, FR-039).
+            logger.exception("Could not load the embedding model for recommendations")
             model = None
         if model is not None:
             for query in queries:
@@ -140,6 +146,9 @@ def _profile(user, now, language="uk"):
                         )
                     )
                 except Exception:
+                    logger.exception(
+                        "Could not encode a past search for recommendations"
+                    )
                     continue
                 signals.append(
                     _Signal(

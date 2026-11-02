@@ -257,7 +257,10 @@ API show the library's time, Europe/Kyiv.
 `ERROR` from `book.embeddings`, with the traceback that gives the cause: `Could not generate the
 embedding of book #N; its save is rolled back`, or `Could not encode a search query`. The book's
 text and the search text are never logged. The person sees that the book was not saved, or that
-search is unavailable.
+search is unavailable. For You and the recommendations API log `Could not load the embedding model
+for recommendations`, or `Could not encode a past search for recommendations` once for each
+search that fails. They then recommend from the reader's other activity, leaving those searches
+out.
 
 **Follow one request.** Every response carries an `X-Request-ID` header, and the background
 work a request starts logs the same identifier. To find every line of one request, in the web

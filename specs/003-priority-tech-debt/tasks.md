@@ -1546,8 +1546,8 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
 Added on 2026-11-02 at the user's request, after PR 12 merged with 2 P1 items open: the user reported
 T162 and T163 done and asked for the Jira descriptions to be corrected, after they approved each
 draft, and for TD-35 to be removed. T173 and T174 run on `main` after PR 12, and PR 13 records them.
-PR 13 also carries Phases 17 to 19, at the user's direction, so it changes code too: T191, T199, T200
-and T201.
+PR 13 also carries Phases 17 to 20, at the user's direction, so it changes code too: T191, T199,
+T200, T201 and T202.
 
 - [x] T187 [US9] Create branch `docs/kan-62-close` from a freshly fetched `origin/main`, with PR 12
   merged.
@@ -1614,7 +1614,7 @@ and T201.
   audited.
 - **PR 10 (Phase 14)** needs PR 7, because it audits the finished reservation pages.
 - **PR 12 (Phase 15)** needs all the others, and **Polish (Phase 16)** follows it.
-- **PR 13 (Phases 15 and 17 to 19)** follows PR 12 and records the checks that close KAN-62, Polish's
+- **PR 13 (Phases 15 and 17 to 20)** follows PR 12 and records the checks that close KAN-62, Polish's
   among them, with the convergence tasks.
 
 ### Minimum dependencies (spec FR-059) and the recommended order (R1)
@@ -1841,3 +1841,21 @@ section are the gate.
   Done: `BookListQueryTests.test_the_api_saved_books`. The API uses 4 queries with 1 saved book and
   with 50. Without the authors prefetch it used 53 with 50 and the test failed, while the page's
   test still passed.
+
+## Phase 20: Convergence
+
+- [x] T202 Log each embedding failure of the recommendation service, with its cause and without the
+  search text, through the `book.embeddings` logger in `library/book/recommendations.py`. Today
+  `_profile` drops a reader's search signals when the model fails to load or to encode one of
+  their searches, and writes no log line, so For You and `/api/v1/books/recommendations/` lose
+  them without a trace. Keep the fallback to book signals. Test it with `assertLogs` beside
+  `test_search_encoder_failure_preserves_books_or_uses_fallback` in
+  `library/book/test_recommendations.py`, and extend the "Embedding failures" paragraph of
+  `docs/deployment/raspberry-pi-portainer.md` per FR-035, FR-039, plan R18 (partial)
+
+  Done on 2026-11-02: when the model fails to load or to encode a past search, `_profile` logs an
+  ERROR with the traceback that gives the cause, and still recommends from the reader's other
+  activity. The search text is not logged. `RecommendationTests` gains
+  `test_a_model_that_fails_to_load_is_logged_without_the_searches` and
+  `test_a_search_that_fails_to_encode_is_logged_without_its_text`. Both fail without the change,
+  and the second also fails when the search reaches the log line.
