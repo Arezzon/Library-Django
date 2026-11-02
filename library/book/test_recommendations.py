@@ -136,6 +136,34 @@ class RecommendationTests(FakeEncoderMixin, TestCase):
             self.event()
             self.assertEqual(self.ids()[0], self.science.pk)
 
+    def assert_logged_without_the_search(self, logs, cause):
+        # The cause, never the reader's search (FR-035, FR-039).
+        output = "\n".join(logs.output)
+        self.assertIn(cause, output)
+        self.assertNotIn("physics", output)
+
+    def test_a_model_that_fails_to_load_is_logged_without_the_searches(self):
+        self.search("physics")
+        error = RuntimeError("The model file is unreadable.")
+        with patch("book.embeddings.load_embedding_model", side_effect=error):
+            with self.assertLogs("book.embeddings", "ERROR") as logs:
+                self.assertEqual(self.ids()[0], self.art.pk)
+        self.assert_logged_without_the_search(
+            logs, "RuntimeError: The model file is unreadable."
+        )
+
+    def test_a_search_that_fails_to_encode_is_logged_without_its_text(self):
+        self.search("physics")
+        with patch("book.embeddings.load_embedding_model") as loader:
+            loader.return_value.embed.side_effect = RuntimeError(
+                "ONNX inference failed."
+            )
+            with self.assertLogs("book.embeddings", "ERROR") as logs:
+                self.assertEqual(self.ids()[0], self.art.pk)
+        self.assert_logged_without_the_search(
+            logs, "RuntimeError: ONNX inference failed."
+        )
+
     def test_invalid_search_vector_preserves_available_fallback(self):
         self.search("physics")
         with patch("book.embeddings.load_embedding_model") as loader:
