@@ -41,6 +41,6 @@ class DashboardQueryTests(FakeEncoderMixin, TestCase):
 
     def test_the_dashboard(self):
         response = assert_same_query_count(
-            self, self.client, reverse("events_dashboard"), self.add_events
+            self, self.client, reverse("events_activity"), self.add_events
         )
         self.assertEqual(response.context["page_obj"].paginator.count, 50)
