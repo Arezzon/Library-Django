@@ -2,6 +2,7 @@
 the backfill command. The model itself is defined in embedding_config.py."""
 
 import hashlib
+import logging
 import math
 from functools import lru_cache
 from pathlib import Path
@@ -10,6 +11,8 @@ from django.conf import settings
 
 from . import embedding_config
 from .embedding_config import resolve
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingGenerationError(ValueError):
@@ -131,6 +134,11 @@ def regenerate_book_embedding(book, database):
             raise ValueError("Expected one embedding.")
         vector = normalized_vector(vectors[0])
     except Exception as error:
+        # The cause and the book's id, never its text (FR-035, FR-039).
+        logger.exception(
+            "Could not generate the embedding of book #%s; its save is rolled back",
+            book.pk,
+        )
         raise EmbeddingGenerationError(
             "Could not generate the book embedding. The book was not saved; please retry."
         ) from error

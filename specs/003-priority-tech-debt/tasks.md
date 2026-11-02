@@ -1512,8 +1512,8 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
   - every open row has an owner, a priority, a plan and a target sprint;
   - no P1 row is open or blocked.
 
-  Done on 2026-11-02, in PR 13: 35 rows, every link and cited test holds, and no P1 row is open or
-  blocked.
+  Done on 2026-11-02, in PR 13: 37 rows after Phase 17, every link and cited test holds, and no P1
+  row is open or blocked.
 - [x] T168 [P] [US9] Review `README.md` and `docs/adr/README.md`. They must describe reservations,
   issuing by librarians, the roles, backups and logs as delivered, and list ADRs 0001 to 0003 (Story
   9 scenario 6).
@@ -1545,8 +1545,8 @@ Added on 2026-11-02 at the user's request, when the operator's results from the 
 
 Added on 2026-11-02 at the user's request, after PR 12 merged with 2 P1 items open: the user reported
 T162 and T163 done and asked for the Jira descriptions to be corrected, after they approved each
-draft, and for TD-35 to be removed. PR 13 changes only documents. T173 and T174 run on `main` after
-PR 12, the last pull request that changes code, and PR 13 records them.
+draft, and for TD-35 to be removed. T173 and T174 run on `main` after PR 12, and PR 13 records them.
+PR 13 also carries Phase 17, at the user's direction, so it changes code too: T191 and T199.
 
 - [x] T187 [US9] Create branch `docs/kan-62-close` from a freshly fetched `origin/main`, with PR 12
   merged.
@@ -1613,7 +1613,8 @@ PR 12, the last pull request that changes code, and PR 13 records them.
   audited.
 - **PR 10 (Phase 14)** needs PR 7, because it audits the finished reservation pages.
 - **PR 12 (Phase 15)** needs all the others, and **Polish (Phase 16)** follows it.
-- **PR 13 (Phase 15)** follows PR 12 and records the checks that close KAN-62, Polish's among them.
+- **PR 13 (Phases 15 and 17)** follows PR 12 and records the checks that close KAN-62, Polish's among
+  them, with the convergence tasks.
 
 ### Minimum dependencies (spec FR-059) and the recommended order (R1)
 
@@ -1752,3 +1753,67 @@ section are the gate.
   any change in research.md.
 - KAN-72, KAN-73 and KAN-74 sit in the closed "Lab 3" sprint, inherited from their parents. Whether to
   move them is for the user or @Arezzon to decide.
+
+## Phase 17: Convergence
+
+- [x] T191 Log each embedding failure, with its cause and without the book's text or the search text,
+  through a `book.embeddings` logger in `library/book/embeddings.py` and `library/book/search.py`.
+  Today no log line records the cause: the catalog, the book forms, the admin site, the API and the
+  assistant turn the failure into a message or a 400 or 503 response. Test it with `assertLogs` in
+  `library/book/tests.py` per FR-035, plan R18 (missing)
+
+  Done on 2026-11-02: each failure is logged at ERROR with its traceback, and a failed save names
+  the book's id. Neither the book's text nor the search text is logged.
+  `library/book/tests.py::EmbeddingFailureLogTests` fails without the change.
+- [x] T192 (Pi) Take the record counts of quickstart.md §0.2 before and after a reboot of the Pi,
+  record them in research.md "On the Raspberry Pi", and update TD-13 per FR-030, SC-005, US4/AC1
+  (partial)
+
+  Done: on 2026-11-02 @fazelukario, the operator, reported the counts taken and verified: they
+  match. research.md and TD-13 record it.
+- [x] T193 (Pi) After 24 hours with no visits, measure the first catalog load with
+  `smoke_stack_budget.py` (quickstart.md §2 step 3), and record it in research.md "On the Raspberry
+  Pi" per US4/AC2 (partial)
+
+  Done: on 2026-11-02 @fazelukario, the operator, confirmed that the cold-start check already in
+  research.md is this measurement, and that it passed and was verified.
+- [x] T194 (Pi) Find why the backup at 03:34 on 2026-11-02 kept 1 file when the run at 02:04 had kept
+  5: check which volume the backup service mounts at `/backups`, confirm that daily backups
+  accumulate until 7 are kept, and record the result in research.md per FR-026, US4/AC6 (partial)
+
+  Done: on 2026-11-02 @fazelukario, the operator, reported that the log line had been copied with
+  the wrong time and figures, and verified that the backups are in order. research.md drops the
+  misquoted line.
+- [x] T195 Add rows to `docs/shared/debt-register.md` for KAN-79 (no 404 page in the site's style)
+  and KAN-80 (staff pages answer readers with 403 instead of 404), filed on 2026-11-01 while this
+  feature's pages were checked, each with an owner, a priority and a plan. Note that KAN-80
+  conflicts with FR-004, under which a refusal says that the action is not permitted per FR-054,
+  FR-055 (missing)
+
+  Done: TD-37 (KAN-79) and TD-38 (KAN-80), both P3 like their Jira priority, and both owned by
+  @fazelukario, the technical lead, since Jira assigns neither. TD-38 notes the conflict with
+  FR-004.
+- [x] T196 In `docs/shared/debt-register.md`, link the merged pull requests of the items done before
+  this feature, with a CI run that verifies lint and CodeQL today: #4 (KAN-19) from TD-03, #20
+  (KAN-22) from TD-06 and #18 (KAN-15) from TD-07 per US9/AC5 (partial)
+
+  Done: TD-03 links #4; TD-06 links #20 and CI's run on `main` at `cfb5e5c`, whose `lint` job
+  passed; TD-07 links #18 and CodeQL's run on the same commit.
+- [x] T197 File a bug report for TD-29, a book saved with an empty title, which PR 10's
+  accessibility check revealed and PR 10 did not fix, with the repository's bug report template
+  (`.github/ISSUE_TEMPLATE/bug_report.md`), and link it from TD-29 per FR-053 (partial)
+
+  Done on 2026-11-02: #62, filed with the template after @fazelukario approved the draft, and
+  assigned to @OLEkSandrKoniaiev, TD-29's owner. It was reproduced first, on the web and through
+  the API. TD-29 and research R30 link it.
+- [x] T198 (Jira) Have @OLEkSandrKoniaiev, KAN-77's assignee, move KAN-77 to Done, since its fix
+  merged in #58 per FR-058 (partial)
+
+  Done: on 2026-11-02 @fazelukario, the technical lead, reported asking the assignee to check KAN-77.
+  The move is the assignee's, so this task is complete without it, at the technical lead's
+  direction.
+- [x] T199 In `library/book/test_queries.py`, fix the query count of Saved Books (`/book/preferences/`,
+  added by #48) with 1 and with 50 saved books per FR-047, US7/AC3 (partial)
+
+  Done: `BookListQueryTests.test_saved_books`. The page uses 7 queries with 1 saved book and with 50.
+  Without the availability annotation it used 105 with 50, and the test failed.

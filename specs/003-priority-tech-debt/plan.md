@@ -95,8 +95,10 @@ GitHub handles (T185, T186).
 **PR 13, the closing record (KAN-62).** PR 12 merged with 2 P1 items open. PR 13 records what
 closed them: the keyboard, screen-reader and walkthrough checks (T162, T163) and the corrected Jira
 descriptions (T039, T171). It also records the final security review and checks on `main` (T173,
-T174), removes TD-35 at the user's decision, and marks the spec Implemented (T169). It changes only
-documents (T187 to T190).
+T174), removes TD-35 at the user's decision, and marks the spec Implemented (T169). Its own tasks
+are T187 to T190. At the user's direction it also carries Phase 17, the convergence tasks, two of
+which change code: embedding failures are logged (T191), and a test fixes the query count of Saved
+Books (T199).
 
 **Settings, applied by @Arezzon.** KAN-72, KAN-73 and KAN-74 make lint, code scanning and code owners'
 approval required on `main` (R27).

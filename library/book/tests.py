@@ -30,6 +30,7 @@ from .embeddings import (
     input_hash,
 )
 from .models import Book, BookEmbedding
+from .search import search_books
 from .serializers import BookSerializer
 from .testing import FakeEncoderMixin
 from .views import _filter_books
@@ -972,6 +973,35 @@ class AutomaticBookEmbeddingTests(TestCase):
         self.loader.assert_not_called()
         self.assertEqual(self.assert_current(book).updated_at, timestamp)
         self.assertEqual(Book.objects.get(pk=book.pk).count, 9)
+
+
+@skipUnless(connection.vendor == "postgresql", "pgvector requires PostgreSQL")
+class EmbeddingFailureLogTests(TestCase):
+    """Each failure is logged with its cause, never with the text (FR-035, FR-039)."""
+
+    def setUp(self):
+        patcher = patch("book.embeddings.load_embedding_model")
+        self.model = patcher.start().return_value
+        self.addCleanup(patcher.stop)
+        self.model.embed.side_effect = RuntimeError("The model file is unreadable.")
+
+    def assert_cause_logged_without(self, logs, *texts):
+        output = "\n".join(logs.output)
+        self.assertIn("RuntimeError: The model file is unreadable.", output)
+        for text in texts:
+            self.assertNotIn(text, output)
+
+    def test_a_failed_book_save_logs_the_cause(self):
+        with self.assertLogs("book.embeddings", "ERROR") as logs:
+            with self.assertRaises(EmbeddingGenerationError):
+                Book.objects.create(name="Лісова пісня", description="Драма-феєрія")
+        self.assert_cause_logged_without(logs, "Лісова пісня", "Драма-феєрія")
+
+    def test_a_failed_search_logs_the_cause(self):
+        with self.assertLogs("book.embeddings", "ERROR") as logs:
+            with self.assertRaises(EmbeddingGenerationError):
+                search_books(Book.objects.all(), "мавка")
+        self.assert_cause_logged_without(logs, "мавка")
 
 
 class SeedEmbeddingTests(TestCase):

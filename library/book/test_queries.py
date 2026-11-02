@@ -12,7 +12,7 @@ from author.models import Author
 from library.testing import assert_same_query_count
 from order.models import Order
 
-from .models import Book
+from .models import Book, BookLike, FavoriteBook
 from .search import RESULT_LIMIT
 from .testing import FakeEncoderMixin
 
@@ -95,3 +95,16 @@ class BookListQueryTests(FakeEncoderMixin, TestCase):
             self, self.client, "/api/v1/books/search/?q=catalog", self.add_books
         )
         self.assertEqual(len(response.json()), RESULT_LIMIT)
+
+    def save_books(self, count):
+        """Books that the reader both likes and keeps in favorites."""
+        self.add_books(count)
+        for book in Book.objects.order_by("-id")[:count]:
+            BookLike.objects.create(user=self.reader, book=book)
+            FavoriteBook.objects.create(user=self.reader, book=book)
+
+    def test_saved_books(self):
+        response = assert_same_query_count(
+            self, self.client, reverse("my_book_preferences"), self.save_books
+        )
+        self.assertEqual(len(response.context["books"]), 50)

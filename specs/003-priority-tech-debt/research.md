@@ -876,7 +876,7 @@ accurate after every merge.
 | The admin site's user form shows the password hash as an editable text field | `authentication/admin.py` | Register, P3 |
 | Pages load Tailwind and fonts from third-party servers in readers' browsers | `base.html` | Register, P3 (privacy and availability) |
 | Audit entries have no retention period | `audit` | Register, P2, for the product owner and the business analyst |
-| Saving a book with an empty title creates a book without a name, on the web and through the API (found by PR 10's check) | `book/models.py` (`name` allows blank) | Register, P2 |
+| Saving a book with an empty title creates a book without a name, on the web and through the API (found by PR 10's check) | `book/models.py` (`name` allows blank) | Register, P2; bug report [#62](https://github.com/Arezzon/Library-Django/issues/62) (T197) |
 | The assistant page showed when its answer was checked as a UTC timestamp, not in Kyiv time with the zone (FR-044) | `ai/services.py`, `ai/templates/ai/assistant.html` (KAN-52) | Fixed by #55, which removed it from the page; a test guards it since PR 12 (T180); register, closed |
 | The constitution's workflow item 4 and `AGENTS.md` give the test command without `ai`, which CI runs (found by PR 10) | `.specify/memory/constitution.md`, `AGENTS.md` | Register, P3 |
 | CodeQL alert 15 (URL redirection) on the reservation notice's Dismiss. The target already passed `url_has_allowed_host_and_scheme` with the request's own host, so the alert was a false positive (found by PR 12) | `order/views.py` (PR 6) | Fixed by PR 12 (T179), which moves the redirect inside the check, where CodeQL's model of it applies; register, closed |
@@ -1093,7 +1093,10 @@ items.
   | Restart of `db`, `redis`, `worker` and `backup` | 0 s each | unchanged |
   | Restart of `web` | 11 s | unchanged |
   | Redeploy in Portainer | 15 s | unchanged |
-  | Reboot, timed from another machine | 17 s | not taken |
+  | Reboot, timed from another machine | 17 s | unchanged (T192) |
+
+  The timed reboot's counts were not taken. On 2026-11-02 the operator reported the counts taken
+  before and after a reboot, and that they match (T192).
 
 - **Restore rehearsal (T067; FR-029, SC-006)**: at 02:04, from a fresh backup,
   `library-20261102T000423Z.dump` (0.1 MB, made in 0.3 s, check passed), into the separate database
@@ -1103,10 +1106,10 @@ items.
   - a librarian signed in, and a catalog search returned books;
   - memory, from one `docker stats` sample: 890.5 MiB for the temporary container, about 2.8 GiB for
     all six containers.
-- **Daily backups (T067; FR-025)**: the next night's run, at 03:34, logged "backup: created
-  library-20261102T013403Z.dump (0.0 MB) in 0.3 s; check passed; 1 kept, 0 removed". The run at
-  02:04 had kept 5 files, and this one removed none, so it wrote to a backups volume without the
-  earlier files. The operator checks which volume the backup service uses.
+- **Daily backups (T067, T194; FR-025, FR-026)**: the nightly run made a backup that passed its
+  check. The log line first copied from it had the wrong time and figures, and suggested that the
+  run kept only 1 file. On 2026-11-02 the operator checked again and verified that everything is in
+  order: the daily backups accumulate (T194).
 - **Weekly copy (T067)**: the rehearsal's backup and its checksum, copied to another machine.
   `sha256sum -c` reported OK on the Pi and on that machine, and `pg_restore --list` listed the
   archive in 173 lines.
@@ -1126,7 +1129,8 @@ items.
   included; removing them is the operator's decision.
 - **Cold start (T067)**: the same check, run again later on 2026-11-02, after a period with no
   visits and no merge, as the operator reports: PASS. The first catalog load took 73.8 ms, against a
-  p95 of 54.4 ms; search p95 306.4 ms; peak memory 2.554 GiB.
+  p95 of 54.4 ms; search p95 306.4 ms; peak memory 2.554 GiB. On 2026-11-02 the operator confirmed
+  this as the cold-start check of Story 4 scenario 2, and verified it (T193).
 
 ### Security review of the combined changes (T173)
 
@@ -1148,8 +1152,8 @@ items.
 
 ### Final checks on `main` (T174, FR-062)
 
-- **Date**: 2026-11-02, on `main` at `cfb5e5c`, after PR 12 merged. PR 13 changes only documents, so
-  this is the final code.
+- **Date**: 2026-11-02, on `main` at `cfb5e5c`, after PR 12 merged. PR 13 later took on Phase 17,
+  whose T191 and T199 change code; the last bullet covers them.
 - **CI**: the run on `main` ([41371422354](https://github.com/Arezzon/Library-Django/actions/runs/41371422354))
   passed lint, the smoke test on five runners, and the publish and deploy jobs. On `ubuntu-latest`
   it verified the backup restore, the tests with coverage, the key endpoints, the accessibility of 39
@@ -1184,6 +1188,11 @@ items.
   | 11 | [#54](https://github.com/Arezzon/Library-Django/pull/54) | `feat/kan-70-administrator-role` | 2026-11-01 |
   | 12 | [#57](https://github.com/Arezzon/Library-Django/pull/57) | `docs/kan-71-debt-register` | 2026-11-02 |
 
+- **PR 13 with Phase 17**, on its branch, 2026-11-02: lint and format are clean, the full test
+  command passes 590 tests with 4 skipped, and the test output holds no demo password or search
+  word. Phase 17 changes no page, so the accessibility result above stands. CI checks the branch on
+  its pull request.
+
 ### Closing KAN-62 (T171, FR-056, FR-058)
 
 - **Jira descriptions (T039, T171)**: corrected on 2026-11-02, after @fazelukario approved each
@@ -1199,4 +1208,7 @@ items.
   - KAN-69 and KAN-71 moved to Done, since their pull requests had merged;
   - KAN-62 moved to Done, with no P1 item open or blocked (FR-056).
 
-  KAN-67, KAN-68 and KAN-70 were already Done.
+  KAN-67, KAN-68 and KAN-70 were already Done. KAN-77's fix merged in
+  [#58](https://github.com/Arezzon/Library-Django/pull/58), and on 2026-11-02 the issue was still in
+  Idea. Moving it is for its assignee, @OLEkSandrKoniaiev, whom the technical lead has asked to check
+  it (T198, FR-058).

@@ -162,3 +162,17 @@
 
 {"event":"artifact_drift_detected","timestamp":"2026-11-02T02:00:23.7051919Z","actor":"claude","feature_directory":"specs/003-priority-tech-debt","drifted_artifacts":[{"path":"spec.md","old_sha256":"d58e22c2d2e47ceee159dfda883f6f93ed29510c94ccd0b2460336358500a737","new_sha256":"c917ece567d056069259b37a5c2e4cb51dbb7b74b87572d4e70fce671299ee5f"},{"path":"tasks.md","old_sha256":"0fd402ee4c655ed5326838d7d39e8699bfd1340b7e16acc7d7d508d5512210bc","new_sha256":"bb0290788b59df638f7cd2fc9874835ee5737034fed2530519044c4011e527f8"}]}
 
+{"timestamp":"2026-11-02T02:39:58.7565005Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0239586979177Z-executing"}
+
+{"timestamp":"2026-11-02T02:39:59.0704233Z","action":"guard","status":"allow","feature_directory":"specs/003-priority-tech-debt","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-02T03:03:07.4971556Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"plan.md says PR 13 changes only documents; at the user\u0027s direction PR 13 also carries Phase 17 (T191, T199 change code)","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0303074816437Z-blocked"}
+
+{"timestamp":"2026-11-02T03:03:24.0878359Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0303240361722Z-executing"}
+
+{"timestamp":"2026-11-02T03:03:40.4390509Z","action":"handoff","status":"blocked","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"Reword the plan.md PR 13 sentence written in the previous block","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0303404153113Z-blocked"}
+
+{"timestamp":"2026-11-02T03:03:41.7719660Z","action":"handoff","status":"executing","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T0303417226977Z-executing"}
+
+{"timestamp":"2026-11-02T10:16:12.0392896Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1016119861115Z-complete"}
+

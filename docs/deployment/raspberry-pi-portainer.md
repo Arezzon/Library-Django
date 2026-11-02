@@ -253,6 +253,12 @@ whose 48 hours have ended, and logs `order.tasks: Expired N reservation(s)`. A r
 holding its copy at its deadline even if this has not run yet. Logs stay in UTC; pages and the
 API show the library's time, Europe/Kyiv.
 
+**Embedding failures.** When the model cannot encode a book or a search, the web service logs an
+`ERROR` from `book.embeddings`, with the traceback that gives the cause: `Could not generate the
+embedding of book #N; its save is rolled back`, or `Could not encode a search query`. The book's
+text and the search text are never logged. The person sees that the book was not saved, or that
+search is unavailable.
+
 **Follow one request.** Every response carries an `X-Request-ID` header, and the background
 work a request starts logs the same identifier. To find every line of one request, in the web
 service and in the worker:
