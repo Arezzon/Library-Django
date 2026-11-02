@@ -15,7 +15,11 @@
           "speckit.superpowers-bridge"
         ]
       },
-      "registered_skills": [],
+      "registered_skills": [
+        "speckit-speckit-superpowers-bridge-handoff",
+        "speckit-speckit-superpowers-bridge-guard",
+        "speckit-speckit-superpowers-bridge-execute"
+      ],
       "installed_at": "2026-10-19T16:21:19.882410+00:00"
     },
     "github": {
@@ -29,7 +33,9 @@
           "speckit.github.taskstoissues"
         ]
       },
-      "registered_skills": [],
+      "registered_skills": [
+        "speckit-github-taskstoissues"
+      ],
       "installed_at": "2026-10-19T17:51:26.781182+00:00"
     }
   }

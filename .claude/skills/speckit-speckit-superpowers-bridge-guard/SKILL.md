@@ -1,11 +1,16 @@
 ---
 name: speckit-speckit-superpowers-bridge-guard
-description: Guard Spec Kit and Superpowers commands from crossing bridge ownership boundaries
+description: Guard Spec Kit and Superpowers commands from crossing bridge ownership
+  boundaries
 compatibility: Requires spec-kit project structure with .specify/ directory
 metadata:
   author: lihan3238
-  source: speckit-superpowers-bridge:commands/speckit.speckit-superpowers-bridge.guard.md
+  source: extension:speckit-superpowers-bridge
+user-invocable: true
+disable-model-invocation: false
 ---
+
+# Speckit Superpowers Bridge Guard Skill
 
 # Superpowers Bridge Guard
 

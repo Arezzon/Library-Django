@@ -4,8 +4,12 @@ description: Execute Spec Kit tasks through the Superpowers bridge
 compatibility: Requires spec-kit project structure with .specify/ directory
 metadata:
   author: lihan3238
-  source: speckit-superpowers-bridge:commands/speckit.speckit-superpowers-bridge.execute.md
+  source: extension:speckit-superpowers-bridge
+user-invocable: true
+disable-model-invocation: false
 ---
+
+# Speckit Superpowers Bridge Execute Skill
 
 # Bridge Execute
 
