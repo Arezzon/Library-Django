@@ -161,7 +161,7 @@ class Command(BaseCommand):
             _, profile_html = request(f"/authentication/users/{user.pk}/")
             if "User activity" not in profile_html or book.name not in profile_html:
                 raise CommandError("User profile did not display scoped activity.")
-            request("/authentication/logout/")
+            request("/authentication/logout/", {"csrfmiddlewaretoken": token})
             wait(lambda: recorded(EventType.LOGOUT), "logout event")
             self.stdout.write(
                 self.style.SUCCESS(

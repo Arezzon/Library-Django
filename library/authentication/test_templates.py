@@ -194,6 +194,25 @@ class LayoutTests(FakeEncoderMixin, TestCase):
             rule = re.search(rf"\.{component} \{{\s*@apply ([^;]*);", styles).group(1)
             self.assertIn("focus-visible:ring-2", rule.split(), component)
 
+    def test_both_log_out_controls_are_buttons_in_csrf_protected_forms(self):
+        # KAN-96: signing out takes a POST with the CSRF token, never a link.
+        self.client.force_login(account("leaving@example.com"))
+        page = self.page()
+        forms = re.findall(
+            r'<form\b[^>]*action="/authentication/logout/"[^>]*>.*?</form>',
+            page,
+            re.S,
+        )
+        self.assertEqual(len(forms), 2)
+        for form in forms:
+            with self.subTest(form=form):
+                self.assertIn('method="post"', form)
+                self.assertIn("csrfmiddlewaretoken", form)
+                self.assertRegex(
+                    form, r'<button type="submit"[^>]*>\s*Log Out\s*</button>'
+                )
+        self.assertNotIn('href="/authentication/logout/"', page)
+
     def test_messages_appear_once_in_the_one_status_region(self):
         self.client.force_login(account("desk@example.com", ROLE_LIBRARIAN))
         book = Book.objects.create(name="Forest Song", count=1)

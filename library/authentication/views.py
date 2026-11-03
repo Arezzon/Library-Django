@@ -5,6 +5,7 @@ from django.contrib.auth import logout as auth_logout
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from .decorators import librarian_or_owner_required, librarian_required
 from .forms import LoginForm, ProfileForm, RegistrationForm, UserUpdateForm
@@ -110,6 +111,8 @@ def user_detail(request: HttpRequest, user_id: int) -> HttpResponse:
     return render(request, "authentication/user_detail.html", context)
 
 
+@require_POST
 def logout(request: HttpRequest) -> HttpResponse:
+    """Sign out; takes a POST with the CSRF token, so a link cannot (TD-22)."""
     auth_logout(request)
     return redirect("login")
