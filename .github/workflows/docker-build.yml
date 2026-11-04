@@ -263,6 +263,17 @@ jobs:
           npx --prefix scripts/a11y playwright install --with-deps chromium
           node scripts/a11y/check_pages.mjs --base-url http://localhost:8000
 
+      # TD-20 (KAN-94): the two browser sign-in test files sign the demo reader in and
+      # out, and show the error for wrong details, in headless Chrome.
+      - name: Verify the browser sign-in tests
+        if: matrix.runner == 'ubuntu-latest'
+        env:
+          SELENIUM_HEADLESS: "1"
+          BASE_URL: http://localhost:8000
+        run: |
+          python -m pip install --quiet "$(grep '^pytest==' requirements-dev.txt)" "$(grep '^selenium==' requirements-dev.txt)"
+          python -m pytest library/test_selenium_auth_pytest.py library/test_selenium_auth_unittest.py -v -p no:cacheprovider
+
       # SC-002: 100 simultaneous reservations of a book's one copy succeed exactly once,
       # in each of 20 runs. The script removes its temporary accounts and books.
       - name: Verify a burst of reservations holds exactly one copy
