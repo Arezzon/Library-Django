@@ -1,4 +1,8 @@
 2026-11-04
+A 404 page in the site's style, and staff pages hidden from readers (KAN-79, KAN-80)
+An unknown address now gets `404.html`, styled like the 403 page: the site's header and navigation, "We can't find this page.", one line of explanation and "Go to the home page" (TD-36). It does not repeat the address. Librarian and administrator pages and actions answer a signed-in reader with the same 404 page, so the site no longer confirms that they exist (TD-37); `librarian_required` and `role_required` in `authentication/decorators.py` decide it for every such page. Anonymous visitors are still sent to sign in, pages scoped to another reader's records still answer 403, and the API keeps 403. @Arezzon decided option 1 of KAN-80. FR-004 of spec 003, its access contract, the README and the analytics and forecast designs say so, and the accessibility check visits the 404 page as a visitor and as a reader.
+
+2026-11-04
 Sign out by form, and a read-only password in the admin site (KAN-96, KAN-97)
 Signing out now takes a POST with the CSRF token (TD-22). Opening `/authentication/logout/` directly, or through a link, an image or another site, answers 405 and leaves the session as it was. Both "Log Out" controls, in the header and in the mobile menu, are form buttons that look and work as before, by mouse and by keyboard, and the accessibility check still finds no violation. The tracking smoke test signs out by POST. In the admin site, a user's form shows the password hash read-only, with a "Reset password" link to the change-password form, so saving the form never changes the password (TD-23). The change-password form sets a new one, a librarian still cannot open an administrator's, and adding a user still sets the password from two fields.
 

@@ -129,7 +129,8 @@ class AuthorWebTests(AuthorTestCase):
         ]
         for url, data in attempts:
             with self.subTest(url=url):
-                self.assertEqual(client.post(url, data).status_code, 403)
+                # KAN-80: a librarian page answers a reader 404.
+                self.assertEqual(client.post(url, data).status_code, 404)
         self.assertFalse(Author.objects.filter(surname="Franko").exists())
         self.assertUnchanged(self.author)
         self.assertTrue(Author.objects.filter(pk=self.unattached.pk).exists())

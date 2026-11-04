@@ -42,9 +42,11 @@ function where(page) {
   return url.pathname + url.search;
 }
 
-async function open(page, target) {
+// Opens a page and expects its status: 200 unless the caller says otherwise.
+async function open(page, target, expected = 200) {
   const response = await page.goto(new URL(target, base).href);
-  if (!response?.ok()) {
+  const answered = expected === 200 ? response?.ok() : response?.status() === expected;
+  if (!answered) {
     throw new Error(`${target} answered ${response ? response.status() : "nothing"}`);
   }
 }
@@ -79,9 +81,9 @@ async function step(name, action) {
   }
 }
 
-async function visit(page, name, target) {
+async function visit(page, name, target, expected = 200) {
   await step(name, async () => {
-    await open(page, typeof target === "function" ? await target() : target);
+    await open(page, typeof target === "function" ? await target() : target, expected);
     await check(page, name);
   });
 }
@@ -176,6 +178,8 @@ try {
     "/authentication/register/",
     "form:has(input[name=confirm_password])",
   );
+  // The site's own "not found" page (KAN-79).
+  await visit(visitor, "not found (visitor)", "/no-such-page/", 404);
 
   let readerPage = null;
   let reserved = false;
@@ -219,6 +223,9 @@ try {
     await visit(page, "recommendations", "/book/recommendations/");
     await visit(page, "saved books", "/book/preferences/");
     await visit(page, "assistant", "/assistant/");
+    // A librarian page answers a reader with the same "not found" page (KAN-80).
+    await visit(page, "not found (reader)", "/no-such-page/", 404);
+    await visit(page, "staff page as reader", "/order/reservations/desk/", 404);
   }
 
   let librarianPage = null;
