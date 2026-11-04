@@ -1,4 +1,8 @@
 2026-11-04
+The KAN-90 debt Epic's specification (KAN-90)
+Spec 004 records how the 16 open items of the debt register became one Jira Epic, KAN-90, in sprint 5. Each item has one issue, assigned to its owner. A code change says what to do and when it is done, and a decision gives its subject and options. Every issue ends with the same reporting rule: a PR link, or the decision with its reason, then In Review. The specification, plan, research, data model, issue-text and review contracts, quickstart and tasks are included, with the bridge snapshot taken at handoff. People are named by GitHub handle, and no Jira account ID is recorded. The issue drafts and the working record stay out of the repository.
+
+2026-11-04
 The KAN-90 debt-fix specification and its delivery record (KAN-90)
 `specs/005-tech-debt-fixes/` holds the Spec Kit specification, plan, research, data model, contracts, quickstart and 89 tasks, all done, that delivered the technical lead's seven KAN-90 issues as four pull requests: #65 (KAN-96, KAN-97), #66 (KAN-79, KAN-80), #67 (KAN-94) and #68 (KAN-101, KAN-102). `progress.md` records each group's base commit, the tests seen failing before each change, the checks, CI runs, Jira comments and moves, the end-state comparison of all 16 KAN-90 issues and the success criteria. `sdd-ledger.md` lists the decisions taken during the work. The specification is marked implemented and in review. The Superpowers handoff is complete, and its event log and snapshots are included.
 

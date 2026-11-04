@@ -220,6 +220,14 @@
 
 {"timestamp":"2026-11-02T12:30:26.0251080Z","action":"handoff","status":"complete","feature_directory":"specs/003-priority-tech-debt","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261102T1230259704448Z-complete"}
 
+{"timestamp":"2026-11-03T20:35:26.8453728Z","action":"guard","status":"allow","feature_directory":"specs/004-tech-debt-jira-epic","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.plan"}
+
+{"timestamp":"2026-11-03T20:50:17.8385165Z","action":"guard","status":"allow","feature_directory":"specs/004-tech-debt-jira-epic","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.tasks"}
+
+{"timestamp":"2026-11-03T20:54:40.3388730Z","action":"handoff","status":"ready","feature_directory":"specs/004-tech-debt-jira-epic","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261103T2054403229333Z-ready"}
+
+{"timestamp":"2026-11-03T21:05:11.6317564Z","action":"guard","status":"allow","feature_directory":"specs/004-tech-debt-jira-epic","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.implement"}
+
 {"timestamp":"2026-11-03T22:24:05.6208464Z","action":"guard","status":"allow","feature_directory":"specs/005-tech-debt-fixes","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.plan"}
 
 {"timestamp":"2026-11-03T22:44:03.4634186Z","action":"guard","status":"allow","feature_directory":"specs/005-tech-debt-fixes","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.tasks"}
@@ -239,4 +247,8 @@
 {"timestamp":"2026-11-04T00:47:32.6707579Z","action":"handoff","status":"complete","feature_directory":"specs/005-tech-debt-fixes","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261104T0047326002806Z-complete"}
 
 {"event":"artifact_drift_detected","timestamp":"2026-11-04T00:47:32.6767200Z","actor":"claude","feature_directory":"specs/005-tech-debt-fixes","drifted_artifacts":[{"path":"spec.md","old_sha256":"2f4bec372f501d7440733e5c08cdc0c5d1e23297c4ee521563880e7c649d0946","new_sha256":"b97dad96e65e63b3ca4ce8ec01a854ca2d42ed34578c4c9b5267de154b12d3c6"},{"path":"tasks.md","old_sha256":"36f3f088fa4371a3acee55130f8226455304a51f8eeafe54e5126d9352da9155","new_sha256":"dadef23d2e03568fcc157dfa2e83cee3f69f7ade75636d8aefaa6a7834fc9b11"}]}
+
+{"timestamp":"2026-11-04T00:58:54.8330157Z","action":"guard","status":"allow","feature_directory":"specs/004-tech-debt-jira-epic","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.implement"}
+
+{"timestamp":"2026-11-04T14:31:14.2676523Z","action":"guard","status":"allow","feature_directory":"specs/004-tech-debt-jira-epic","decision":"allow","reason":"","actor":"claude","checked_action":"speckit.implement"}
 
