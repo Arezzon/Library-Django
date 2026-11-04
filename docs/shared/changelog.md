@@ -1,4 +1,8 @@
 2026-11-04
+Browser sign-in tests run in CI (KAN-94)
+The two browser sign-in test files, `library/test_selenium_auth_pytest.py` and `library/test_selenium_auth_unittest.py`, now run on every pull request and push to `main` (TD-20, path 1: both files stay). A new step on the `ubuntu-latest` leg, "Verify the browser sign-in tests", runs them in headless Chrome against the stack CI starts, with the seeded demo reader. The files read `BASE_URL` and `SELENIUM_HEADLESS` from the environment, keep their two scenarios (signing in and out, and the error for wrong details), and find "Log Out" as a link or as the form button from KAN-96. `selenium` and `pytest` are pinned in `requirements-dev.txt`, and the README says how to run the tests locally.
+
+2026-11-04
 A 404 page in the site's style, and staff pages hidden from readers (KAN-79, KAN-80)
 An unknown address now gets `404.html`, styled like the 403 page: the site's header and navigation, "We can't find this page.", one line of explanation and "Go to the home page" (TD-36). It does not repeat the address. Librarian and administrator pages and actions answer a signed-in reader with the same 404 page, so the site no longer confirms that they exist (TD-37); `librarian_required` and `role_required` in `authentication/decorators.py` decide it for every such page. Anonymous visitors are still sent to sign in, pages scoped to another reader's records still answer 403, and the API keeps 403. @Arezzon decided option 1 of KAN-80. FR-004 of spec 003, its access contract, the README and the analytics and forecast designs say so, and the accessibility check visits the 404 page as a visitor and as a reader.
 
