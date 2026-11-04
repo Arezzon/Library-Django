@@ -102,7 +102,7 @@ class EventTests(FakeEncoderMixin, TestCase):
         self.assertNotIn("password", str(self.payload()))
         self.publish.reset_mock()
         with self.captureOnCommitCallbacks(execute=True):
-            client.get("/authentication/logout/")
+            client.post("/authentication/logout/")
         self.assertEqual(self.payload()["event_type"], EventType.LOGOUT)
         self.assertEqual(self.payload()["user_id"], self.user.pk)
 

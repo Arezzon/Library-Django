@@ -70,7 +70,7 @@ body, or 409 for a refused reservation.
 | Route | Anonymous | Reader | Librarian |
 |---|---|---|---|
 | `/authentication/login/`, `/authentication/register/` | The page | Redirect home | Redirect home |
-| `/authentication/logout/` | Redirect to sign-in | Signs out | Signs out |
+| `/authentication/logout/` (GET: 405 for everyone; POST needs the CSRF token, KAN-96) | POST: redirect to sign-in | POST: signs out | POST: signs out |
 | `/authentication/` | Redirect to sign-in | Redirect home | Redirect home |
 | `/` | Redirect to sign-in | Home | Home |
 | `/book/`, `/book/<id>/` | Redirect to sign-in | The page | The page |

@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.forms import AdminUserCreationForm, UserChangeForm
 from django.contrib.auth.models import Group
 
 from .models import CustomUser
@@ -12,11 +14,57 @@ from .services import (
 admin.site.unregister(Group)
 
 
+class CustomUserChangeForm(UserChangeForm):
+    """The password hash is read-only, with a link to the change-password form."""
+
+    class Meta:
+        model = CustomUser
+        fields = (
+            "email",
+            "password",
+            "first_name",
+            "middle_name",
+            "last_name",
+            "role",
+            "is_active",
+        )
+
+
+class CustomUserCreationForm(AdminUserCreationForm):
+    class Meta:
+        model = CustomUser
+        fields = ("email", "first_name", "middle_name", "last_name", "is_active")
+
+
 @admin.register(CustomUser)
-class CustomUserAdmin(admin.ModelAdmin):
+class CustomUserAdmin(UserAdmin):
     """Accounts in the admin site, under the same rule as the web and the API: the
     role only for administrators, and an administrator's account read-only for
-    librarians (FR-063)."""
+    librarians (FR-063). The password is set only on the add form and the
+    change-password form, never by editing the hash (TD-23)."""
+
+    form = CustomUserChangeForm
+    add_form = CustomUserCreationForm
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "email",
+                    "first_name",
+                    "middle_name",
+                    "last_name",
+                    "is_active",
+                    "usable_password",
+                    "password1",
+                    "password2",
+                ),
+            },
+        ),
+    )
+    ordering = ("email",)
+    filter_horizontal = ()
 
     list_display = (
         "id",
@@ -67,6 +115,10 @@ class CustomUserAdmin(admin.ModelAdmin):
         )
 
     def save_model(self, request, obj, form, change):
-        # The changed fields go through the rule; a changed password is hashed.
+        if not change:
+            # The add form has already hashed the new password.
+            super().save_model(request, obj, form, change)
+            return
+        # The changed fields go through the rule; the read-only hash never changes.
         changes = {name: form.cleaned_data[name] for name in form.changed_data}
         update_account(request.user, obj, changes)

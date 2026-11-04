@@ -213,9 +213,9 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
                 self.assertTrue(refusals & set(expected), f"{route} refuses nobody")
                 self.assertTrue(set(expected) - refusals, f"{route} permits nobody")
 
-    def test_signing_out_ends_the_session_and_returns_to_sign_in(self):
+    def test_signing_out_by_post_ends_the_session_and_returns_to_sign_in(self):
         self.assertRedirects(
-            self.signed_in().get("/authentication/logout/"),
+            self.signed_in().post("/authentication/logout/"),
             LOGIN,
             fetch_redirect_response=False,
         )
@@ -223,10 +223,22 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
             with self.subTest(user=user.email):
                 client = self.signed_in(user)
                 self.assertRedirects(
-                    client.get("/authentication/logout/"),
+                    client.post("/authentication/logout/"),
                     LOGIN,
                     fetch_redirect_response=False,
                 )
                 self.assertRedirects(
                     client.get("/"), LOGIN, fetch_redirect_response=False
                 )
+
+    def test_opening_the_sign_out_address_keeps_the_session(self):
+        # KAN-96: a link, an image or another site cannot sign anyone out.
+        client = self.signed_in(self.reader)
+        self.assertEqual(client.get("/authentication/logout/").status_code, 405)
+        self.assertEqual(client.get("/").status_code, PAGE)
+
+    def test_signing_out_without_the_csrf_token_is_refused(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.reader)
+        self.assertEqual(client.post("/authentication/logout/").status_code, 403)
+        self.assertEqual(client.get("/").status_code, PAGE)
