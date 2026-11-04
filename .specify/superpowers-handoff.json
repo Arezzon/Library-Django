@@ -1,12 +1,12 @@
 ﻿{
     "schema_version":  1,
-    "updated_at":  "2026-11-04T00:47:32.6107699Z",
-    "feature_directory":  "specs/005-tech-debt-fixes",
+    "updated_at":  "2026-11-13T14:00:36.4458649Z",
+    "feature_directory":  "specs/004-tech-debt-jira-epic",
     "source_of_truth":  {
                             "constitution":  ".specify/memory/constitution.md",
-                            "spec":  "specs/005-tech-debt-fixes/spec.md",
-                            "plan":  "specs/005-tech-debt-fixes/plan.md",
-                            "tasks":  "specs/005-tech-debt-fixes/tasks.md"
+                            "spec":  "specs/004-tech-debt-jira-epic/spec.md",
+                            "plan":  "specs/004-tech-debt-jira-epic/plan.md",
+                            "tasks":  "specs/004-tech-debt-jira-epic/tasks.md"
                         },
     "supersedes":  [
                        "speckit.implement"
@@ -19,18 +19,13 @@
                          "requesting-code-review",
                          "finishing-a-development-branch"
                      ],
-    "status":  "complete",
-    "blocked_reason":  null,
+    "status":  "blocked",
+    "blocked_reason":  "Waiting for the next review round: KAN-92 and KAN-93 (TD-18, TD-19) are in Idea. T039-T047 repeat until 2026-11-17, when T051 is due. Round 3 (2026-11-13) closed TD-29 and TD-34 in #70.",
     "artifact_owner":  "claude",
     "review_only_agents":  [
 
                            ],
     "notes":  null,
-    "last_snapshot_id":  "20261104T0047326002806Z-complete",
-    "instructions":  "Use /speckit-superpowers-bridge (Claude Code) or $speckit-superpowers-bridge (Codex). The bridge orchestrates native Superpowers skills against tasks.md; do not run speckit.implement and do not invoke superpowers:writing-plans / :brainstorming for an active Spec Kit feature.",
-    "artifacts_sha256":  {
-                             "spec.md":  "b97dad96e65e63b3ca4ce8ec01a854ca2d42ed34578c4c9b5267de154b12d3c6",
-                             "plan.md":  "7a85afe6105462932bdccc500e681a5aa39c6a70d46609cf52282061cd36be58",
-                             "tasks.md":  "dadef23d2e03568fcc157dfa2e83cee3f69f7ade75636d8aefaa6a7834fc9b11"
-                         }
+    "last_snapshot_id":  "20261113T1400364374820Z-blocked",
+    "instructions":  "Use /speckit-superpowers-bridge (Claude Code) or $speckit-superpowers-bridge (Codex). The bridge orchestrates native Superpowers skills against tasks.md; do not run speckit.implement and do not invoke superpowers:writing-plans / :brainstorming for an active Spec Kit feature."
 }

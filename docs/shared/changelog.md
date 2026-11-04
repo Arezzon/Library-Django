@@ -1,4 +1,8 @@
 2026-11-13
+The KAN-90 debt Epic's specification (KAN-90)
+Spec 004 records how the 16 open items of the debt register became one Jira Epic, KAN-90, in sprint 5. Each item has one issue, assigned to its owner. A code change says what to do and when it is done, and a decision gives its subject and options. Every issue ends with the same reporting rule: a PR link, or the decision with its reason, then In Review. The specification, plan, research, data model, issue-text and review contracts, quickstart and tasks are included, with the bridge snapshots and the handoff, which waits for the Epic's next review round. People are named by GitHub handle, and no Jira account ID is recorded. The issue drafts and the working record stay out of the repository.
+
+2026-11-13
 Repository cleanup and documentation refresh
 The KAN-82 screenshot leaves `images/`. The debt register is current: it takes the KAN-90 review of PR #70, closing nine items and accepting three, and also closes TD-29 (KAN-81) and TD-34 (KAN-78). The README's reader sections, which had ended up after the license, form one "Reader features" section on search, recommendations, likes, ratings and the assistant; the contents, features, Compose services (with `backup`) and configuration (`BOOK_EMBEDDING_THREADS`, `WEB_CONCURRENCY`) tables and the project layout match the code. `docs/ba/README.md` lists its documents, and three guides no longer speak of "this PR" or "this branch".
 
