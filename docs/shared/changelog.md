@@ -1,4 +1,8 @@
 2026-11-04
+The KAN-90 debt-fix specification and its delivery record (KAN-90)
+`specs/005-tech-debt-fixes/` holds the Spec Kit specification, plan, research, data model, contracts, quickstart and 89 tasks, all done, that delivered the technical lead's seven KAN-90 issues as four pull requests: #65 (KAN-96, KAN-97), #66 (KAN-79, KAN-80), #67 (KAN-94) and #68 (KAN-101, KAN-102). `progress.md` records each group's base commit, the tests seen failing before each change, the checks, CI runs, Jira comments and moves, the end-state comparison of all 16 KAN-90 issues and the success criteria. `sdd-ledger.md` lists the decisions taken during the work. The specification is marked implemented and in review. The Superpowers handoff is complete, and its event log and snapshots are included.
+
+2026-11-04
 A 404 page in the site's style, and staff pages hidden from readers (KAN-79, KAN-80)
 An unknown address now gets `404.html`, styled like the 403 page: the site's header and navigation, "We can't find this page.", one line of explanation and "Go to the home page" (TD-36). It does not repeat the address. Librarian and administrator pages and actions answer a signed-in reader with the same 404 page, so the site no longer confirms that they exist (TD-37); `librarian_required` and `role_required` in `authentication/decorators.py` decide it for every such page. Anonymous visitors are still sent to sign in, pages scoped to another reader's records still answer 403, and the API keeps 403. @Arezzon decided option 1 of KAN-80. FR-004 of spec 003, its access contract, the README and the analytics and forecast designs say so, and the accessibility check visits the 404 page as a visitor and as a reader.
 
