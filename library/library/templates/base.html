@@ -169,7 +169,7 @@
                             {% include 'includes/role_badge.html' with account=request.user %}
                         </div>
 
-                        <a href="{% url 'logout' %}" class="btn-logout ml-2">Log Out</a>
+                        <form method="post" action="{% url 'logout' %}" class="inline-flex ml-2">{% csrf_token %}<button type="submit" class="btn-logout">Log Out</button></form>
 
                     {% else %}
                         <a href="{% url 'login' %}" class="nav-link">Log In</a>
@@ -260,7 +260,7 @@
                     {% endif %}
 
                     <div class="pt-3 border-t border-slate-100">
-                        <a href="{% url 'logout' %}" class="btn-danger w-full justify-center">Log Out</a>
+                        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="btn-danger w-full justify-center">Log Out</button></form>
                     </div>
 
                 {% else %}

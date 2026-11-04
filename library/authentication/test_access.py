@@ -594,10 +594,16 @@ class AdministratorRoleTests(TestCase):
         self.assertNotContains(client.get(self.admin_url(target)), 'name="role"')
         self.assertEqual(CustomUser.objects.get(pk=target.pk).role, ROLE_ADMINISTRATOR)
 
+    def set_password_in_admin(self, client, user, password):
+        return client.post(
+            self.admin_url(user, "password"),
+            {"usable_password": "true", "password1": password, "password2": password},
+        )
+
     def test_the_admin_site_sets_passwords_and_a_librarian_adds_readers(self):
         client = self.signed_in(self.librarian)
-        response = self.change(
-            client, "admin", self.reader, password="admin-set-password-1"
+        response = self.set_password_in_admin(
+            client, self.reader, "admin-set-password-1"
         )
         self.assertEqual(response.status_code, 302)
         reader = CustomUser.objects.get(pk=self.reader.pk)
@@ -606,7 +612,9 @@ class AdministratorRoleTests(TestCase):
             "/admin/authentication/customuser/add/",
             {
                 "email": "admin-added@example.com",
-                "password": "admin-added-password-1",
+                "usable_password": "true",
+                "password1": "admin-added-password-1",
+                "password2": "admin-added-password-1",
                 "first_name": "Added",
                 "middle_name": "M",
                 "last_name": "Reader",
@@ -617,7 +625,38 @@ class AdministratorRoleTests(TestCase):
         self.assertEqual(response.status_code, 302)
         added = CustomUser.objects.get(email="admin-added@example.com")
         self.assertEqual(added.role, ROLE_VISITOR)
+        self.assertTrue(added.is_active)
         self.assertTrue(added.check_password("admin-added-password-1"))
+
+    def test_the_admin_user_form_shows_the_password_read_only(self):
+        # KAN-97: the hash is no input; a link leads to the change-password form.
+        page = self.signed_in(self.administrator).get(self.admin_url(self.reader))
+        self.assertEqual(page.status_code, 200)
+        self.assertNotRegex(page.content.decode(), r'<input[^>]*name="password"')
+        self.assertContains(page, 'href="../password/"')
+
+    def test_saving_the_admin_user_form_keeps_the_password(self):
+        client = self.signed_in(self.administrator)
+        response = self.change(
+            client, "admin", self.reader, password="edited-hash-value"
+        )
+        self.assertEqual(response.status_code, 302)
+        reader = CustomUser.objects.get(pk=self.reader.pk)
+        self.assertTrue(reader.check_password("access-password"))
+
+    def test_the_admin_password_page_sets_a_new_password(self):
+        client = self.signed_in(self.administrator)
+        response = self.set_password_in_admin(
+            client, self.reader, "admin-set-password-1"
+        )
+        self.assertEqual(response.status_code, 302)
+        reader = CustomUser.objects.get(pk=self.reader.pk)
+        self.assertTrue(reader.check_password("admin-set-password-1"))
+
+    def test_a_librarian_cannot_open_an_administrators_password_page(self):
+        client = self.signed_in(self.librarian)
+        response = client.get(self.admin_url(self.administrator, "password"))
+        self.assertEqual(response.status_code, 403)
 
     def test_the_rule_never_assigns_the_administrator_role(self):
         reader = CustomUser.objects.get(pk=self.reader.pk)
