@@ -1,4 +1,5 @@
 import logging
+import os
 from time import sleep
 
 import pytest
@@ -15,19 +16,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:8000")
 VALID_EMAIL = "reader@library.com"
 VALID_PASSWORD = "reader123password"
 INVALID_EMAIL = "wrong_user@library.com"
 INVALID_PASSWORD = "wrongpassword123"
+# "Log Out" is a link on older pages and a form button since KAN-96.
+LOG_OUT = (By.XPATH, "//*[self::a or self::button][normalize-space()='Log Out']")
 
 
 @pytest.fixture
 def driver():
     """Fixture to initialize and tear down the Chrome browser."""
     logger.info("Starting Chrome Browser...")
-    chrome_driver = webdriver.Chrome()
-    chrome_driver.maximize_window()
+    options = webdriver.ChromeOptions()
+    headless = os.environ.get("SELENIUM_HEADLESS") == "1"
+    if headless:
+        # CI has no display; the window is wide enough for the desktop header.
+        options.add_argument("--headless=new")
+        options.add_argument("--window-size=1366,900")
+    chrome_driver = webdriver.Chrome(options=options)
+    if not headless:
+        chrome_driver.maximize_window()
     chrome_driver.get(BASE_URL)
 
     yield chrome_driver  # Provide driver instance to the test
@@ -60,7 +70,7 @@ def test_valid_login_and_logout(driver):
 
     # 4. Verify successful authentication
     logger.info("4. Verifying successful authentication...")
-    logout_btn = wait.until(EC.presence_of_element_located((By.LINK_TEXT, "Log Out")))
+    logout_btn = wait.until(EC.presence_of_element_located(LOG_OUT))
     assert logout_btn.is_displayed(), "Log Out button should be visible after login"
     assert (
         VALID_EMAIL in driver.page_source
