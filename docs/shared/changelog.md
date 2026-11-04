@@ -1,4 +1,8 @@
 2026-11-04
+The KAN-90 debt-fix specification and its delivery record (KAN-90)
+`specs/005-tech-debt-fixes/` holds the Spec Kit specification, plan, research, data model, contracts, quickstart and 89 tasks, all done, that delivered the technical lead's seven KAN-90 issues as four pull requests: #65 (KAN-96, KAN-97), #66 (KAN-79, KAN-80), #67 (KAN-94) and #68 (KAN-101, KAN-102). `progress.md` records each group's base commit, the tests seen failing before each change, the checks, CI runs, Jira comments and moves, the end-state comparison of all 16 KAN-90 issues and the success criteria. `sdd-ledger.md` lists the decisions taken during the work. The specification is marked implemented and in review. The Superpowers handoff is complete, and its event log and snapshots are included.
+
+2026-11-04
 Every page in the access tests, and CI's test command in the docs (KAN-101, KAN-102)
 A new test in `authentication/test_routes.py` walks every web route and fails, naming the route, when one has no row in `ROUTES`, the table that checks who may open each page (TD-35). The API has its own guard and the admin site counts as one route. Seven routes had no row and now have one: the assistant and its result page, For You, Saved Books, a book's rating and settings, and signing out, which answers GET with 405. Removing a row makes the test fail and name it. The constitution, now 2.5.0, and `AGENTS.md` give the test command CI runs, `ai` included (TD-31). The amendment is MINOR rather than PATCH because it also lists the browser sign-in tests from KAN-94 among the CI gates.
 

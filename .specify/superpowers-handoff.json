@@ -1,12 +1,12 @@
 ﻿{
     "schema_version":  1,
-    "updated_at":  "2026-11-02T12:30:25.9783449Z",
-    "feature_directory":  "specs/003-priority-tech-debt",
+    "updated_at":  "2026-11-04T00:47:32.6107699Z",
+    "feature_directory":  "specs/005-tech-debt-fixes",
     "source_of_truth":  {
                             "constitution":  ".specify/memory/constitution.md",
-                            "spec":  "specs/003-priority-tech-debt/spec.md",
-                            "plan":  "specs/003-priority-tech-debt/plan.md",
-                            "tasks":  "specs/003-priority-tech-debt/tasks.md"
+                            "spec":  "specs/005-tech-debt-fixes/spec.md",
+                            "plan":  "specs/005-tech-debt-fixes/plan.md",
+                            "tasks":  "specs/005-tech-debt-fixes/tasks.md"
                         },
     "supersedes":  [
                        "speckit.implement"
@@ -26,11 +26,11 @@
 
                            ],
     "notes":  null,
-    "last_snapshot_id":  "20261102T1230259704448Z-complete",
+    "last_snapshot_id":  "20261104T0047326002806Z-complete",
     "instructions":  "Use /speckit-superpowers-bridge (Claude Code) or $speckit-superpowers-bridge (Codex). The bridge orchestrates native Superpowers skills against tasks.md; do not run speckit.implement and do not invoke superpowers:writing-plans / :brainstorming for an active Spec Kit feature.",
     "artifacts_sha256":  {
-                             "spec.md":  "c917ece567d056069259b37a5c2e4cb51dbb7b74b87572d4e70fce671299ee5f",
-                             "plan.md":  "c4cba04323271ba521ff93836a5ed32eed9d710b4e1823089ffc7f9e9015af43",
-                             "tasks.md":  "f943f8766162d55af91e82969382279e3a1716b96ae40398712bc7616527d188"
+                             "spec.md":  "b97dad96e65e63b3ca4ce8ec01a854ca2d42ed34578c4c9b5267de154b12d3c6",
+                             "plan.md":  "7a85afe6105462932bdccc500e681a5aa39c6a70d46609cf52282061cd36be58",
+                             "tasks.md":  "dadef23d2e03568fcc157dfa2e83cee3f69f7ade75636d8aefaa6a7834fc9b11"
                          }
 }
