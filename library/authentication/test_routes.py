@@ -8,6 +8,7 @@ from datetime import timedelta
 
 from django.db import transaction
 from django.test import Client, TestCase
+from django.urls import URLResolver, get_resolver, resolve
 from django.utils import timezone
 
 from author.models import Author
@@ -18,8 +19,10 @@ from order.models import Order, Reservation
 from .models import ROLE_ADMINISTRATOR, ROLE_LIBRARIAN, CustomUser
 
 PAGE = 200
+BAD_REQUEST = 400  # signed in and allowed, but the empty form is refused
 FORBIDDEN = 403
 NOT_FOUND = 404
+NOT_ALLOWED = 405
 SIGN_IN = "sign in"  # /authentication/login/?next=<the route>
 LOGIN = "/authentication/login/"
 HOME = "/"
@@ -32,10 +35,19 @@ ADMIN_SIGN_IN = "/admin/login/?next=/admin/"
 ROUTES = [
     ("get", "/authentication/login/", PAGE, HOME, HOME),
     ("get", "/authentication/register/", PAGE, HOME, HOME),
+    # KAN-96: only a POST with the CSRF token signs out; the POST row is last.
+    ("get", "/authentication/logout/", NOT_ALLOWED, NOT_ALLOWED, NOT_ALLOWED),
     ("get", "/authentication/", LOGIN, HOME, HOME),
     ("get", "/", LOGIN, PAGE, PAGE),
+    ("get", "/assistant/", SIGN_IN, PAGE, PAGE),
+    # Without a saved answer the result page sends the caller back to ask.
+    ("get", "/assistant/result/", SIGN_IN, "/assistant/", "/assistant/"),
     ("get", "/book/", SIGN_IN, PAGE, PAGE),
     ("get", "/book/{book}/", SIGN_IN, PAGE, PAGE),
+    ("get", "/book/recommendations/", SIGN_IN, PAGE, PAGE),
+    ("get", "/book/preferences/", SIGN_IN, PAGE, PAGE),
+    ("post", "/book/{book}/rating/", SIGN_IN, BAD_REQUEST, BAD_REQUEST),
+    ("post", "/book/{book}/preferences/", SIGN_IN, BAD_REQUEST, BAD_REQUEST),
     ("get", "/book/create/", SIGN_IN, NOT_FOUND, PAGE),
     ("get", "/book/update/{book}/", SIGN_IN, NOT_FOUND, PAGE),
     ("get", "/book/user/{reader}/", SIGN_IN, NOT_FOUND, PAGE),
@@ -106,7 +118,33 @@ ROUTES = [
     ("get", "/events/activity/", SIGN_IN, NOT_FOUND, PAGE),
     ("get", "/events/forecast/", SIGN_IN, NOT_FOUND, PAGE),
     ("get", "/admin/", ADMIN_SIGN_IN, ADMIN_SIGN_IN, PAGE),
+    # Last, because it ends each caller's session for the rows after it.
+    ("post", "/authentication/logout/", LOGIN, LOGIN, LOGIN),
 ]
+
+
+def web_routes():
+    """Every web page route, as Django writes it, for example ``book/<int:book_id>/``.
+
+    The API has its own guard (DeclaredAudienceTests), and the admin site counts as
+    the single route ``admin/``.
+    """
+    found = set()
+
+    def walk(patterns, prefix):
+        for pattern in patterns:
+            route = prefix + str(pattern.pattern)
+            if route.startswith("api/"):
+                continue
+            if route.startswith("admin/"):
+                found.add("admin/")
+            elif isinstance(pattern, URLResolver):
+                walk(pattern.url_patterns, route)
+            else:
+                found.add(route)
+
+    walk(get_resolver().url_patterns, "")
+    return sorted(found)
 
 
 def account(email, role=CustomUser.ROLE_VISITOR):
@@ -172,7 +210,7 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
         return response
 
     def assertOutcome(self, response, outcome, route):
-        if outcome in (PAGE, FORBIDDEN, NOT_FOUND):
+        if isinstance(outcome, int):
             self.assertEqual(response.status_code, outcome)
         else:
             target = (
@@ -181,6 +219,23 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
                 else outcome.format(**self.ids())
             )
             self.assertRedirects(response, target, fetch_redirect_response=False)
+
+    def missing_routes(self, table):
+        """The web routes that no row of ``table`` reaches."""
+        listed = {
+            resolve(route.format(**self.ids()).split("?")[0]).route
+            for _method, route, *_ in table
+        }
+        return [route for route in web_routes() if route not in listed]
+
+    def test_every_web_route_is_in_the_table(self):
+        # KAN-102: a new page without a row here fails, so its access is checked.
+        missing = self.missing_routes(ROUTES)
+        self.assertEqual(missing, [], f"Add these routes to ROUTES: {missing}")
+
+    def test_a_route_missing_from_the_table_is_reported(self):
+        table = [row for row in ROUTES if row[1] != "/book/{book}/"]
+        self.assertIn("book/<int:book_id>/", self.missing_routes(table))
 
     def test_each_route_answers_each_caller_as_the_contract_says(self):
         callers = {
@@ -207,8 +262,14 @@ class WebRouteAccessTests(FakeEncoderMixin, TestCase):
     def test_every_protected_route_has_a_permitted_and_a_refused_caller(self):
         refusals = {SIGN_IN, LOGIN, FORBIDDEN, NOT_FOUND, ADMIN_SIGN_IN}
         for _method, route, *expected in ROUTES:
-            if route in ("/authentication/login/", "/authentication/register/"):
-                continue  # open to everyone; signed-in callers are sent home
+            if route in (
+                "/authentication/login/",
+                "/authentication/register/",
+                "/authentication/logout/",
+            ):
+                # Open to everyone: signed-in callers are sent home from the first
+                # two, and anyone may sign out.
+                continue
             with self.subTest(route=route):
                 self.assertTrue(refusals & set(expected), f"{route} refuses nobody")
                 self.assertTrue(set(expected) - refusals, f"{route} permits nobody")
