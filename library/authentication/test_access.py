@@ -525,7 +525,7 @@ class AdministratorRoleTests(TestCase):
         self.assertEqual(response.status_code, 200)
         stored = CustomUser.objects.get(pk=self.colleague.pk)
         self.assertEqual((stored.role, stored.is_active), (ROLE_VISITOR, True))
-        self.assertEqual(colleague.get("/order/reservations/desk/").status_code, 403)
+        self.assertEqual(colleague.get("/order/reservations/desk/").status_code, 404)
 
     def test_the_roles_offered_are_reader_and_librarian(self):
         client = self.signed_in(self.administrator)

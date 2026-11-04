@@ -11,7 +11,7 @@ forecasting (KAN-35) is out of scope; the dashboard only leaves room for it.
 | Audience | Page | API |
 | --- | --- | --- |
 | Librarian, administrator (`is_librarian`) | Allowed | Allowed |
-| Reader | 403, same page as other librarian-only screens | 403 |
+| Reader | 404, same page as an unknown address (KAN-80) | 403 |
 | Anonymous | Redirect to sign-in with `next` | 401 |
 
 The existing `librarian_required` decorator (page) and `IsLibrarian` permission
@@ -271,8 +271,9 @@ Rank, Book and the ranking column, and move the rest into a second line.
 
 ### Reader opens `/events/`
 
-The site's standard 403 page ("You don't have permission to do this." with a link
-to the home page). No figures are rendered, and the API returns 403 with no figures.
+The site's "not found" page, the same as for an unknown address ("We can't find
+this page." with a link to the home page), so the page does not confirm that it
+exists (KAN-80). No figures are rendered, and the API returns 403 with no figures.
 
 ## API (KAN-34)
 

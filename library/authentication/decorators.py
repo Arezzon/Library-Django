@@ -3,6 +3,7 @@ from functools import wraps
 from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 
 
 def _sign_in_first(request):
@@ -30,7 +31,8 @@ def librarian_required(view_func):
     """
     Decorator that ensures the user is signed in and is a librarian.
     If not signed in, redirects to 'login' with the requested page as `next`.
-    If signed in but not a librarian, answers 403.
+    If signed in but not a librarian, answers 404, the same as an unknown address,
+    so readers do not learn that the page exists (KAN-80).
     """
 
     @wraps(view_func)
@@ -38,7 +40,7 @@ def librarian_required(view_func):
         if not request.user.is_authenticated:
             return _sign_in_first(request)
         if not request.user.is_librarian:
-            raise PermissionDenied
+            raise Http404
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view
@@ -74,7 +76,9 @@ def librarian_or_owner_required(user_id_param="user_id"):
 def role_required(*allowed_roles):
     """
     Decorator that checks if the authenticated user has one of the allowed roles.
-    If not signed in, redirects to 'login'; with another role, answers 403.
+    If not signed in, redirects to 'login'. With another role, answers 404, the
+    same as an unknown address, so readers do not learn that the page exists
+    (KAN-80).
     """
 
     def decorator(view_func):
@@ -83,7 +87,7 @@ def role_required(*allowed_roles):
             if not request.user.is_authenticated:
                 return _sign_in_first(request)
             if request.user.role not in allowed_roles:
-                raise PermissionDenied
+                raise Http404
             return view_func(request, *args, **kwargs)
 
         return _wrapped_view

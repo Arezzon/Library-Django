@@ -27,6 +27,8 @@ ADMIN_SIGN_IN = "/admin/login/?next=/admin/"
 
 # (method, route, anonymous, reader, librarian): an expected status, or where the
 # caller is redirected. {reader} is the signed-in reader; {other} is another reader.
+# A reader gets 404 on librarian-only pages, the same as an unknown address (KAN-80),
+# and 403 on another reader's records.
 ROUTES = [
     ("get", "/authentication/login/", PAGE, HOME, HOME),
     ("get", "/authentication/register/", PAGE, HOME, HOME),
@@ -34,18 +36,18 @@ ROUTES = [
     ("get", "/", LOGIN, PAGE, PAGE),
     ("get", "/book/", SIGN_IN, PAGE, PAGE),
     ("get", "/book/{book}/", SIGN_IN, PAGE, PAGE),
-    ("get", "/book/create/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/book/update/{book}/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/book/user/{reader}/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/book/delete/{free_book}/", SIGN_IN, FORBIDDEN, PAGE),
-    ("post", "/book/delete/{free_book}/", SIGN_IN, FORBIDDEN, "/book/"),
+    ("get", "/book/create/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/book/update/{book}/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/book/user/{reader}/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/book/delete/{free_book}/", SIGN_IN, NOT_FOUND, PAGE),
+    ("post", "/book/delete/{free_book}/", SIGN_IN, NOT_FOUND, "/book/"),
     # A book with borrowing history is refused, back on its edit page.
-    ("post", "/book/delete/{book}/", SIGN_IN, FORBIDDEN, "/book/update/{book}/"),
-    ("get", "/author/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/author/create/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/author/update/{author}/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/author/delete/{author}/", SIGN_IN, FORBIDDEN, PAGE),
-    ("post", "/author/delete/{author}/", SIGN_IN, FORBIDDEN, "/author/"),
+    ("post", "/book/delete/{book}/", SIGN_IN, NOT_FOUND, "/book/update/{book}/"),
+    ("get", "/author/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/author/create/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/author/update/{author}/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/author/delete/{author}/", SIGN_IN, NOT_FOUND, PAGE),
+    ("post", "/author/delete/{author}/", SIGN_IN, NOT_FOUND, "/author/"),
     ("get", "/order/my/", SIGN_IN, PAGE, PAGE),
     # Every loan starts with a librarian: readers reserve on the book page.
     (
@@ -55,12 +57,12 @@ ROUTES = [
         "/book/{free_book}/",
         "/order/lend/?book={free_book}",
     ),
-    ("get", "/order/lend/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/order/lend/", SIGN_IN, NOT_FOUND, PAGE),
     ("get", "/order/reservations/", SIGN_IN, PAGE, PAGE),
-    ("get", "/order/reservations/desk/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/order/reservations/{reservation}/issue/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/order/reservations/desk/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/order/reservations/{reservation}/issue/", SIGN_IN, NOT_FOUND, PAGE),
     # Without a loan period the form comes back with the error.
-    ("post", "/order/reservations/{reservation}/issue/", SIGN_IN, FORBIDDEN, PAGE),
+    ("post", "/order/reservations/{reservation}/issue/", SIGN_IN, NOT_FOUND, PAGE),
     ("get", "/order/reservations/{reservation}/cancel/", SIGN_IN, PAGE, PAGE),
     (
         "get",
@@ -91,18 +93,18 @@ ROUTES = [
         "/order/reservations/",
         "/order/reservations/",
     ),
-    ("get", "/order/all/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/order/update/{loan}/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/order/close/{loan}/", SIGN_IN, FORBIDDEN, PAGE),
-    ("post", "/order/close/{loan}/", SIGN_IN, FORBIDDEN, "/order/all/"),
-    ("get", "/authentication/users/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/order/all/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/order/update/{loan}/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/order/close/{loan}/", SIGN_IN, NOT_FOUND, PAGE),
+    ("post", "/order/close/{loan}/", SIGN_IN, NOT_FOUND, "/order/all/"),
+    ("get", "/authentication/users/", SIGN_IN, NOT_FOUND, PAGE),
     ("get", "/authentication/users/{reader}/", SIGN_IN, PAGE, PAGE),
     ("get", "/authentication/users/{other}/", SIGN_IN, FORBIDDEN, PAGE),
     ("get", "/authentication/users/{reader}/update/", SIGN_IN, PAGE, PAGE),
     ("get", "/authentication/users/{other}/update/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/events/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/events/activity/", SIGN_IN, FORBIDDEN, PAGE),
-    ("get", "/events/forecast/", SIGN_IN, FORBIDDEN, PAGE),
+    ("get", "/events/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/events/activity/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/events/forecast/", SIGN_IN, NOT_FOUND, PAGE),
     ("get", "/admin/", ADMIN_SIGN_IN, ADMIN_SIGN_IN, PAGE),
 ]
 

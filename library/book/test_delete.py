@@ -92,7 +92,7 @@ class BookDeletionViewTests(TestCase):
         )
         self.client.force_login(self.reader)
         response = self.client.post(self.delete_url(self.book))
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
         self.assertTrue(Book.objects.filter(pk=self.book.pk).exists())
 
     def test_books_with_active_or_returned_orders_keep_their_history(self):

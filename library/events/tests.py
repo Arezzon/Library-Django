@@ -437,7 +437,7 @@ class AnalyticsTests(FakeEncoderMixin, TestCase):
         )
         self.client.force_login(self.reader)
         response = self.client.get("/events/activity/")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
         self.assertNotContains(self.client.get("/book/"), "Activity Analytics")
         self.client.force_login(self.librarian)
         response = self.client.get("/events/activity/")

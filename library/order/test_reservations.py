@@ -1035,11 +1035,12 @@ class DeskTests(ReservationTestCase):
         self.assertEqual(
             refused,
             {
-                "lend page": 403,
-                "lend": 403,
-                "desk": 403,
-                "issue page": 403,
-                "issue": 403,
+                # KAN-80: librarian pages answer a reader 404.
+                "lend page": 404,
+                "lend": 404,
+                "desk": 404,
+                "issue page": 404,
+                "issue": 404,
                 "cancel": 404,
                 "api loan": 403,
                 "api own loan": 403,

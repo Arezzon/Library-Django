@@ -46,11 +46,12 @@ class OverviewAccessTests(TestCase):
             fetch_redirect_response=False,
         )
 
-    def test_a_reader_gets_the_forbidden_page_without_figures(self):
+    def test_a_reader_gets_the_not_found_page_without_figures(self):
         self.client.force_login(self.reader)
         response = self.client.get(URL)
-        self.assertEqual(response.status_code, 403)
-        self.assertNotContains(response, "Library overview", status_code=403)
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, "404.html")
+        self.assertNotContains(response, "Library overview", status_code=404)
 
     def test_librarians_and_administrators_see_the_overview_and_its_tabs(self):
         for user in (self.librarian, self.administrator):

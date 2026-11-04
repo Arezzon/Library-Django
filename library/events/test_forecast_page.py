@@ -43,11 +43,12 @@ class ForecastAccessTests(TestCase):
             fetch_redirect_response=False,
         )
 
-    def test_a_reader_gets_the_forbidden_page(self):
+    def test_a_reader_gets_the_not_found_page(self):
         self.client.force_login(self.reader)
         response = self.client.get(URL)
-        self.assertEqual(response.status_code, 403)
-        self.assertNotContains(response, "Book demand forecast", status_code=403)
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, "404.html")
+        self.assertNotContains(response, "Book demand forecast", status_code=404)
 
     def test_librarians_and_administrators_see_the_third_tab(self):
         for user in (self.librarian, self.administrator):
