@@ -1,4 +1,8 @@
 2026-11-04
+The debt register closes nine KAN-90 items and accepts three (KAN-90)
+The first review of the Epic's issues in In Review closes TD-22 and TD-23 with #65 (KAN-96, KAN-97), TD-36 and TD-37 with #66 (KAN-79, KAN-80), TD-20 with #67 (KAN-94), and TD-31 and TD-35 with #68 (KAN-101, KAN-102). TD-37's row records @Arezzon's decision to hide librarian and administrator pages from readers, and no longer says it depends on itself. TD-24 is closed as out of the project's scope: the CDN and Google Fonts are acceptable (KAN-98). The second review records @Arezzon's decisions. TD-21 is closed: its search is the semantic search from #15 (KAN-28), and its demand forecast shipped in #64 (KAN-35) (KAN-95). TD-17 (the weekly manual copy off the Pi, KAN-91), TD-25 (audit entries kept indefinitely, KAN-99) and TD-26 (unreliable creation times of older accounts, KAN-100) are accepted permanently, as reviewed on 2026-11-04.
+
+2026-11-04
 The KAN-90 debt-fix specification and its delivery record (KAN-90)
 `specs/005-tech-debt-fixes/` holds the Spec Kit specification, plan, research, data model, contracts, quickstart and 89 tasks, all done, that delivered the technical lead's seven KAN-90 issues as four pull requests: #65 (KAN-96, KAN-97), #66 (KAN-79, KAN-80), #67 (KAN-94) and #68 (KAN-101, KAN-102). `progress.md` records each group's base commit, the tests seen failing before each change, the checks, CI runs, Jira comments and moves, the end-state comparison of all 16 KAN-90 issues and the success criteria. `sdd-ledger.md` lists the decisions taken during the work. The specification is marked implemented and in review. The Superpowers handoff is complete, and its event log and snapshots are included.
 
