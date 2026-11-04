@@ -1,4 +1,8 @@
 2026-11-04
+Browser sign-in tests run in CI (KAN-94)
+The two browser sign-in test files, `library/test_selenium_auth_pytest.py` and `library/test_selenium_auth_unittest.py`, now run on every pull request and push to `main` (TD-20, path 1: both files stay). A new step on the `ubuntu-latest` leg, "Verify the browser sign-in tests", runs them in headless Chrome against the stack CI starts, with the seeded demo reader. The files read `BASE_URL` and `SELENIUM_HEADLESS` from the environment, keep their two scenarios (signing in and out, and the error for wrong details), and find "Log Out" as a link or as the form button from KAN-96. `selenium` and `pytest` are pinned in `requirements-dev.txt`, and the README says how to run the tests locally.
+
+2026-11-04
 Sign out by form, and a read-only password in the admin site (KAN-96, KAN-97)
 Signing out now takes a POST with the CSRF token (TD-22). Opening `/authentication/logout/` directly, or through a link, an image or another site, answers 405 and leaves the session as it was. Both "Log Out" controls, in the header and in the mobile menu, are form buttons that look and work as before, by mouse and by keyboard, and the accessibility check still finds no violation. The tracking smoke test signs out by POST. In the admin site, a user's form shows the password hash read-only, with a "Reset password" link to the change-password form, so saving the form never changes the password (TD-23). The change-password form sets a new one, a librarian still cannot open an administrator's, and adding a user still sets the password from two fields.
 

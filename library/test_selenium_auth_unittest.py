@@ -1,3 +1,4 @@
+import os
 import unittest
 from time import sleep
 
@@ -8,7 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 
 class TestLoginLogoutSelenium(unittest.TestCase):
-    BASE_URL = "http://127.0.0.1:8000"
+    BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:8000")
 
     VALID_EMAIL = "reader@library.com"
     VALID_PASSWORD = "reader123password"
@@ -16,13 +17,23 @@ class TestLoginLogoutSelenium(unittest.TestCase):
     INVALID_EMAIL = "wrong_user@library.com"
     INVALID_PASSWORD = "wrongpassword123"
 
+    # "Log Out" is a link on older pages and a form button since KAN-96.
+    LOG_OUT = (By.XPATH, "//*[self::a or self::button][normalize-space()='Log Out']")
+
     def setUp(self):
         """
         Launch before test - open browser
         """
         # 1. Open browser
-        self.driver = webdriver.Chrome()
-        self.driver.maximize_window()
+        options = webdriver.ChromeOptions()
+        headless = os.environ.get("SELENIUM_HEADLESS") == "1"
+        if headless:
+            # CI has no display; the window is wide enough for the desktop header.
+            options.add_argument("--headless=new")
+            options.add_argument("--window-size=1366,900")
+        self.driver = webdriver.Chrome(options=options)
+        if not headless:
+            self.driver.maximize_window()
         self.wait = WebDriverWait(self.driver, timeout=10)
         self.driver.get(self.BASE_URL)
 
@@ -53,9 +64,7 @@ class TestLoginLogoutSelenium(unittest.TestCase):
         ).click()
 
         # 5. Verify that the user is successfully logged in to the website.
-        logout_btn = self.wait.until(
-            EC.presence_of_element_located((By.LINK_TEXT, "Log Out"))
-        )
+        logout_btn = self.wait.until(EC.presence_of_element_located(self.LOG_OUT))
 
         self.assertTrue(logout_btn.is_displayed())
         self.assertIn(self.VALID_EMAIL, driver.page_source)

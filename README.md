@@ -551,6 +551,19 @@ node scripts/a11y/check_pages.mjs --base-url http://localhost:8000
 screen-reader checks stay manual; `specs/003-priority-tech-debt/quickstart.md`
 section 10 lists them.
 
+The same leg runs the browser sign-in tests in headless Chrome: the demo reader
+signs in and out, and wrong details show the error. To run them against the
+development stack started with demo data, from the repository root (Google Chrome
+is needed):
+
+```bash
+python -m pip install -r requirements-dev.txt
+SELENIUM_HEADLESS=1 BASE_URL=http://localhost:8000 python -m pytest library/test_selenium_auth_pytest.py library/test_selenium_auth_unittest.py -v -p no:cacheprovider
+```
+
+Without `SELENIUM_HEADLESS=1` a Chrome window opens, so you can watch the steps.
+`BASE_URL` defaults to `http://127.0.0.1:8000`.
+
 > **Tip:** If tests fail with `Missing staticfiles manifest entry`, run
 > `python manage.py collectstatic --noinput` before the test command.
 
