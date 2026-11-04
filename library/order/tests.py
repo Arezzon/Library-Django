@@ -373,7 +373,7 @@ class LoanChangeTests(FakeEncoderMixin, TestCase):
             f"/authentication/login/?next={url}",
             fetch_redirect_response=False,
         )
-        self.assertEqual(self.signed_in(self.borrower).post(url, form).status_code, 403)
+        self.assertEqual(self.signed_in(self.borrower).post(url, form).status_code, 404)
         self.assertFalse(Order.objects.filter(book=self.other_book).exists())
         response = self.signed_in(self.librarian).post(url, form)
         self.assertRedirects(response, reverse("order_all"))
@@ -469,7 +469,7 @@ class LoanChangeTests(FakeEncoderMixin, TestCase):
 
     def test_return_on_the_web(self):
         url = reverse("order_close", args=[self.loan.pk])
-        self.assertEqual(self.signed_in(self.borrower).post(url).status_code, 403)
+        self.assertEqual(self.signed_in(self.borrower).post(url).status_code, 404)
         self.assertIsNone(self.fresh(self.loan).end_at)
         response = self.signed_in(self.librarian).post(url)
         self.assertRedirects(response, reverse("order_all"))
@@ -537,7 +537,7 @@ class LoanChangeTests(FakeEncoderMixin, TestCase):
     def test_reopen_on_the_web(self):
         url = reverse("order_update", args=[self.returned.pk])
         form = {"plated_end_at": "2030-01-15T12:00", "end_at": ""}
-        self.assertEqual(self.signed_in(self.borrower).post(url, form).status_code, 403)
+        self.assertEqual(self.signed_in(self.borrower).post(url, form).status_code, 404)
         self.assertIsNotNone(self.fresh(self.returned).end_at)
         response = self.signed_in(self.librarian).post(url, form)
         self.assertRedirects(response, reverse("order_all"))

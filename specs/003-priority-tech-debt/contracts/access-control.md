@@ -74,19 +74,19 @@ body, or 409 for a refused reservation.
 | `/authentication/` | Redirect to sign-in | Redirect home | Redirect home |
 | `/` | Redirect to sign-in | Home | Home |
 | `/book/`, `/book/<id>/` | Redirect to sign-in | The page | The page |
-| `/book/create/`, `/book/update/<id>/`, `/book/user/<id>/` | Redirect to sign-in | 403 | The page |
-| `/book/delete/<id>/` (GET) | Redirect to sign-in | 403 | The confirmation page, from PR 10 |
-| `/book/delete/<id>/` (POST) | Redirect to sign-in | 403 | Deletes, or refuses if the book has history |
-| `/author/`, `/author/create/`, `/author/update/<id>/`, `/author/delete/<id>/` | Redirect to sign-in | 403 | The page. From PR 10, a GET of `/author/delete/<id>/` asks for confirmation and a POST deletes. |
+| `/book/create/`, `/book/update/<id>/`, `/book/user/<id>/` | Redirect to sign-in | 404 (KAN-80) | The page |
+| `/book/delete/<id>/` (GET) | Redirect to sign-in | 404 (KAN-80) | The confirmation page, from PR 10 |
+| `/book/delete/<id>/` (POST) | Redirect to sign-in | 404 (KAN-80) | Deletes, or refuses if the book has history |
+| `/author/`, `/author/create/`, `/author/update/<id>/`, `/author/delete/<id>/` | Redirect to sign-in | 404 (KAN-80) | The page. From PR 10, a GET of `/author/delete/<id>/` asks for confirmation and a POST deletes. |
 | `/order/my/` | Redirect to sign-in | Own loans | Own loans |
 | `/order/create/<book_id>/` | Redirect to sign-in | Self-loan until PR 6. From PR 6, redirect to the book page. | The lend form, from PR 6 |
-| `/order/all/`, `/order/update/<id>/`, `/order/close/<id>/` | Redirect to sign-in | 403 | The page. From PR 10, a GET of `/order/close/<id>/` asks for confirmation and a POST records the return. |
-| `/authentication/users/` | Redirect to sign-in | 403 | The page |
+| `/order/all/`, `/order/update/<id>/`, `/order/close/<id>/` | Redirect to sign-in | 404 (KAN-80) | The page. From PR 10, a GET of `/order/close/<id>/` asks for confirmation and a POST records the return. |
+| `/authentication/users/` | Redirect to sign-in | 404 (KAN-80) | The page |
 | `/authentication/users/<id>/` | Redirect to sign-in | Own: the page. Other: 403. | The page |
 | `/authentication/users/<id>/update/` | Redirect to sign-in | Own: names only. A POST with `role` or `is_active` gets 403, and nothing changes. Other: 403. | Names, role and status. From PR 11, role only for administrators, offered as reader or librarian; an administrator's account answers 403 unless the caller is an administrator, and its role is never offered. |
-| `/events/` | Redirect to sign-in | 403 | The dashboard. From KAN-54, the library overview. |
-| `/events/activity/` (KAN-54) | Redirect to sign-in | 403 | The activity log, which `/events/` showed before |
-| `/events/forecast/` (KAN-35) | Redirect to sign-in | 403 | The book demand forecast |
+| `/events/` | Redirect to sign-in | 404 (KAN-80) | The dashboard. From KAN-54, the library overview. |
+| `/events/activity/` (KAN-54) | Redirect to sign-in | 404 (KAN-80) | The activity log, which `/events/` showed before |
+| `/events/forecast/` (KAN-35) | Redirect to sign-in | 404 (KAN-80) | The book demand forecast |
 | `/admin/` | Admin sign-in | Admin sign-in (not staff) | The admin site. From PR 11, `role` is read-only unless the caller is an administrator, and an administrator's account is read-only, and cannot be deleted, unless the caller is an administrator. |
 
 PRs 5 to 7 add the reservation routes listed in [reservations-api.md](reservations-api.md).
@@ -96,7 +96,7 @@ PRs 5 to 7 add the reservation routes listed in [reservations-api.md](reservatio
 | Case | Web | API |
 |---|---|---|
 | Not signed in | 302 to `/authentication/login/?next=<path>`, which shows "Sign in to continue." | 401, `{"detail": "Authentication credentials were not provided."}`, `WWW-Authenticate: Session` |
-| Signed in, not allowed | 403 page: "You don't have permission to do this." with a link home | 403, `{"detail": "You do not have permission to perform this action."}` |
+| Signed in, not allowed | 404 page for librarian-only pages (KAN-80); 403 page for owner-scoped pages: "You don't have permission to do this." with a link home | 403, `{"detail": "You do not have permission to perform this action."}` |
 | A record the caller may not read | 403, before any lookup | 404, `{"detail": "No … matches the given query."}`, the same as for a missing record |
 | A forbidden field (role, status) | 403, and nothing changes | 403, and nothing changes |
 

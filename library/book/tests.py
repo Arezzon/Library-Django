@@ -1195,7 +1195,8 @@ class BookChannelTests(FakeEncoderMixin, TestCase):
         ]
         for url, data in attempts:
             with self.subTest(url=url):
-                self.assertEqual(client.post(url, data).status_code, 403)
+                # KAN-80: a librarian page answers a reader 404.
+                self.assertEqual(client.post(url, data).status_code, 404)
         self.assertUnchanged()
 
     def test_a_reader_changes_no_book_through_the_api(self):

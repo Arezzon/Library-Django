@@ -14,7 +14,7 @@ Overview (KAN-54) and Activity log.
 | Audience | Page |
 | --- | --- |
 | Librarian, administrator (`is_librarian`) | Allowed |
-| Reader | 403 |
+| Reader | 404, same page as an unknown address (KAN-80) |
 | Anonymous | Redirect to sign-in with `next` |
 
 The page shows books and numbers only. No reader's name, email, account ID or
@@ -188,7 +188,7 @@ Book demand forecast                          Next 30 days, from the last 30 · 
    snapshot of copies on loan at the end of each window.
 2. `D`, the trend limits, the 14-day fallback and the rounding of copies to buy are
    tested on edge cases: no previous activity, no copies, no returned loans.
-3. Readers get 403, anonymous users are sent to sign in, and the page shows no
+3. Readers get the 404 page, anonymous users are sent to sign in, and the page shows no
    personal data.
 4. The page runs a fixed number of queries however large the catalog is.
 5. The page passes the accessibility check (axe, WCAG 2.2 AA) and CI.

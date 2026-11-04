@@ -378,18 +378,20 @@ class AccountWebAccessTests(TestCase):
                     self.client.get(response.url), "Sign in to continue."
                 )
 
-    def test_reader_on_a_librarian_page_gets_the_permission_page(self):
+    def test_reader_on_a_librarian_page_gets_the_not_found_page(self):
+        # KAN-80: the page does not confirm that the address exists.
         self.client.force_login(self.reader)
-        for url in (
-            "/authentication/users/",
-            f"/authentication/users/{self.librarian.pk}/",
-        ):
-            with self.subTest(url=url):
-                response = self.client.get(url)
-                self.assertContains(
-                    response, "You don't have permission to do this.", status_code=403
-                )
-                self.assertContains(response, 'href="/"', status_code=403)
+        response = self.client.get("/authentication/users/")
+        self.assertContains(response, "We can't find this page.", status_code=404)
+        self.assertContains(response, 'href="/"', status_code=404)
+
+    def test_reader_on_another_accounts_page_gets_the_permission_page(self):
+        self.client.force_login(self.reader)
+        response = self.client.get(f"/authentication/users/{self.librarian.pk}/")
+        self.assertContains(
+            response, "You don't have permission to do this.", status_code=403
+        )
+        self.assertContains(response, 'href="/"', status_code=403)
 
     def test_authentication_index_redirects_by_sign_in_state(self):
         client = Client(raise_request_exception=False)
@@ -430,8 +432,7 @@ class AccountWebAccessTests(TestCase):
     def test_role_required_refuses_other_roles(self):
         from django.contrib.auth.models import AnonymousUser
         from django.contrib.messages.storage.fallback import FallbackStorage
-        from django.core.exceptions import PermissionDenied
-        from django.http import HttpResponse
+        from django.http import Http404, HttpResponse
         from django.test import RequestFactory
 
         from .decorators import role_required
@@ -442,7 +443,8 @@ class AccountWebAccessTests(TestCase):
         request._messages = FallbackStorage(request)
         self.assertEqual(view(request).url, "/authentication/login/?next=/desk/")
         request.user = self.reader
-        with self.assertRaises(PermissionDenied):
+        # KAN-80: a page for another role answers 404, like an unknown address.
+        with self.assertRaises(Http404):
             view(request)
         request.user = self.librarian
         self.assertEqual(view(request).content, b"desk")

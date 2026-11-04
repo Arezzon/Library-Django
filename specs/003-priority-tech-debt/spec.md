@@ -548,6 +548,10 @@ no P1 item is open.
 - **FR-004**: A refused request MUST say whether signing in is required or the action is not
   permitted. It MUST return no data from the protected record, and a caller who may not read a record
   MUST get the same response whether or not the record exists.
+  Exception (KAN-80, @Arezzon's decision, recorded on 2026-11-04): a signed-in caller who opens a web
+  page or action limited to librarians or administrators MUST get the same "not found" answer as an
+  address that does not exist, so that the page's existence is not confirmed. The API keeps answering
+  403.
 - **FR-005**: The published API schema MUST state the audience of every operation and describe its
   refusal responses.
 - **FR-006**: CI's endpoint checks and the Raspberry Pi measurement procedure MUST keep working under

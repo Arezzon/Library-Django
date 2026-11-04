@@ -458,6 +458,10 @@ author who is attached to a book, or a book that has loans or reservations, gets
 nothing changes; the web pages and the admin site refuse it too. A reservation, an issue or
 a loan that a rule refuses gets `409` with a `code` and a message that says what to do next;
 the [reservations guide](docs/features/reservations.md#through-the-api) lists the codes.
+
+On the web, a signed-in reader who opens a librarian or administrator page gets the same
+`404` page as an unknown address, so the site does not confirm that the page exists, while
+an anonymous visitor is sent to sign in (KAN-80).
 The schema states
 each operation's audience in its description and in `x-audience`.
 
