@@ -73,7 +73,11 @@ body, or 409 for a refused reservation.
 | `/authentication/logout/` (GET: 405 for everyone; POST needs the CSRF token, KAN-96) | POST: redirect to sign-in | POST: signs out | POST: signs out |
 | `/authentication/` | Redirect to sign-in | Redirect home | Redirect home |
 | `/` | Redirect to sign-in | Home | Home |
+| `/assistant/` (KAN-102) | Redirect to sign-in | The assistant | The assistant |
+| `/assistant/result/` (KAN-102) | Redirect to sign-in | The saved answer; without one, redirect to `/assistant/` | The saved answer; without one, redirect to `/assistant/` |
 | `/book/`, `/book/<id>/` | Redirect to sign-in | The page | The page |
+| `/book/recommendations/` (For You), `/book/preferences/` (Saved Books) (KAN-102) | Redirect to sign-in | Own page | Own page |
+| `/book/<id>/rating/`, `/book/<id>/preferences/` (POST, KAN-102) | Redirect to sign-in | Saves own rating or settings; 400 for an invalid form | Saves own rating or settings; 400 for an invalid form |
 | `/book/create/`, `/book/update/<id>/`, `/book/user/<id>/` | Redirect to sign-in | 404 (KAN-80) | The page |
 | `/book/delete/<id>/` (GET) | Redirect to sign-in | 404 (KAN-80) | The confirmation page, from PR 10 |
 | `/book/delete/<id>/` (POST) | Redirect to sign-in | 404 (KAN-80) | Deletes, or refuses if the book has history |

@@ -1,4 +1,8 @@
 2026-11-04
+Every page in the access tests, and CI's test command in the docs (KAN-101, KAN-102)
+A new test in `authentication/test_routes.py` walks every web route and fails, naming the route, when one has no row in `ROUTES`, the table that checks who may open each page (TD-35). The API has its own guard and the admin site counts as one route. Seven routes had no row and now have one: the assistant and its result page, For You, Saved Books, a book's rating and settings, and signing out, which answers GET with 405. Removing a row makes the test fail and name it. The constitution, now 2.5.0, and `AGENTS.md` give the test command CI runs, `ai` included (TD-31). The amendment is MINOR rather than PATCH because it also lists the browser sign-in tests from KAN-94 among the CI gates.
+
+2026-11-04
 Browser sign-in tests run in CI (KAN-94)
 The two browser sign-in test files, `library/test_selenium_auth_pytest.py` and `library/test_selenium_auth_unittest.py`, now run on every pull request and push to `main` (TD-20, path 1: both files stay). A new step on the `ubuntu-latest` leg, "Verify the browser sign-in tests", runs them in headless Chrome against the stack CI starts, with the seeded demo reader. The files read `BASE_URL` and `SELENIUM_HEADLESS` from the environment, keep their two scenarios (signing in and out, and the error for wrong details), and find "Log Out" as a link or as the form button from KAN-96. `selenium` and `pytest` are pinned in `requirements-dev.txt`, and the README says how to run the tests locally.
 
