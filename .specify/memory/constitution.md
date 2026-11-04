@@ -170,10 +170,13 @@ single model definition keep local, CI and server builds identical.
    - the `lint` job;
    - the `smoke-test` job, on native `linux/amd64` and `linux/arm64` runners: tracking
      JavaScript tests, a backup of the running database restored into a scratch database whose
-     table row counts must match, `manage.py test authentication author book order events audit`
-     on PostgreSQL with real-model tests, endpoint checks, an accessibility check of the main
-     pages on the `ubuntu-latest` leg (axe, run through Playwright, must find no WCAG 2.2 level
-     A or AA violation), a reservation burst on the `ubuntu-latest` leg (100 simultaneous
+     table row counts must match,
+     `manage.py test authentication author book order events audit ai` on PostgreSQL with
+     real-model tests, endpoint checks, an accessibility check of the main pages on the
+     `ubuntu-latest` leg (axe, run through Playwright, must find no WCAG 2.2 level A or AA
+     violation), the browser sign-in tests (`library/test_selenium_auth_pytest.py` and
+     `library/test_selenium_auth_unittest.py`, Selenium on headless Chrome) on the
+     `ubuntu-latest` leg, a reservation burst on the `ubuntu-latest` leg (100 simultaneous
      attempts to reserve a book's last copy, exactly 1 of which must succeed, in each of 20
      runs), the asynchronous tracking smoke test, broker and worker recovery, a check that no
      service's log or the test output holds the run's secrets, the demo passwords or the search
@@ -217,4 +220,4 @@ single model definition keep local, CI and server builds identical.
   or a component in Technology & Platform Constraints changes, so the rules match what is
   actually enforced.
 
-**Version**: 2.4.1 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-11-01
+**Version**: 2.5.0 | **Ratified**: 2026-10-19 | **Last Amended**: 2026-11-04
