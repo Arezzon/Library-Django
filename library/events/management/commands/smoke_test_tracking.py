@@ -175,6 +175,8 @@ class Command(BaseCommand):
             ) from error
         finally:
             UserEvent.objects.filter(user=user).delete()
-            # The account first: its loan goes with it, and a book with loans is kept.
+            # Deleting the account keeps its loans (KAN-82), and a book with loans
+            # is kept, so the smoke loan goes first.
+            Order.objects.filter(book=book).delete()
             user.delete()
             book.delete()

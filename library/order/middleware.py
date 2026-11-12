@@ -14,7 +14,7 @@ def unseen_cancellations(user):
             state=ReservationState.CANCELLED,
             cancellation_seen_at__isnull=True,
         )
-        .exclude(cancelled_by=user)
+        .filter(cancelled_by_reader=False)
         .select_related("book")
         .order_by("-cancelled_at")
     )

@@ -14,7 +14,7 @@ A reader's 48-hour hold on one unit of a book's stock (FR-008), not on a particu
 | Field | Type | Rules |
 |---|---|---|
 | `id` | `BigAutoField` | Project default |
-| `user` | FK `CustomUser`, `CASCADE`, `related_name="reservations"` | The reader. Deleting the account deletes its reservations, so they stop holding copies. Their audit entries remain (spec edge case). |
+| `user` | FK `CustomUser`, `SET_NULL`, nullable, `related_name="reservations"` | The reader. From KAN-82, deleting the account keeps its reservations with `user` empty; an active one holds its copy until it expires or a librarian cancels it, and it cannot be issued. |
 | `book` | FK `Book`, `PROTECT`, `related_name="reservations"` | A book with reservation history cannot be deleted (FR-024) |
 | `state` | `CharField(16)`, choices `active`, `issued`, `cancelled`, `expired`; default `active` | Stored state; see [Effective state](#effective-state) |
 | `created_at` | `DateTimeField`, default `timezone.now`, not editable | Set once |

@@ -279,7 +279,10 @@ def top_viewed(period, limit):
 
 def reader_activity(period, summary, searches):
     per_borrower = (
-        Order.objects.filter(within("created_at", period.start, period.end))
+        # A deleted reader's loans still count as loans, but they are nobody's.
+        Order.objects.filter(
+            within("created_at", period.start, period.end), user__isnull=False
+        )
         .order_by()
         .values("user")
         .annotate(loans=Count("pk"))
@@ -289,7 +292,8 @@ def reader_activity(period, summary, searches):
     for loans in per_borrower:
         spread["1" if loans == 1 else "2-3" if loans <= 3 else "4+"] += 1
     first_time = (
-        Order.objects.order_by()
+        Order.objects.filter(user__isnull=False)
+        .order_by()
         .values("user")
         .annotate(first=Min("created_at"))
         .filter(first__gte=midnight(period.start), first__lt=midnight(period.end))

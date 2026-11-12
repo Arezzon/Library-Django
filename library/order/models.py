@@ -25,6 +25,18 @@ def as_text(moment):
     return moment.astimezone(UTC).isoformat() if moment else None
 
 
+# Pages, the API and audit labels show this where a deleted account's name was.
+DELETED_READER = "Deleted reader"
+
+
+def reader_label(user):
+    """The reader as audit labels name them: their name and id, or DELETED_READER
+    once the account is deleted, so no label made later names them (KAN-82)."""
+    if user is None:
+        return DELETED_READER
+    return f"{user.first_name} {user.last_name} #{user.pk}"
+
+
 AUDITED_LOAN_FIELDS = {"end_at", "book", "book_id", "user", "user_id"}
 
 
@@ -70,14 +82,20 @@ class Order(models.Model):
 
     # A book with loans cannot be deleted in any channel (FR-024).
     book = models.ForeignKey(Book, on_delete=models.PROTECT, default=None)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, default=None)
+    # A loan is the library's record: deleting the account keeps it without its
+    # reader, and an unreturned book stays on loan until a librarian closes it
+    # (KAN-82). Every loan starts with a reader; save() refuses one without.
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, default=None
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     end_at = models.DateTimeField(default=None, null=True, blank=True)
     plated_end_at = models.DateTimeField(default=None)
     objects = OrderQuerySet.as_manager()
 
     def __str__(self):
-        return f"Order #{self.id} ({self.user.email} - {self.book.name})"
+        reader = self.user.email if self.user else DELETED_READER
+        return f"Order #{self.id} ({reader} - {self.book.name})"
 
     def __repr__(self):
         """
@@ -119,6 +137,9 @@ class Order(models.Model):
                     user_id = previous["user_id"]
                 if "end_at" not in update_fields:
                     end_at = previous["end_at"]
+            # Only deleting the account leaves a loan without its reader.
+            if user_id is None and (previous is None or previous["user_id"]):
+                raise ValueError("A loan needs a reader.")
             consumes_copy = end_at is None and (
                 previous is None
                 or previous["end_at"] is not None
@@ -142,8 +163,7 @@ class Order(models.Model):
             return result
 
     def audit_label(self):
-        user = self.user
-        return f"Loan #{self.pk}: {self.book.name} ({user.first_name} {user.last_name} #{user.pk})"
+        return f"Loan #{self.pk}: {self.book.name} ({reader_label(self.user)})"
 
     def _audit_changes(self, previous, book_id, user_id, end_at):
         """Record the change in the save's transaction (FR-037, FR-040)."""
@@ -233,7 +253,8 @@ class Order(models.Model):
 
 @receiver(post_delete, sender=Order, dispatch_uid="order.loan_deleted")
 def record_loan_deletion(sender, instance, **kwargs):
-    """Also covers loans deleted along with their account."""
+    """A loan deleted in any channel. Deleting the account keeps its loans
+    (KAN-82), so it records none."""
     before = {
         "book": instance.book_id,
         "user": instance.user_id,
@@ -265,6 +286,7 @@ GUARDED_RESERVATION_FIELDS = {
     "cancelled_by_id",
     "cancelled_at",
     "cancel_reason",
+    "cancelled_by_reader",
     "cancellation_seen_at",
 }
 
@@ -298,10 +320,12 @@ class Reservation(models.Model):
     """A reader's 48-hour hold on one unit of a book's stock, not on a particular copy
     (FR-008, ADR 0001)."""
 
-    # Deleting the account deletes its reservations; their audit entries remain.
+    # A reservation is the library's record: deleting the account keeps it without
+    # its reader (KAN-82). Every reservation starts with a reader.
     user = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="reservations",
         verbose_name="reader",
     )
@@ -333,6 +357,9 @@ class Reservation(models.Model):
     )
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancel_reason = models.CharField(max_length=500, blank=True)
+    # Set with the canceller, so who cancelled survives the deletion of both
+    # accounts, which empties cancelled_by and user (KAN-82).
+    cancelled_by_reader = models.BooleanField(default=False, editable=False)
     # When the reader dismissed the library's cancellation notice.
     cancellation_seen_at = models.DateTimeField(null=True, blank=True)
     objects = ReservationQuerySet.as_manager()
@@ -371,20 +398,26 @@ class Reservation(models.Model):
         ]
 
     def __str__(self):
-        return f"Reservation #{self.pk} ({self.user.email} - {self.book.name})"
+        reader = self.user.email if self.user else DELETED_READER
+        return f"Reservation #{self.pk} ({reader} - {self.book.name})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, update_fields=None, **kwargs):
         if self._state.adding:
+            if self.user_id is None:
+                raise ValueError("A reservation needs a reader.")
             # Set once; the database refuses any other deadline (FR-010).
             self.expires_at = self.created_at + timedelta(hours=RESERVATION_HOURS)
-        super().save(*args, **kwargs)
+        if self.cancelled_by_id is not None:
+            self.cancelled_by_reader = self.cancelled_by_id == self.user_id
+            if update_fields is not None and {
+                "cancelled_by",
+                "cancelled_by_id",
+            } & set(update_fields):
+                update_fields = {*update_fields, "cancelled_by_reader"}
+        super().save(*args, update_fields=update_fields, **kwargs)
 
     def audit_label(self):
-        user = self.user
-        return (
-            f"Reservation #{self.pk}: {self.book.name} "
-            f"({user.first_name} {user.last_name} #{user.pk})"
-        )
+        return f"Reservation #{self.pk}: {self.book.name} ({reader_label(self.user)})"
 
     def effective_state(self, now):
         """The state every check and page uses: an active reservation is expired from

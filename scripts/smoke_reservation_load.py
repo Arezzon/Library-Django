@@ -95,6 +95,7 @@ from django.db.models import Q
 from authentication.models import CustomUser
 from book.models import Book
 from events.models import EventType, UserEvent
+from order.models import Order, Reservation
 
 params = json.loads(sys.stdin.read())
 prefix = "load-check-" + params["run"] + "-"
@@ -107,7 +108,11 @@ while loans.count() < params["loans"] and time.monotonic() < deadline:
     time.sleep(0.5)
 events = UserEvent.objects.filter(Q(user__in=accounts) | Q(book_id__in=books))
 removed = {"events": events.delete()[0], "accounts": accounts.count()}
-accounts.delete()  # with their reservations and loans
+# Deleting an account keeps its reservations and loans (KAN-82), and a book with
+# either is kept, so they go first.
+Reservation.objects.filter(book_id__in=books).delete()
+Order.objects.filter(book_id__in=books).delete()
+accounts.delete()
 Book.objects.filter(pk__in=books).delete()  # with their embeddings
 removed["books"] = len(books)
 store = import_module(settings.SESSION_ENGINE).SessionStore

@@ -12,10 +12,18 @@ from book.models import Book
 
 from . import services
 from .forms import CancelForm, IssueForm, LendForm, OrderUpdateForm
-from .models import BookUnavailableError, Order, Reservation, ReservationState
+from .models import (
+    DELETED_READER,
+    BookUnavailableError,
+    Order,
+    Reservation,
+    ReservationState,
+)
 
 
 def _name(user) -> str:
+    if user is None:
+        return DELETED_READER.lower()
     return f"{user.first_name} {user.last_name}"
 
 
@@ -212,8 +220,13 @@ def reservation_cancel(request: HttpRequest, reservation_id: int) -> HttpRespons
                         f"Cancelled your reservation of “{book}”."
                         if own
                         else f"Cancelled the reservation of “{book}” for "
-                        f"{_name(reservation.user)}. They will see your reason the next "
-                        "time they open the site."
+                        f"{_name(reservation.user)}."
+                        + (
+                            " They will see your reason the next time they open "
+                            "the site."
+                            if reservation.user_id
+                            else ""
+                        )
                     ),
                 )
                 return redirect(back)

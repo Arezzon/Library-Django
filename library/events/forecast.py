@@ -104,7 +104,8 @@ def loan_terms(start, previous_start):
 
 
 def reservation_terms(start, previous_start, now):
-    by_reader = Q(state=ReservationState.CANCELLED, cancelled_by_id=F("user_id"))
+    # Stored with the cancellation, so it holds after either account is deleted.
+    by_reader = Q(state=ReservationState.CANCELLED, cancelled_by_reader=True)
     outcomes = {
         "issued": Q(state=ReservationState.ISSUED),
         "active": Q(state=ReservationState.ACTIVE, expires_at__gt=now),

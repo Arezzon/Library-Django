@@ -32,6 +32,9 @@ reservation is active while `now < expires_at`, where `expires_at` is `created_a
 - `state` is the effective state: an active reservation past its deadline reads `expired`, whether
   or not the scheduled task has run.
 - Librarians also see `cancelled_by`, an account id.
+- `user` is `null` once the reader's account is deleted: the reservation stays with its book, dates
+  and state (KAN-82). `cancelled_by_library` is stored with the cancellation, so it stays right
+  after the reader's or the librarian's account is deleted.
 - `loan` is the loan's id once the reservation is issued.
 
 ## API operations
@@ -69,6 +72,7 @@ answer 400 in DRF's field-error format.
 | `reservation_expired` | Issuing at or after the deadline | — | "This reservation expired at {deadline}. You can lend the book directly only if a copy is available." |
 | `already_issued` | Issuing a reservation twice | — | "This reservation was already issued as loan #{loan}." The body adds `"loan": <id>`. |
 | `not_active` | Cancelling or issuing a cancelled or expired reservation | "This reservation is no longer active." | "This reservation is {state}; nothing was changed." |
+| `reader_deleted` | Issuing an active reservation whose reader's account was deleted (KAN-82) | — | "The reader's account was deleted, so this reservation cannot be issued. Cancel it to free the copy." |
 
 The rules run in the order of R13, and the first one that fails is the one reported. A refusal
 changes nothing.

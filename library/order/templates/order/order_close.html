@@ -11,7 +11,7 @@
 
         <div class="card-body">
             <dl class="mb-5 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm text-slate-600 space-y-1">
-                <div><dt class="inline font-semibold text-slate-900">Reader:</dt> <dd class="inline">{{ order.user.first_name }} {{ order.user.last_name }} ({{ order.user.email }})</dd></div>
+                <div><dt class="inline font-semibold text-slate-900">Reader:</dt> <dd class="inline">{% if order.user %}{{ order.user.first_name }} {{ order.user.last_name }} ({{ order.user.email }}){% else %}Deleted reader{% endif %}</dd></div>
                 <div><dt class="inline font-semibold text-slate-900">Borrowed:</dt> <dd class="inline">{{ order.created_at|date:"j M Y, H:i T" }}</dd></div>
                 <div><dt class="inline font-semibold text-slate-900">Due:</dt> <dd class="inline">{{ order.plated_end_at|date:"j M Y, H:i T" }}</dd></div>
             </dl>

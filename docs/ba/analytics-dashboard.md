@@ -153,9 +153,11 @@ The dashboard must distinguish **zero** from **unknown**.
 - Search texts are not shown, even in aggregate, because they can contain
   personal data (KAN-51 already treats them as private).
 - Book titles are catalog data and can be shown.
-- Deleting an account deletes that user's loans (`Order.user` is `on_delete=CASCADE`),
-  so past counts can fall afterwards. The dashboard documents this in its help text;
-  changing the cascade is a separate decision and not part of this work.
+- Deleting an account keeps that user's loans and reservations (KAN-82): `Order.user` and
+  `Reservation.user` are `on_delete=SET_NULL`, so loan, return, reservation and top-book
+  counts do not fall afterwards. The loans of a deleted reader belong to nobody, so they
+  are left out of the reader counts (active, first-time and returning borrowers, loans per
+  borrower, readers with overdue loans), and those counts can fall.
 
 ## Accessibility
 
@@ -211,7 +213,7 @@ note under the period selector.
 | | ...                                | | ...                               | |
 | +------------------------------------+ +-----------------------------------+ |
 |                                                                              |
-| Deleting an account also removes its loans, so earlier totals can decrease.  |
+| Deleting an account keeps its loans; only the reader counts leave them out.  |
 +------------------------------------------------------------------------------+
 ```
 

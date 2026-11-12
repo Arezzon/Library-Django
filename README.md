@@ -455,7 +455,10 @@ account without the right role gets `403`, and so does a reader who sends `role`
 changes an administrator's account. A reader who asks for another
 user's record gets `404`, the same answer as for a record that does not exist. Deleting an
 author who is attached to a book, or a book that has loans or reservations, gets `409`, and
-nothing changes; the web pages and the admin site refuse it too. A reservation, an issue or
+nothing changes; the web pages and the admin site refuse it too. Deleting an account, in any
+channel, keeps its loans and reservations: they are the library's records, so their `user`
+becomes `null` and the pages show "Deleted reader". An unreturned book stays on loan until a
+librarian returns it (KAN-82). A reservation, an issue or
 a loan that a rule refuses gets `409` with a `code` and a message that says what to do next;
 the [reservations guide](docs/features/reservations.md#through-the-api) lists the codes.
 Every book needs a title: creating or changing a book with an empty `name`, or one of only

@@ -304,6 +304,17 @@ class OverviewTests(FakeEncoderMixin, TestCase):
         self.assertEqual(readers["with_overdue"], 1)
         self.assertEqual(readers["searches"], 1)
 
+    def test_a_deleted_readers_loans_stay_but_count_as_nobodys(self):
+        # KAN-82: Bob's two loans this week stay; he is no longer a borrower.
+        self.bob.delete()
+        overview = self.overview()
+        self.assertEqual(overview["summary"]["loans_issued"]["value"], 3)
+        readers = overview["readers"]
+        self.assertEqual(readers["active"], 1)
+        self.assertEqual(readers["first_time"], 0)
+        self.assertEqual(readers["returning"], 1)
+        self.assertEqual(readers["loans_per_borrower"], {"1": 1, "2-3": 0, "4+": 0})
+
     def test_the_overview_holds_no_personal_data(self):
         text = str(self.overview())
         for user in (self.ann, self.bob, self.librarian):
