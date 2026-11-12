@@ -190,6 +190,7 @@ class ConcurrentRatingTests(FakeEncoderMixin, TransactionTestCase):
 class RatingMigrationTests(TransactionTestCase):
     def test_existing_catalog_survives_forward_migration(self):
         executor = MigrationExecutor(connection)
+        latest = executor.loader.graph.leaf_nodes()
         executor.migrate([("book", "0006_booklike_favoritebook")])
         try:
             old_apps = executor.loader.project_state(
@@ -207,4 +208,5 @@ class RatingMigrationTests(TransactionTestCase):
             self.assertEqual(Book.objects.get(pk=identity).count, 3)
             self.assertFalse(BookRating.objects.exists())
         finally:
-            MigrationExecutor(connection).migrate([("book", "0007_book_rating")])
+            # Back to the latest schema, so later tests see every migration.
+            MigrationExecutor(connection).migrate(latest)

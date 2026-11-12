@@ -101,6 +101,7 @@ The loan period stays 1 to 30 days, 14 by default.
 | Deletion | 4 | Refused while any loan or reservation exists, in every channel, because the foreign keys use `PROTECT` |
 | Audit entries | 8 | `Book.save()` writes `book_copies_changed` when `count` changes. A `post_delete` receiver writes `book_deleted`. |
 | Bulk writes | 8 | `BookQuerySet.update()` refuses `count`, as it already refuses `name` and `description` |
+| `name` is required | KAN-81 | No longer `blank`: the form, the admin site and the API refuse an empty title or one of only spaces. The `book_name_not_blank` constraint requires a non-space character. Migration `book/0008` first names any book without a title `Untitled book #<id>` (TD-29) |
 
 The available number is never stored (KAN-18).
 

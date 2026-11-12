@@ -76,13 +76,22 @@ class Book(models.Model):
         "This book cannot be deleted because it has borrowing or reservation history."
     )
 
-    name = models.CharField(blank=True, max_length=NAME_MAX_LEN)
+    # Every book has a title: the forms, the admin site and the API require one,
+    # and the database refuses one that is empty or only spaces (KAN-81, TD-29).
+    name = models.CharField(max_length=NAME_MAX_LEN)
     description = models.CharField(blank=True, max_length=DESCRIPTION_MAX_LEN)
     count = models.IntegerField(
         default=DEFAULT_COUNT, validators=[MinValueValidator(0)]
     )
     id = models.AutoField(primary_key=True)
     objects = BookQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(name__regex=r"\S"), name="book_name_not_blank"
+            ),
+        ]
 
     def __str__(self):
         return self.name
@@ -221,9 +230,10 @@ class Book(models.Model):
         type count: int default=10
         param authors: list of Authors
         type authors: list->Author
-        :return: a new book object which is also written into the DB
+        :return: a new book object which is also written into the DB, or None when
+            the name is blank or too long
         """
-        if len(name) > Book.NAME_MAX_LEN:
+        if not name.strip() or len(name) > Book.NAME_MAX_LEN:
             return None
 
         book = Book()
