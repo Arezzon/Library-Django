@@ -1,3 +1,7 @@
+2026-11-13
+Book.remove_authors removes only the authors it is given (KAN-78)
+`Book.remove_authors` used to unlink every author of the book, whatever list it was given (TD-34). It now removes only the authors passed to it, as Author objects or ids; an empty list or `None` changes nothing, and an author the book does not have is skipped. Author records and other books' authors stay. `library/book/test_book_authors.py` covers partial, several, empty, `None`, repeated and absent removals; six of its seven tests failed before the fix. Nothing in the UI or API calls the method, so no page or response changes.
+
 2026-11-12
 Every book has a title (KAN-81)
 Creating or changing a book with an empty title, or one of only spaces, is now refused in every channel (TD-29, GitHub issue #62). The web form and the admin site show an error beside the title, and the API answers `400` with an error for `name`, for `POST`, `PUT` and `PATCH`; a `PATCH` that leaves the title out still works. `Book.create` returns nothing for such a title, and a new database constraint, `book_name_not_blank`, refuses one from any code. Migration `book/0008` first names any book saved without a title `Untitled book #<id>`, so the constraint can be added; such books are kept, because loans and reservations may refer to them. Regression tests cover each channel, editing and the migration. The README and the data model say so.

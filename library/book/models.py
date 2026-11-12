@@ -296,12 +296,13 @@ class Book(models.Model):
 
     def remove_authors(self, authors):
         """
-        Remove authors to  book in the database with the specified parameters.\n
-        param authors: list authors
+        Remove the given authors from the book; the others stay (KAN-78).\n
+        param authors: list of Authors or their ids; empty or None changes nothing
         :return: None
         """
-        for elem in self.authors.values():
-            self.authors.remove(elem["id"])
+        # An author the book does not have is skipped; Author records are kept.
+        if authors:
+            self.authors.remove(*authors)
 
     @staticmethod
     def get_all():
