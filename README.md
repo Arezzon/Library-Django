@@ -12,13 +12,14 @@ embeddings and asynchronous activity analytics.
 
 ## Contents
 
-| Section | Section | Section |
+| Getting started | Using the site | Running it |
 | --- | --- | --- |
-| [Features](#features) | [Local development](#local-development-with-venv) | [Book embeddings](#book-embeddings) |
-| [Architecture](#architecture) | [Demo data](#demo-data) | [Activity Analytics](#activity-analytics) |
-| [Quick start with Docker](#quick-start-with-docker) | [REST API](#rest-api-and-interactive-docs) | [Configuration](#configuration) |
-| [Local service requirements](#local-service-requirements) | [Tests and checks](#tests-and-checks) | [Deployment](#deployment) |
-| [Project layout](#project-layout) | [License](#license) |  |
+| [Prerequisites](#prerequisites) | [Demo data](#demo-data) | [Configuration](#configuration) |
+| [Features](#features) | [Reader features](#reader-features) | [Tests and checks](#tests-and-checks) |
+| [Architecture](#architecture) | [Book embeddings](#book-embeddings) | [Troubleshooting](#troubleshooting) |
+| [Quick start with Docker](#quick-start-with-docker) | [Activity Analytics](#activity-analytics) | [Project layout](#project-layout) |
+| [Local development](#local-development-with-venv) | [REST API](#rest-api-and-interactive-docs) | [Deployment](#deployment) |
+| [Local service requirements](#local-service-requirements) |  | [License](#license) |
 
 ## TL;DR
 
@@ -58,14 +59,15 @@ before using the `venv` setup.
 
 | Area | Included |
 | --- | --- |
-| Catalog | Books, descriptions, stock counts and authors |
+| Catalog | Books, descriptions, stock counts and authors. Every book needs a title |
+| Discovery | Semantic search by meaning, a For You page of recommendations, likes and saved books, private 1–5 ratings, and an assistant that answers catalog questions in Ukrainian or English ([reader features](#reader-features)) |
 | Borrowing | Librarians lend at the desk; return, reopen and reassign orders. Every loan starts with a librarian, and none while the reader has an overdue loan |
 | Reservations | A reader reserves an available book for 48 hours, active at once; the copy stays held until it is collected or the deadline passes. At most 3 at a time, and none while a loan is overdue. My reservations shows each deadline with the time left and what to do next. Librarians issue reserved books at the desk in one step, or cancel with a reason that they confirm and the reader sees; readers cancel their own. When 100 readers reserve the last copy at once, exactly one gets it ([guide](docs/features/reservations.md)) |
 | Accounts | Email-based users and profiles with three roles. Sign-up always creates a reader. Librarians run the catalog, loans, reservations and account status. Administrators have every librarian right and are the only ones who make someone a librarian or take the role away, and only they change an administrator's account. The operator creates administrators on the server ([guide](docs/deployment/raspberry-pi-portainer.md#create-the-first-administrator)) |
 | Administration | Django admin and librarian-only management screens |
 | API | Endpoints under `/api/v1/`, each open only to its stated audience, plus Swagger and ReDoc |
 | Embeddings | Multilingual 1024-dimensional `bge-m3` vectors generated with ONNX Runtime |
-| Analytics | Activity dashboard, filters, daily totals and per-user activity |
+| Analytics | A library overview without personal data, a demand forecast, and an activity log with filters and per-user activity |
 | Logs and audit | One log line format whose request identifier follows a request into the worker; secrets and search text redacted; rotated logs; a read-only audit trail of role, account, loan and stock changes in the admin site |
 | Deployment | Docker Compose for development; a Raspberry Pi 5 Portainer stack from multi-architecture GHCR images |
 
@@ -130,6 +132,7 @@ Open <http://localhost:8000>. Compose starts:
 | `db` | PostgreSQL 18 with pgvector | internal `5432` |
 | `redis` | Celery broker (Redis 8) with persistent AOF storage | internal `6379` |
 | `worker` | Persists activity events from the `events` queue | — |
+| `backup` | Takes a checked daily `pg_dump` into the `pgbackups` volume | — |
 
 The first boot waits for PostgreSQL, applies migrations and seeds demo data
 when `DJANGO_SEED=true`. Seeding is idempotent and becomes a quick no-op after
@@ -311,6 +314,46 @@ python seed_db.py
 
 > **Security:** These credentials are for local/demo use only. Set a unique
 > `SECRET_KEY` and replace seeded passwords before deploying.
+
+## Reader features
+
+Everything here needs a signed-in account and touches only that account's own
+data. [The reader walkthrough](docs/features/reader-verification.md) checks each
+feature step by step.
+
+### Search and recommendations
+
+The catalog search finds books by meaning, not only by words in the title
+([semantic search](docs/ba/semantic-search.md)); the API is
+`GET /api/v1/books/search/?q=`. **For You** in the header opens
+`/book/recommendations/`: available books ranked for the account, each with the
+reason it was picked. The JSON is `GET /api/v1/books/recommendations/`
+([algorithm](docs/ba/recommendations.md), [data contract](docs/ba/recommendation-data.md)).
+
+### Likes and saved books
+
+Readers like and save books on the book page and manage them on **Saved Books**
+(`/book/preferences/`). The API is `GET/PATCH/DELETE /api/v1/books/<id>/preferences/`
+and `GET /api/v1/me/book-preferences/?kind=all|likes|favorites`
+([contract](docs/ba/reader-preferences.md)).
+
+### Ratings
+
+A reader gives a book a private score from 1 to 5 with keyboard-accessible stars
+on its page. Others see only the mean and the count, also at
+`GET /api/v1/books/<id>/rating-summary/`. `GET/PUT/PATCH/DELETE
+/api/v1/books/<id>/rating/` reads or changes only the account's own score.
+Recommendations treat 4–5 as positive, 1–2 as negative and 3 as neutral, and
+leave out books already rated ([contract](docs/features/book-ratings.md)).
+
+### Catalog assistant
+
+**Assistant** (`/assistant/`) answers catalog questions in Ukrainian or English
+with facts and links to the books, without a language model, for example
+`знайди твори Шевченка`, `Is 1984 available?` or `Порадь книги про програмування`.
+It asks back when a question matches several books, and keeps no question text.
+The API is `GET /api/v1/assistant/?q=` ([contract](docs/ba/catalog-assistant.md),
+[page design](docs/ba/assistant-interface.md)).
 
 ## Book embeddings
 
@@ -499,8 +542,10 @@ OpenAPI schema:  http://localhost:8000/api/schema/
 | `DB_HOST` | `localhost` | PostgreSQL host; Compose uses `db` |
 | `DB_PORT` | `5432` | PostgreSQL port |
 | `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Redis broker |
-| `DJANGO_SEED` | `false` locally | Seed on container startup |
+| `DJANGO_SEED` | `false`; `docker-compose-dev.yml` sets `true` | Seed demo data on container startup |
 | `BOOK_EMBEDDING_CACHE_DIR` | `.cache/book-embeddings` | Model cache directory |
+| `BOOK_EMBEDDING_THREADS` | `2` | Inference threads per Gunicorn worker |
+| `WEB_CONCURRENCY` | `3` | Gunicorn workers; each holds one model copy (about 0.6 GB) |
 | `BACKUP_HOUR` | `1` | UTC hour at or after which the `backup` service takes each day's backup |
 | `BACKUP_KEEP_DAYS` | `7` | Days backups are kept; the 7 newest always stay |
 
@@ -626,8 +671,13 @@ helpers.
 ├── scripts/                   # model fetch, smoke, stack budget and accessibility checks
 ├── docs/                      # ADRs, operator guide, feature guides, changelog and debt register
 ├── specs/                     # feature specifications, plans and tasks
+├── .specify/                  # Spec Kit templates, scripts, constitution and delivery records
+├── images/                    # README images
 └── library/
     ├── manage.py
+    ├── seed_db.py             # demo data
+    ├── gunicorn.conf.py
+    ├── test_selenium_auth_*.py # browser sign-in tests, run in CI
     ├── library/               # settings, URLs, WSGI/ASGI and Celery
     ├── authentication/        # users, roles and authentication
     ├── author/                # author catalog
@@ -650,7 +700,8 @@ defined by [docker-compose.yml](docker-compose.yml). CI publishes
 multi-architecture images to GHCR on every merge into `main` and calls the
 stack webhook, so nothing is built on the Pi. The operator guide,
 [docs/deployment/raspberry-pi-portainer.md](docs/deployment/raspberry-pi-portainer.md),
-covers the one-time setup on the Pi, in Portainer and in GitHub.
+covers the one-time setup on the Pi, in Portainer and in GitHub. To check which
+commit the server runs, see [Verify which version is deployed](docs/features/deployment-verification.md).
 
 Both stacks include a `backup` service. Every day it takes a checked `pg_dump`
 of the database into the `pgbackups` volume, apart from the database's own
@@ -682,57 +733,3 @@ enabled. A web process alone cannot consume queued events.
 ## License
 
 This project is provided as a learning / marathon exercise.
-
-### Reader preferences
-
-Signed-in readers can like and save books from the book detail page and manage
-them at `/book/preferences/`. The API exposes
-`GET/PATCH/DELETE /api/v1/books/<id>/preferences/` and
-`GET /api/v1/me/book-preferences/?kind=all|likes|favorites`.
-See [private preference and search contracts](docs/ba/reader-preferences.md)
-for ownership, idempotency, retry behavior and recommendation weights.
-
-### Catalog assistant
-
-`GET /api/v1/assistant/?q=Kobzar` returns catalog facts and source links without
-a language model or semantic search. Use `автор: Taras Shevchenko`,
-`наявність: Kobzar`, or explicit `intent=title|author|availability`.
-See [the assistant contract](docs/ba/catalog-assistant.md) for supported requests,
-clarification, source failures and availability limits.
-
-### Reader assistant page
-
-Open `/assistant/` after signing in to ask supported catalog questions, refine
-ambiguous matches and follow book sources. Questions use private POST forms.
-See [the Ukrainian controls and accessibility/privacy checks](docs/ba/assistant-interface.md).
-
-### Explicit book ratings
-
-`GET/PUT/PATCH/DELETE /api/v1/books/<id>/rating/` reads or changes only the signed-in
-account's integer 1–5 score. See [the rating contract](docs/features/book-ratings.md)
-for ownership, idempotency, constraints and the staged UI/recommendation integration.
-
-Book details include a private rating form and aggregate mean/count. The same
-aggregate is available at `/api/v1/books/<id>/rating-summary/` without rater IDs.
-
-Recommendations consume only current own rating signals: 4–5 positive, 1–2
-negative, 3 neutral. Already-rated books are excluded and availability is rechecked.
-
-### Reader experience verification
-
-Use **For You** in the signed-in header for the recommendations page at
-`/book/recommendations/`. The JSON API remains `/api/v1/books/recommendations/`.
-Book details use keyboard-accessible 1–5 stars; select a star and save.
-The catalog assistant and shared reader controls follow the English site interface.
-See [the reader walkthrough](docs/features/reader-verification.md) for KAN-31 onward
-and [deployment checks](docs/features/deployment-verification.md) when a server
-appears to be running older code.
-
-### Natural-language catalog questions
-
-Ask the Assistant `знайди твори Шевченка`, `Find books by Taras Shevchenko`,
-`Is 1984 available?` or `Порадь книги про програмування`. No command prefix or
-intent selection is required. Topic queries reuse the existing CPU encoder;
-name/title lookups do not load a model. The reader page supports a short
-availability follow-up without retaining question text. See
-[the contract and verified controls](docs/ba/catalog-assistant.md).

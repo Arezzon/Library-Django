@@ -27,9 +27,9 @@ Run 41319035905 successfully tested and deployed `81c4bf0` to production.
 That main commit did not contain ratings. KAN-59, KAN-60 and KAN-61 were merged
 into their preceding feature branches **after** the parent KAN-51 PR had already
 been merged into main. GitHub's “Merged” state on those child PRs therefore did
-not imply that their code reached main. This repair PR includes the stranded
-rating commits and is based directly on main, including the administrator role.
-No manual production deployment is part of the repair.
+not imply that their code reached main. The repair PR brought the stranded
+rating commits into a branch based directly on main, including the administrator
+role. No manual production deployment was part of the repair.
 
 For future stacked PRs, merge children into their open parent before merging the
 parent to main, or retarget the child to main after its parent merges and update
