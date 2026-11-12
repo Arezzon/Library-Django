@@ -3,6 +3,7 @@ API (FR-019 to FR-021, research R17)."""
 
 from datetime import timedelta
 from html.parser import HTMLParser
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from django.test import TestCase
@@ -14,7 +15,7 @@ from authentication.models import ROLE_LIBRARIAN, CustomUser
 from book.models import Book
 from book.testing import FakeEncoderMixin
 
-from .models import Order, Reservation, ReservationState
+from .models import RESERVATION_HOURS, Order, Reservation, ReservationState
 from .services import cancel, issue, reserve
 from .tasks import expire_reservations
 
@@ -281,6 +282,82 @@ class ReservationJourneyTests(FakeEncoderMixin, TestCase):
             (entry.channel, entry.actor_id, entry.occurred_at),
             ("system", None, lapsed.expires_at),
         )
+
+    def assertLastCopyHeld(self, book, other):
+        """Another reader finds no copy and cannot reserve one, on the web or the
+        API."""
+        client = self.signed_in(other)
+        self.assertContains(
+            client.get(reverse("book_detail", args=[book.pk])), "0 of 1 Available"
+        )
+        page = client.post(reverse("reserve", args=[book.pk]), follow=True)
+        self.assertContains(page, f"No copy of “{book.name}” is available right now.")
+        response = self.api(other, "post", "/api/v1/reservation/", {"book": book.pk})
+        self.assertEqual(
+            (response.status_code, response.json()["code"]),
+            (409, "no_copy_available"),
+        )
+        self.assertFalse(Reservation.objects.filter(user=other, book=book).exists())
+
+    def assertLastCopyReserved(self, book, other, channel, now):
+        """The copy is back in stock, and another reader reserves it through
+        ``channel``, with a full term from ``now``."""
+        client = self.signed_in(other)
+        self.assertContains(
+            client.get(reverse("book_detail", args=[book.pk])), "1 of 1 Available"
+        )
+        if channel == "web":
+            page = client.post(reverse("reserve", args=[book.pk]), follow=True)
+            self.assertContains(page, f"Reserved “{book.name}”.")
+        else:
+            response = self.api(
+                other, "post", "/api/v1/reservation/", {"book": book.pk}
+            )
+            self.assertEqual(response.status_code, 201)
+        held = Reservation.objects.get(user=other, book=book)
+        self.assertEqual(held.state, ReservationState.ACTIVE)
+        self.assertEqual(held.expires_at, now + timedelta(hours=RESERVATION_HOURS))
+        self.assertEqual(Book.objects.get(pk=book.pk).available_count, 0)
+
+    def test_the_last_copy_is_back_in_stock_at_the_deadline(self):
+        # KAN-88: no task runs; the reservation's deadline alone frees the copy.
+        # The term comes from RESERVATION_HOURS, so the moments follow it.
+        for n, channel in enumerate(("web", "api")):
+            with self.subTest(channel=channel):
+                book = Book.objects.create(name=f"Last copy {n}", count=1)
+                other = account(f"deadline-{n}@example.com", "Taras", "Bondar")
+                held = reserve(self.reader, book)
+                self.assertEqual(
+                    held.expires_at - held.created_at,
+                    timedelta(hours=RESERVATION_HOURS),
+                )
+                before = held.expires_at - timedelta(seconds=1)
+                with patch("django.utils.timezone.now", return_value=before):
+                    self.assertLastCopyHeld(book, other)
+                with patch("django.utils.timezone.now", return_value=held.expires_at):
+                    self.assertLastCopyReserved(book, other, channel, held.expires_at)
+                    mine = self.api(
+                        self.reader, "get", f"/api/v1/reservation/{held.pk}/"
+                    )
+                    self.assertEqual(mine.json()["state"], "expired")
+
+    def test_the_last_copy_is_back_in_stock_once_its_reservation_is_cancelled(self):
+        # KAN-88: a librarian's cancellation and the reader's own both free it at once.
+        for n, (canceller, channel) in enumerate(
+            (("librarian", "web"), ("reader", "api"))
+        ):
+            with self.subTest(canceller=canceller, channel=channel):
+                book = Book.objects.create(name=f"Cancelled copy {n}", count=1)
+                other = account(f"cancel-{n}@example.com", "Taras", "Bondar")
+                held = reserve(self.reader, book)
+                self.assertLastCopyHeld(book, other)
+                if canceller == "librarian":
+                    cancel(self.librarian, held, "The copy is damaged")
+                else:
+                    cancel(self.reader, held, "")
+                now = timezone.now()
+                with patch("django.utils.timezone.now", return_value=now):
+                    self.assertLastCopyReserved(book, other, channel, now)
 
     def test_every_form_field_on_these_pages_has_a_label(self):
         held = reserve(self.reader, self.book)
