@@ -461,6 +461,9 @@ becomes `null` and the pages show "Deleted reader". An unreturned book stays on 
 librarian returns it (KAN-82). A reservation, an issue or
 a loan that a rule refuses gets `409` with a `code` and a message that says what to do next;
 the [reservations guide](docs/features/reservations.md#through-the-api) lists the codes.
+Every book needs a title: creating or changing a book with an empty `name`, or one of only
+spaces, gets `400` with an error for `name`, and the web form and the admin site show the
+error beside the title. The database refuses such a book too (KAN-81).
 
 On the web, a signed-in reader who opens a librarian or administrator page gets the same
 `404` page as an unknown address, so the site does not confirm that the page exists, while
