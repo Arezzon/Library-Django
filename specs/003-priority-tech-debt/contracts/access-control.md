@@ -40,11 +40,11 @@ This table is the source for PR 1's access tests. A change to it changes the tes
 | `/api/v1/user/` | GET, POST | 401 | 403 | 200 or 201. From PR 11, POST answers 403 if the body has `role` and the caller is not an administrator. |
 | `/api/v1/user/{id}/` | GET | 401 | Own: 200. Other: 404. | 200 |
 | `/api/v1/user/{id}/` | PUT, PATCH | 401 | Own: 200 for name fields. 403 if the body has `role`, `is_active`, `email` or `password`. Other: 404. | 200. From PR 11, 403 if the body has `role` and the caller is not an administrator, and 403 for an administrator's account unless the caller is an administrator. An administrator's `role` answers 403 to everyone: the operator changes it on the server. |
-| `/api/v1/user/{id}/` | DELETE | 401 | 403 | 204. From PR 11, 403 for an administrator's account unless the caller is an administrator. |
+| `/api/v1/user/{id}/` | DELETE | 401 | 403 | 204. From PR 11, 403 for an administrator's account unless the caller is an administrator. From KAN-82, the account's loans and reservations stay with `user` set to `null`, in every channel. |
 | `/api/v1/order/` | GET | 401 | 200, own loans only | 200, all loans |
 | `/api/v1/order/{id}/` | GET | 401 | Own: 200. Other: 404. | 200 |
-| `/api/v1/order/` | POST | 401 | 201 for themselves until PR 6, 403 for another reader. From PR 6, 403. | 201 |
-| `/api/v1/order/{id}/` | PUT, PATCH, DELETE | 401 | 403 | 200 or 204 |
+| `/api/v1/order/` | POST | 401 | 201 for themselves until PR 6, 403 for another reader. From PR 6, 403. | 201. From KAN-82, 400 if `user` is `null`. |
+| `/api/v1/order/{id}/` | PUT, PATCH, DELETE | 401 | 403 | 200 or 204. From KAN-82, 400 for setting `user` to `null`; a deleted reader's loan keeps `user: null` and can still be returned or changed. |
 | `/api/v1/user/{uid}/order/` | GET | 401 | `uid` is self: 200. Otherwise: 404. | 200 |
 | `/api/v1/user/{uid}/order/` | POST | 401 | `uid` is self: 201 until PR 6, then 403. Otherwise: 404. | 201 |
 | `/api/v1/user/{uid}/order/{id}/` | GET | 401 | Own: 200. Otherwise: 404. | 200 |

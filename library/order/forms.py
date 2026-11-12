@@ -4,7 +4,7 @@ from authentication.models import CustomUser
 from book.models import Book
 from library.forms_mixins import TailwindFormMixin
 
-from .models import Order
+from .models import DELETED_READER, Order
 from .services import REASON_LENGTH, REASON_RULE
 
 
@@ -51,6 +51,24 @@ class CancelForm(TailwindFormMixin, forms.Form):
     def __init__(self, *args, reason_required=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["reason"].required = reason_required
+
+
+class LoanAdminForm(forms.ModelForm):
+    """The admin's loan form. A loan whose reader's account was deleted keeps no
+    reader: the field is shown empty and cannot be set (KAN-82)."""
+
+    class Meta:
+        model = Order
+        # The admin passes its own fieldsets; these are every field it edits.
+        fields = ["user", "book", "plated_end_at", "end_at"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields.get("user")
+        if field is not None and self.instance.pk and self.instance.user_id is None:
+            field.required = False
+            field.disabled = True
+            field.empty_label = DELETED_READER
 
 
 class OrderUpdateForm(TailwindFormMixin, forms.ModelForm):

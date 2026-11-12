@@ -3,11 +3,21 @@ from django.shortcuts import redirect
 from django.utils import timezone
 
 from . import services
-from .models import BookUnavailableError, Order, Reservation, ReservationState
+from .forms import LoanAdminForm
+from .models import (
+    DELETED_READER,
+    BookUnavailableError,
+    Order,
+    Reservation,
+    ReservationState,
+)
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
+    form = LoanAdminForm
+    empty_value_display = DELETED_READER
+
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         try:
             return super().changeform_view(request, object_id, form_url, extra_context)
@@ -52,6 +62,7 @@ class ReservationAdmin(admin.ModelAdmin):
     """Where librarians read reservations. Each change follows the reservation rules,
     so nobody adds, changes or deletes one here."""
 
+    empty_value_display = DELETED_READER
     list_display = ("id", "user", "book", "current_state", "created_at", "expires_at")
     list_select_related = ("user", "book")
     search_fields = ("user__email", "user__first_name", "user__last_name", "book__name")

@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.shortcuts import redirect
 
+from order.forms import LoanAdminForm
 from order.models import Order
 
 from .embeddings import EmbeddingGenerationError
@@ -11,6 +12,7 @@ class OrderInline(admin.TabularInline):
     """Секція динамічних даних про видачу книги"""
 
     model = Order
+    form = LoanAdminForm
     extra = 0
     fields = ("user", "created_at", "plated_end_at", "end_at")
     readonly_fields = ("created_at",)

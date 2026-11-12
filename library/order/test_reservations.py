@@ -318,13 +318,18 @@ class DeletionTests(ReservationTestCase):
             (CANCELLED, None, "Damaged copy"),
         )
 
-    def test_deleting_the_reader_deletes_their_reservations(self):
+    def test_deleting_the_reader_keeps_their_reservations_without_them(self):
+        # The library's record stays (KAN-82); test_account_deletion covers the rest.
         leaving = account("leaving-reader@example.com")
         reservation = self.reserve(user=leaving)
         kept = self.reserve()
         leaving.delete()
-        self.assertFalse(Reservation.objects.filter(pk=reservation.pk).exists())
-        self.assertTrue(Reservation.objects.filter(pk=kept.pk).exists())
+        reservation.refresh_from_db()
+        self.assertEqual(
+            (reservation.user, reservation.book, reservation.state),
+            (None, self.book, ACTIVE),
+        )
+        self.assertEqual(Reservation.objects.get(pk=kept.pk).user, self.reader)
 
 
 class ReservationAdminTests(ReservationTestCase):

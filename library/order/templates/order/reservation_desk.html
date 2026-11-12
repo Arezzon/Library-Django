@@ -32,8 +32,12 @@
                         {% for reservation in reservations %}
                             <tr class="hover:bg-slate-50/75 transition">
                                 <td class="table-td">
+                                    {% if reservation.user %}
                                     <span class="font-semibold text-slate-900">{{ reservation.user.first_name }} {{ reservation.user.last_name }}</span>
                                     <span class="block text-xs text-slate-500">{{ reservation.user.email }}</span>
+                                    {% else %}
+                                    <span class="font-semibold text-slate-600">Deleted reader</span>
+                                    {% endif %}
                                 </td>
                                 <td class="table-td font-semibold text-slate-900">
                                     <a href="{% url 'book_detail' reservation.book.id %}" class="hover:text-indigo-600 transition">
@@ -44,8 +48,8 @@
                                 <td class="table-td text-slate-600 whitespace-nowrap">{{ reservation.expires_at|time_left:now }}</td>
                                 <td class="table-td whitespace-nowrap">
                                     <div class="flex gap-2">
-                                        <a href="{% url 'reservation_issue' reservation.id %}" class="btn-primary">Issue<span class="sr-only"> “{{ reservation.book.name }}”, book #{{ reservation.book_id }}, to {{ reservation.user.email }}</span></a>
-                                        <a href="{% url 'reservation_cancel' reservation.id %}" class="btn-secondary">Cancel<span class="sr-only"> the reservation of “{{ reservation.book.name }}”, book #{{ reservation.book_id }}, for {{ reservation.user.email }}</span></a>
+                                        <a href="{% url 'reservation_issue' reservation.id %}" class="btn-primary">Issue<span class="sr-only"> “{{ reservation.book.name }}”, book #{{ reservation.book_id }}, to {{ reservation.user.email|default:"a deleted reader" }}</span></a>
+                                        <a href="{% url 'reservation_cancel' reservation.id %}" class="btn-secondary">Cancel<span class="sr-only"> the reservation of “{{ reservation.book.name }}”, book #{{ reservation.book_id }}, for {{ reservation.user.email|default:"a deleted reader" }}</span></a>
                                     </div>
                                 </td>
                             </tr>
