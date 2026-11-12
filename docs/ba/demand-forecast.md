@@ -209,8 +209,7 @@ queries: one per source, plus the books and their loan lengths. "How the forecas
 works" is rendered from `WEIGHTS`, so the page always shows the weights in use.
 
 The Forecast tab sits next to the KAN-54 tabs and reuses the KAN-34 window
-helpers, so this branch merges the PR #63 branch (KAN-33, KAN-34, KAN-54); once
-that PR is merged into `main`, this one carries only KAN-35.
+helpers from PR #63 (KAN-33, KAN-34, KAN-54). It shipped in PR #64.
 
 ## Implementation plan
 

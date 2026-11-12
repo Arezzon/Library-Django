@@ -1,4 +1,8 @@
 2026-11-13
+Repository cleanup and documentation refresh
+The KAN-82 screenshot leaves `images/`. The debt register is current: it takes the KAN-90 review of PR #70, closing nine items and accepting three, and also closes TD-29 (KAN-81) and TD-34 (KAN-78). The README's reader sections, which had ended up after the license, form one "Reader features" section on search, recommendations, likes, ratings and the assistant; the contents, features, Compose services (with `backup`) and configuration (`BOOK_EMBEDDING_THREADS`, `WEB_CONCURRENCY`) tables and the project layout match the code. `docs/ba/README.md` lists its documents, and three guides no longer speak of "this PR" or "this branch".
+
+2026-11-13
 Book.remove_authors removes only the authors it is given (KAN-78)
 `Book.remove_authors` used to unlink every author of the book, whatever list it was given (TD-34). It now removes only the authors passed to it, as Author objects or ids; an empty list or `None` changes nothing, and an author the book does not have is skipped. Author records and other books' authors stay. `library/book/test_book_authors.py` covers partial, several, empty, `None`, repeated and absent removals; six of its seven tests failed before the fix. Nothing in the UI or API calls the method, so no page or response changes.
 
@@ -9,6 +13,10 @@ Creating or changing a book with an empty title, or one of only spaces, is now r
 2026-11-12
 Deleting an account keeps its loans and reservations (KAN-82)
 Deleting a reader's account in any channel (the Users page, the API, the admin site and its bulk delete) now keeps their loans and reservations, with the reader emptied, instead of deleting them. Pages, the admin site and the API show "Deleted reader" (`user: null` in the API). An unreturned book stays on loan until a librarian records its return. A deleted reader's active reservation cannot be issued: the issue page says so and offers to cancel it. A new `cancelled_by_reader` flag records who cancelled a reservation, so the reader's notices, "cancelled by the library" in the API and the forecast stay right after either account is deleted; the migration fills it from past cancellations. In analytics, a deleted reader's loans still count as loans but not as any reader's. Audit entries are unchanged. The README, the access and reservations contracts, the data model and the analytics design say so.
+
+2026-11-04
+The debt register closes nine KAN-90 items and accepts three (KAN-90)
+The first review of the Epic's issues in In Review closes TD-22 and TD-23 with #65 (KAN-96, KAN-97), TD-36 and TD-37 with #66 (KAN-79, KAN-80), TD-20 with #67 (KAN-94), and TD-31 and TD-35 with #68 (KAN-101, KAN-102). TD-37's row records @Arezzon's decision to hide librarian and administrator pages from readers, and no longer says it depends on itself. TD-24 is closed as out of the project's scope: the CDN and Google Fonts are acceptable (KAN-98). The second review records @Arezzon's decisions. TD-21 is closed: its search is the semantic search from #15 (KAN-28), and its demand forecast shipped in #64 (KAN-35) (KAN-95). TD-17 (the weekly manual copy off the Pi, KAN-91), TD-25 (audit entries kept indefinitely, KAN-99) and TD-26 (unreliable creation times of older accounts, KAN-100) are accepted permanently, as reviewed on 2026-11-04.
 
 2026-11-04
 The KAN-90 debt-fix specification and its delivery record (KAN-90)
