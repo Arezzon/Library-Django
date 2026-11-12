@@ -32,10 +32,14 @@
                     <tr class="hover:bg-slate-50/75 transition">
                         <td class="table-td font-mono text-xs text-slate-600">#{{ order.id }}</td>
                         <td class="table-td font-medium text-slate-900">
+                            {% if order.user %}
                             <a href="{% url 'user_detail' order.user.id %}" class="hover:text-indigo-600 transition">
                                 {{ order.user.email }}
                             </a>
                             <p class="text-xs text-slate-600 font-normal">{{ order.user.first_name }} {{ order.user.last_name }}</p>
+                            {% else %}
+                            <span class="text-slate-600">Deleted reader</span>
+                            {% endif %}
                         </td>
                         <td class="table-td font-medium text-slate-900">
                             <a href="{% url 'book_detail' order.book.id %}" class="hover:text-indigo-600 transition">
@@ -92,7 +96,7 @@
                         {{ order.book.name }}
                     </a>
                     <div class="text-xs text-slate-500 mt-1">
-                        Reader: <a href="{% url 'user_detail' order.user.id %}" class="font-medium text-indigo-600 hover:underline">{{ order.user.email }}</a>
+                        Reader: {% if order.user %}<a href="{% url 'user_detail' order.user.id %}" class="font-medium text-indigo-600 hover:underline">{{ order.user.email }}</a>{% else %}<span class="font-medium text-slate-600">Deleted reader</span>{% endif %}
                     </div>
                 </div>
 

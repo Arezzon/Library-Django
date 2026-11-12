@@ -14,7 +14,7 @@
         <div class="card-body">
             <dl class="mb-5 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm text-slate-600 space-y-1">
                 {% if not own %}
-                <div><dt class="inline font-semibold text-slate-900">Reader:</dt> <dd class="inline">{{ reservation.user.first_name }} {{ reservation.user.last_name }} ({{ reservation.user.email }})</dd></div>
+                <div><dt class="inline font-semibold text-slate-900">Reader:</dt> <dd class="inline">{% if reservation.user %}{{ reservation.user.first_name }} {{ reservation.user.last_name }} ({{ reservation.user.email }}){% else %}Deleted reader{% endif %}</dd></div>
                 {% endif %}
                 <div><dt class="inline font-semibold text-slate-900">Book:</dt> <dd class="inline">{{ reservation.book.name }}</dd></div>
                 <div><dt class="inline font-semibold text-slate-900">Deadline:</dt> <dd class="inline">{{ reservation.expires_at|date:"j M Y, H:i T" }}{% if reservation.state == "active" and reservation.expires_at > now %} ({{ reservation.expires_at|time_left:now }}){% endif %}</dd></div>

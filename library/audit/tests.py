@@ -439,12 +439,14 @@ class LoanEntryTests(AuditTestCase):
         for channel, change in changes.items():
             self.check("loan_deleted", channel, change, lambda: (before, {}), loan.pk)
 
-    def test_deleting_an_account_records_its_loans_too(self):
+    def test_deleting_an_account_keeps_its_loans_and_records_only_the_account(self):
+        # The loans are the library's records and stay without their reader (KAN-82).
         account_id = self.reader.pk
         loans = set(Order.objects.filter(user=self.reader).values_list("pk", flat=True))
         self.reader.delete()
-        deleted = AuditEntry.objects.filter(action="loan_deleted")
-        self.assertEqual(set(deleted.values_list("target_id", flat=True)), loans)
+        self.assertFalse(AuditEntry.objects.filter(action="loan_deleted").exists())
+        kept = Order.objects.filter(pk__in=loans, user__isnull=True)
+        self.assertEqual(set(kept.values_list("pk", flat=True)), loans)
         self.assertEqual(
             AuditEntry.objects.filter(
                 action="account_deleted", target_id=account_id

@@ -144,6 +144,7 @@ changes. The pages show the same messages.
 | `reservation_expired` | Issuing at or after the deadline | |
 | `already_issued` | Issuing a reservation a second time | `loan` |
 | `not_active` | Cancelling or issuing a reservation that was already cancelled, issued or expired | |
+| `reader_deleted` | Issuing an active reservation whose reader's account was deleted; cancel it instead | |
 
 `state` is always the current one: an active reservation past its deadline reads `expired`, even
 before the library's scheduled job records it. Times carry the library's offset, `+02:00` or

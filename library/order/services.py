@@ -72,6 +72,11 @@ MESSAGES = {
         "This reservation is no longer active.",
         "This reservation is {state}; nothing was changed.",
     ),
+    "reader_deleted": (
+        None,
+        "The reader's account was deleted, so this reservation cannot be issued. "
+        "Cancel it to free the copy.",
+    ),
 }
 
 
@@ -188,7 +193,7 @@ def next_step(reservation, now):
     again = "Reserve it again if a copy is available."
     if state == ReservationState.EXPIRED:
         return f"The 48 hours ended. {again}"
-    if reservation.cancelled_by_id == reservation.user_id:
+    if reservation.cancelled_by_reader:
         return f"You cancelled it. {again}"
     return f"The library cancelled it on {local(reservation.cancelled_at)}. {again}"
 
@@ -201,7 +206,12 @@ def eligibility(reader, book, now):
 
 def issue_refusal(reservation, reader, book, now):
     """The first rule that refuses issuing ``reservation`` at ``now``, or None. issue()
-    runs it on the locked rows; the issue page runs it without locks (FR-020)."""
+    runs it on the locked rows; the issue page runs it without locks (FR-020). A
+    deleted reader's reservation is refused once its state allows issuing (KAN-82)."""
+    if reader is None:
+        return state_refusal(reservation, now) or refusal(
+            "reader_deleted", librarian=True
+        )
     refused = check(
         reader,
         book,
@@ -213,6 +223,11 @@ def issue_refusal(reservation, reader, book, now):
     )
     if refused is not None:
         return refused
+    return state_refusal(reservation, now)
+
+
+def state_refusal(reservation, now):
+    """Why the reservation's state does not allow issuing it at ``now``, or None."""
     state = reservation.effective_state(now)
     if state == ReservationState.EXPIRED:
         return refusal(
@@ -369,6 +384,9 @@ def issue(actor, reservation, days, *, now=None):
     with transaction.atomic():
         # The reservation's row, then the reader's, then the book's (R13).
         reservation = Reservation.objects.select_for_update().get(pk=reservation.pk)
+        if reservation.user_id is None:
+            now = now or timezone.now()
+            raise issue_refusal(reservation, None, reservation.book, now)
         reader, book = lock(reservation.user_id, reservation.book_id)
         # Read once the rows are held, so the deadline is checked as the issue commits.
         now = now or timezone.now()

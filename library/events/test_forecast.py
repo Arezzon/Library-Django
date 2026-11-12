@@ -177,6 +177,17 @@ class ForecastTests(FakeEncoderMixin, TestCase):
         )
         self.assertEqual((holds["current"], holds["previous"]), (2.2, 1.0))
 
+    def test_loans_and_reservations_outlive_their_accounts(self):
+        # KAN-82: deleting the readers and the librarian keeps every loan and
+        # reservation, and who cancelled each one.
+        before = self.book(self.forecast(), self.atlas)["scores"]
+        for user in (self.ann, self.bob, self.cat, self.dan, self.librarian):
+            user.delete()
+        after = self.book(self.forecast(), self.atlas)["scores"]
+        for score in ("loans", "reservations"):
+            with self.subTest(score=score):
+                self.assertEqual(after[score], before[score])
+
     def test_interest_counts_each_kind_once_per_account_and_day(self):
         interest = self.book(self.forecast(), self.atlas)["scores"]["interest"]
         self.assertEqual(

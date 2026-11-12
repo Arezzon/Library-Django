@@ -15,6 +15,12 @@ class OrderSerializer(serializers.ModelSerializer):
                 {"book": "The selected book is currently unavailable."}
             ) from error
 
+    def validate_user(self, user):
+        # Null only for a loan whose reader's account was deleted (KAN-82).
+        if user is None and (self.instance is None or self.instance.user_id):
+            raise serializers.ValidationError("A loan needs a reader.")
+        return user
+
     def update(self, instance, validated_data):
         try:
             return super().update(instance, validated_data)
@@ -27,6 +33,8 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = ["id", "user", "book", "created_at", "end_at", "plated_end_at"]
         extra_kwargs = {
+            # Null in a response once the reader's account is deleted (KAN-82).
+            "user": {"required": True, "allow_null": True},
             "created_at": {"read_only": True},
             "end_at": {"required": False, "allow_null": True},
             # The database has no default for it, so a new loan must give it.
@@ -70,9 +78,7 @@ class ReservationSerializer(serializers.ModelSerializer):
         return reservation.effective_state(self.context["now"])
 
     def get_cancelled_by_library(self, reservation) -> bool:
-        # The reader's own account goes with its reservations, so a missing
-        # canceller was a librarian whose account was deleted.
+        # Stored with the cancellation, so it holds after either account is deleted.
         return (
-            reservation.cancelled_at is not None
-            and reservation.cancelled_by_id != reservation.user_id
+            reservation.cancelled_at is not None and not reservation.cancelled_by_reader
         )
