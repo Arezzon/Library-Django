@@ -1,4 +1,8 @@
 2026-11-13
+The debt register records the third KAN-90 review (KAN-90)
+The third review of the Epic's issues confirms that TD-29 and TD-34 are closed: #74 (KAN-81) requires a title for every book, and #73 (KAN-78) makes `Book.remove_authors` remove only the authors it is given. Neither issue linked its PR in a comment. The technical lead accepted the PRs, which name their issues, and waived the fixed SHA and the retest result that KAN-81 asks for. The "Updated" line now names all three reviews. TD-18 and TD-19 stay open.
+
+2026-11-13
 Repository cleanup and documentation refresh
 The KAN-82 screenshot leaves `images/`. The debt register is current: it takes the KAN-90 review of PR #70, closing nine items and accepting three, and also closes TD-29 (KAN-81) and TD-34 (KAN-78). The README's reader sections, which had ended up after the license, form one "Reader features" section on search, recommendations, likes, ratings and the assistant; the contents, features, Compose services (with `backup`) and configuration (`BOOK_EMBEDDING_THREADS`, `WEB_CONCURRENCY`) tables and the project layout match the code. `docs/ba/README.md` lists its documents, and three guides no longer speak of "this PR" or "this branch".
 
