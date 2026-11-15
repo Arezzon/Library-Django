@@ -46,6 +46,10 @@ class ReservationSettingsTests(FakeEncoderMixin, TestCase):
                 )
                 self.assertEqual(ReservationSettings.current_hours(), hours)
                 self.assertEqual(ReservationSettings.objects.count(), 1)
+                self.assertEqual(
+                    str(ReservationSettings.objects.get(pk=1)),
+                    f"Reservation duration: {hours} hours",
+                )
                 other = Client()
                 other.force_login(self.librarian)
                 self.assertEqual(
