@@ -98,37 +98,24 @@ class DeadlineTests(ReservationTestCase):
             reservation.expires_at - reservation.created_at, FORTY_EIGHT_HOURS
         )
 
-    def test_the_deadline_is_set_on_creation_whatever_is_given(self):
+    def test_the_database_refuses_nonpositive_deadlines(self):
+        reservation = self.reserve()
+        for hours in (-1, 0):
+            with self.subTest(hours=hours), transaction.atomic():
+                with self.assertRaisesMessage(
+                    IntegrityError, "reservation_deadline_after_creation"
+                ):
+                    with transaction.atomic():
+                        Reservation.objects.filter(pk=reservation.pk).update(
+                            expires_at=reservation.created_at + timedelta(hours=hours)
+                        )
+
+    def test_a_positive_stored_deadline_can_differ_from_the_default(self):
         created_at = timezone.now()
         reservation = self.reserve(
             created_at=created_at, expires_at=created_at + timedelta(hours=1)
         )
-        self.assertEqual(reservation.expires_at, created_at + FORTY_EIGHT_HOURS)
-
-    def test_the_database_refuses_any_other_deadline(self):
-        reservation = self.reserve()
-        stored = Reservation.objects.filter(pk=reservation.pk)
-        for hours in (0, 47, 49):
-            deadline = reservation.created_at + timedelta(hours=hours)
-            with self.subTest(hours=hours):
-                with (
-                    self.assertRaisesMessage(
-                        IntegrityError, "reservation_lasts_48_hours"
-                    ),
-                    transaction.atomic(),
-                ):
-                    stored.update(expires_at=deadline)
-        # save() sets the deadline once, on creation, and never moves it later.
-        reservation.expires_at += timedelta(seconds=1)
-        with (
-            self.assertRaisesMessage(IntegrityError, "reservation_lasts_48_hours"),
-            transaction.atomic(),
-        ):
-            reservation.save()
-        reservation.refresh_from_db()
-        self.assertEqual(
-            reservation.expires_at - reservation.created_at, FORTY_EIGHT_HOURS
-        )
+        self.assertEqual(reservation.expires_at, created_at + timedelta(hours=1))
 
     def test_the_deadline_check_holds_in_any_session_time_zone(self):
         """A restore into a server set to another zone keeps the reservations that
@@ -674,7 +661,7 @@ class ReservingTests(ReservationTestCase):
         page = self.signed_in().get(reverse("reservation_my"))
         for text in (
             "Collect it from a librarian before",
-            "The 48 hours ended. Reserve it again if a copy is available.",
+            "The reservation period ended. Reserve it again if a copy is available.",
             "Collected.",
             "The library cancelled it on",
             "Reason: Copy damaged",

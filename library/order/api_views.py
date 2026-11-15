@@ -213,7 +213,7 @@ RESERVATION_ISSUED = inline_serializer(
     ),
     create=extend_schema(
         responses={201: ReservationSerializer, 409: RESERVATION_REFUSAL},
-        description="Reserve a book for the caller for 48 hours. A refused request "
+        description="Reserve a book for the caller using the current library duration (1–168 hours, default 48). Existing deadlines do not change. A refused request "
         "answers 409 with a code and a message that says what to do next.",
     ),
 )

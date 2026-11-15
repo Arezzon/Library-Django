@@ -248,7 +248,8 @@ class ReservationJourneyTests(FakeEncoderMixin, TestCase):
         mine = client.get(reverse("reservation_my"))
         self.assertContains(mine, "Expired")
         self.assertContains(
-            mine, "The 48 hours ended. Reserve it again if a copy is available."
+            mine,
+            "The reservation period ended. Reserve it again if a copy is available.",
         )
         self.assertContains(
             client.get(reverse("book_detail", args=[self.book.pk])), "2 of 2 Available"

@@ -129,7 +129,7 @@
                     <form method="post" action="{% url 'reserve' book.id %}" class="w-full sm:w-auto">
                         {% csrf_token %}
                         <button type="submit" data-track-event="borrow_intent" data-book-id="{{ book.id }}" class="btn-primary w-full sm:w-auto justify-center">
-                            Reserve for 48 Hours
+                            Reserve for {{ reservation_hours }} Hour{{ reservation_hours|pluralize }}
                         </button>
                     </form>
                     {% endif %}

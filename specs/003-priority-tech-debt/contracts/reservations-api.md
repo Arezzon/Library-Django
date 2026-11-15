@@ -10,7 +10,7 @@ happened and what the person can do next (FR-020).
 
 API datetimes are ISO 8601 with the library's offset (Europe/Kyiv, +02:00 or +03:00) from PR 5, the
 same instants as before (R16). Pages show `j M Y, H:i T`, for example "29 Oct 2026, 14:05 EET". A
-reservation is active while `now < expires_at`, where `expires_at` is `created_at` plus 48 hours.
+reservation is active while `now < expires_at`, where `expires_at` is `created_at` plus the current configured duration (1–168 whole hours, default 48).
 
 ## Resource: reservation
 
@@ -111,3 +111,19 @@ and the zone.
 | One reader sends several reservations at once | They never hold more than 3 active reservations |
 | A double click, a retry or two librarians issue the same reservation | One loan; the other request gets `already_issued` |
 | A reservation expires while it is being issued | The deadline is checked again at commit, so the reservation is either issued in time or refused |
+
+## Configurable reservation duration (KAN-84)
+
+`POST /api/v1/reservation/` and the website use the same `order.services.reserve`
+service. The server reads the persisted library policy at creation and stores
+`expires_at`; the client cannot supply the policy or deadline. All later reads,
+availability checks and expiry use that recorded instant, even after a policy edit.
+Elapsed hours are UTC arithmetic, including daylight-saving transitions.
+
+Librarians/administrators manage the shared policy with the CSRF-protected HTML form
+at `GET/POST /order/reservations/settings/` (`hours`, integer 1–168; default 48).
+Valid POST redirects to the settings page; invalid POST returns 400 without saving.
+Readers get 404, guests redirect to login; neither can change the policy by direct
+POST. The reservation API response shape and existing role rules are unchanged.
+The deadline constraint is now `expires_at > created_at`, replacing the fixed
+`reservation_lasts_48_hours` constraint; the migration preserves existing deadlines.
