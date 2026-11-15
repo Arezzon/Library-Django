@@ -1,4 +1,8 @@
 2026-11-15
+Compact book covers
+Show locally bundled Open Library covers for the nine sample catalog titles in a compact, responsive frame on book detail pages. Preserve image proportions, provide a neutral placeholder for unknown titles, and retain source URLs in the cover manifest. No database migration or runtime image service is required.
+
+2026-11-15
 Attribute book clicks to their search (KAN-106)
 Pass the completed search action ID on desktop/mobile result links independently of the next form ID. Accept a strict optional UUID only for book_click, resolve it to the authenticated reader's stored search event ID and persist the reference. Preserve ordinary clicks, unknown-field rejection, asynchronous delivery and idempotent retries without copying query text.
 
