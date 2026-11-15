@@ -70,6 +70,35 @@ const url = base + '/order/reservations/settings/';
     assert.equal(Date.parse(second.expires_at)-Date.parse(second.created_at),168*3600000);
     const unchanged=await (await reader.request.get(base+`/api/v1/reservation/${first.id}/`)).json();
     assert.equal(unchanged.expires_at,first.expires_at);
+    function localDeadline(iso) {
+      const parts = new Intl.DateTimeFormat('en-GB',{
+        timeZone:'Europe/Kyiv',day:'numeric',month:'numeric',year:'numeric',
+        hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZoneName:'shortOffset'
+      }).formatToParts(new Date(iso));
+      const fields=Object.fromEntries(parts.map(p=>[p.type,p.value]));
+      const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const zone=fields.timeZoneName==='GMT+2'?'EET':'EEST';
+      assert.ok(['GMT+2','GMT+3'].includes(fields.timeZoneName));
+      return `${Number(fields.day)} ${months[Number(fields.month)-1]} ${fields.year}, ${fields.hour}:${fields.minute} ${zone}`;
+    }
+    for (const held of [first,second]) {
+      const time=readerPage.locator(`time[data-reservation-deadline="${held.id}"]`);
+      assert.equal(Date.parse(await time.getAttribute('datetime')),Date.parse(held.expires_at));
+      assert.equal((await time.innerText()).trim(),localDeadline(held.expires_at));
+    }
+    assert.ok((await readerPage.getByRole('status').innerText()).includes(
+      `Reserved “Zakhar Berkut”. Collect it from a librarian before ${localDeadline(second.expires_at)}.`
+    ));
+    const readerScan=await new AxeBuilder({page:readerPage}).include('main').analyze();
+    assert.deepEqual(readerScan.violations.map(v=>({id:v.id,targets:v.nodes.map(n=>n.target)})),[]);
+    if(process.env.RESERVATION_DEADLINE_SCREENSHOT_DIR) {
+      fs.mkdirSync(process.env.RESERVATION_DEADLINE_SCREENSHOT_DIR,{recursive:true});
+      await readerPage.setViewportSize({width:1440,height:900});
+      await readerPage.screenshot({path:path.join(process.env.RESERVATION_DEADLINE_SCREENSHOT_DIR,'deadlines-1440.png')});
+      const mainBox=await readerPage.locator('main').boundingBox();
+      const tableBox=await readerPage.locator('.table-wrapper').boundingBox();
+      await readerPage.screenshot({clip:{x:mainBox.x,y:mainBox.y,width:mainBox.width,height:tableBox.y+tableBox.height-mainBox.y+24},path:path.join(process.env.RESERVATION_DEADLINE_SCREENSHOT_DIR,'deadlines-content.png')});
+    }
     await page.goto(url);
     await page.reload();
     assert.equal(await page.locator('[name=hours]').inputValue(),'168');
@@ -84,7 +113,7 @@ const url = base + '/order/reservations/settings/';
     const response=await guest.request.get(url);
     assert.ok(response.url().includes('/authentication/login/'));
     await guest.close();
-    console.log('Settings persistence, bounds, roles, CSRF, keyboard, axe and web/API deadlines passed.');
+    console.log('Settings persistence, bounds, roles, CSRF, keyboard, axe, localized confirmation/list and API deadlines passed.');
   } finally {
     if(reader) for(const id of holds) assert.equal((await post(reader,base+`/api/v1/reservation/${id}/cancel/`,{})).status(),200);
     if(page && original) await save(original);

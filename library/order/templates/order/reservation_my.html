@@ -45,7 +45,7 @@
                                 </td>
                                 <td class="table-td text-slate-500 whitespace-nowrap">{{ row.reservation.created_at|date:"j M Y, H:i T" }}</td>
                                 <td class="table-td text-slate-500 whitespace-nowrap">
-                                    {{ row.reservation.expires_at|date:"j M Y, H:i T" }}
+                                    <time datetime="{{ row.reservation.expires_at|date:'c' }}" data-reservation-deadline="{{ row.reservation.pk }}">{{ row.reservation.expires_at|reservation_deadline }}</time>
                                     {% if row.state == 'active' %}
                                         <span class="block text-xs text-amber-700">{{ row.reservation.expires_at|time_left:now }}</span>
                                     {% endif %}
