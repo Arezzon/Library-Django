@@ -1,0 +1,47 @@
+{
+  "kobzar": {
+    "file": "book/covers/kobzar.jpg",
+    "source": "https://openlibrary.org/works/OL717725W",
+    "image_url": "https://covers.openlibrary.org/b/id/6826629-M.jpg?default=false"
+  },
+  "forest song (lisova pisnya)": {
+    "file": "book/covers/forest-song.jpg",
+    "source": "https://openlibrary.org/works/OL34319393W",
+    "image_url": "https://covers.openlibrary.org/b/id/13270722-M.jpg?default=false"
+  },
+  "zakhar berkut": {
+    "file": "book/covers/zakhar-berkut.jpg",
+    "source": "https://openlibrary.org/works/OL856502W",
+    "image_url": "https://covers.openlibrary.org/b/id/6071630-M.jpg?default=false"
+  },
+  "1984": {
+    "file": "book/covers/1984.jpg",
+    "source": "https://openlibrary.org/works/OL1168083W",
+    "image_url": "https://covers.openlibrary.org/b/id/9267242-M.jpg?default=false"
+  },
+  "animal farm": {
+    "file": "book/covers/animal-farm.jpg",
+    "source": "https://openlibrary.org/works/OL1168007W",
+    "image_url": "https://covers.openlibrary.org/b/id/11261770-M.jpg?default=false"
+  },
+  "the adventures of sherlock holmes": {
+    "file": "book/covers/sherlock-holmes.jpg",
+    "source": "https://openlibrary.org/works/OL262421W",
+    "image_url": "https://covers.openlibrary.org/b/id/6717853-M.jpg?default=false"
+  },
+  "clean code: a handbook of agile software craftsmanship": {
+    "file": "book/covers/clean-code.jpg",
+    "source": "https://openlibrary.org/works/OL17618370W",
+    "image_url": "https://covers.openlibrary.org/b/id/8065615-M.jpg?default=false"
+  },
+  "harry potter and the philosopher's stone": {
+    "file": "book/covers/harry-potter.jpg",
+    "source": "https://openlibrary.org/works/OL82563W",
+    "image_url": "https://covers.openlibrary.org/b/id/15155833-M.jpg?default=false"
+  },
+  "evenings on a farm near dikanka": {
+    "file": "book/covers/dikanka.jpg",
+    "source": "https://openlibrary.org/works/OL699209W",
+    "image_url": "https://covers.openlibrary.org/b/id/7911497-M.jpg?default=false"
+  }
+}
