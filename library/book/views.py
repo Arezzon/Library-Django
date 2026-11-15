@@ -11,7 +11,7 @@ from authentication.models import CustomUser
 from author.models import Author
 from events.searches import record_search, search_identity
 from events.services import EventQueueUnavailable
-from order.models import Order
+from order.models import Order, ReservationSettings
 from order.services import eligibility
 
 from .embeddings import EmbeddingGenerationError
@@ -117,6 +117,7 @@ def book_detail(
     if request.user.is_visitor:
         # Why the reader cannot reserve, if they cannot (FR-020).
         context["reserve_refusal"] = eligibility(request.user, book, now)
+        context["reservation_hours"] = ReservationSettings.current_hours()
     return render(request, "book/book_detail.html", context, status=status)
 
 

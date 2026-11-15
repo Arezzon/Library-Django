@@ -72,6 +72,8 @@ ROUTES = [
     ("get", "/order/lend/", SIGN_IN, NOT_FOUND, PAGE),
     ("get", "/order/reservations/", SIGN_IN, PAGE, PAGE),
     ("get", "/order/reservations/desk/", SIGN_IN, NOT_FOUND, PAGE),
+    ("get", "/order/reservations/settings/", SIGN_IN, NOT_FOUND, PAGE),
+    ("post", "/order/reservations/settings/", SIGN_IN, NOT_FOUND, BAD_REQUEST),
     ("get", "/order/reservations/{reservation}/issue/", SIGN_IN, NOT_FOUND, PAGE),
     # Without a loan period the form comes back with the error.
     ("post", "/order/reservations/{reservation}/issue/", SIGN_IN, NOT_FOUND, PAGE),

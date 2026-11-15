@@ -1,3 +1,15 @@
+2026-11-15
+Restore advisory diff coverage reporting in CI
+Revert the strict 100% diff coverage enforcement on pull request checks, restoring diff coverage as an informational report for reviewers. This permits valid pull requests with false positives or unexercised test/utility code without blocking CI.
+
+2026-11-15
+Configurable reservation collection period (KAN-84)
+Add persisted librarian-only reservation duration settings beside Reservation Desk: whole hours from 1 to 168, default 48. Apply the current duration consistently to new web and API reservations while preserving existing deadlines. Replace the fixed 48-hour database constraint with a positive deadline check, update reader-facing wording and API documentation, and cover validation, permissions, CSRF, saved policy labels and deadline behavior. Require 100% changed-line coverage in the existing CI report.
+
+2026-11-15
+Consistent mobile menu icons (KAN-83)
+Add decorative outline icons to authentication and remaining mobile navigation items. Reuse one 16px icon size and spacing with current-color strokes, hide decorative SVGs from assistive technology and identify the controlled disclosure. Keep long menus scrollable within the viewport. Preserve link labels, destinations, role visibility and the CSRF-protected logout action. Add CI browser coverage for all three roles at 320px and 375px, including keyboard navigation and accessibility.
+
 2026-11-13
 The KAN-90 debt Epic's specification (KAN-90)
 Spec 004 records how the 16 open items of the debt register became one Jira Epic, KAN-90, in sprint 5. Each item has one issue, assigned to its owner. A code change says what to do and when it is done, and a decision gives its subject and options. Every issue ends with the same reporting rule: a PR link, or the decision with its reason, then In Review. The specification, plan, research, data model, issue-text and review contracts, quickstart and tasks are included, with the bridge snapshots and the handoff, which waits for the Epic's next review round. People are named by GitHub handle, and no Jira account ID is recorded. The issue drafts and the working record stay out of the repository.

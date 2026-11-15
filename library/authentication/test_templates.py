@@ -12,6 +12,7 @@ from pathlib import Path
 from django.conf import settings
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
+from django.utils.html import strip_tags
 
 from author.models import Author
 from book.models import Book
@@ -208,9 +209,11 @@ class LayoutTests(FakeEncoderMixin, TestCase):
             with self.subTest(form=form):
                 self.assertIn('method="post"', form)
                 self.assertIn("csrfmiddlewaretoken", form)
-                self.assertRegex(
-                    form, r'<button type="submit"[^>]*>\s*Log Out\s*</button>'
+                button = re.search(
+                    r'<button type="submit"[^>]*>(.*?)</button>', form, re.S
                 )
+                self.assertIsNotNone(button)
+                self.assertEqual(strip_tags(button.group(1)).strip(), "Log Out")
         self.assertNotIn('href="/authentication/logout/"', page)
 
     def test_messages_appear_once_in_the_one_status_region(self):
