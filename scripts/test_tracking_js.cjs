@@ -19,8 +19,8 @@ function browser({status = 202, saved = null, online = true, anonymous = false} 
         fetch: async (url, options) => {requests.push({url, ...options}); return {status: state.status};},
     };
     vm.runInNewContext(code, context);
-    return {handlers, storage, requests, state, context, click(book = '42') {
-        handlers.click({target: {closest: () => ({dataset: {trackEvent: 'book_click', bookId: book}, hasAttribute: () => false})}});
+    return {handlers, storage, requests, state, context, click(book = '42', {searchId, trackEvent = 'book_click'} = {}) {
+        handlers.click({target: {closest: () => ({dataset: {trackEvent, bookId: book, searchId}, hasAttribute: () => false})}});
     }};
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
@@ -66,4 +66,33 @@ test('anonymous pages and invalid book IDs send nothing', async () => {
     page.click('invalid');
     await settle();
     assert.equal(page.requests.length, 0);
+});
+
+
+test('search result click sends its own search action, without query text', async () => {
+    const page = browser();
+    page.context.window.location.search = '?q=private+query&search_id=next-form-id';
+    const current = '22222222-2222-4222-8222-222222222222';
+    page.click('42', {searchId: current});
+    await settle();
+    const body = JSON.parse(page.requests[0].body);
+    assert.equal(body.search_id, current);
+    assert.deepEqual(Object.keys(body).sort(), ['book_id','event_id','event_type','path','search_id']);
+    assert.ok(!page.requests[0].body.includes('private'));
+    assert.ok(!page.requests[0].body.includes('next-form-id'));
+});
+
+test('search reference survives retry and is omitted for borrow intent', async () => {
+    const current = '22222222-2222-4222-8222-222222222222';
+    const page = browser({status:503});
+    page.click('42', {searchId:current});
+    await settle();
+    const saved = JSON.parse(page.storage.get('library-events:7'));
+    const next = browser({saved});
+    await settle();
+    assert.deepEqual(JSON.parse(next.requests[0].body), JSON.parse(page.requests[0].body));
+    const intent = browser();
+    intent.click('42', {searchId:current, trackEvent:'borrow_intent'});
+    await settle();
+    assert.equal(JSON.parse(intent.requests[0].body).search_id, undefined);
 });
