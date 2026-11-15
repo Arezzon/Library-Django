@@ -253,6 +253,7 @@ jobs:
           node scripts/browser/smoke_assistant.cjs
           node scripts/browser/smoke_ratings.cjs
           node scripts/browser/smoke_mobile_menu.cjs
+          node scripts/browser/smoke_reservation_settings.cjs
 
       # FR-042: axe finds no WCAG 2.2 level A or AA violation on the main pages, signed in
       # as the demo reader and librarian. The check reserves a book for the reader and

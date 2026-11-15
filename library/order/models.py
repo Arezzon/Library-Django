@@ -1,8 +1,8 @@
 from datetime import UTC, timedelta
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import DataError, models, router, transaction
 from django.db.models import F, Q
-from django.db.models.lookups import Exact
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.utils import timezone
@@ -266,6 +266,33 @@ def record_loan_deletion(sender, instance, **kwargs):
 RESERVATION_HOURS = 48
 
 
+class ReservationSettings(models.Model):
+    """One library-wide policy. Existing reservations keep their stored deadline."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    hours = models.PositiveSmallIntegerField(
+        default=RESERVATION_HOURS,
+        validators=[MinValueValidator(1), MaxValueValidator(168)],
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(pk=1), name="one_reservation_settings"),
+            models.CheckConstraint(
+                condition=Q(hours__gte=1, hours__lte=168),
+                name="reservation_hours_in_range",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Reservation duration: {self.hours} hours"
+
+    @classmethod
+    def current_hours(cls):
+        hours = cls.objects.filter(pk=1).values_list("hours", flat=True).first()
+        return hours if hours is not None else RESERVATION_HOURS
+
+
 class ReservationState(models.TextChoices):
     ACTIVE = "active", "Active"
     ISSUED = "issued", "Issued"
@@ -317,7 +344,7 @@ class ReservationQuerySet(models.QuerySet):
 
 
 class Reservation(models.Model):
-    """A reader's 48-hour hold on one unit of a book's stock, not on a particular copy
+    """A reader's time-limited hold on one unit of a book's stock, not on a particular copy
     (FR-008, ADR 0001)."""
 
     # A reservation is the library's record: deleting the account keeps it without
@@ -366,15 +393,9 @@ class Reservation(models.Model):
 
     class Meta:
         constraints = [
-            # Elapsed time, not created_at + interval: the database adds the 2 days
-            # that 48 hours is sent as in the session's time zone, so a restore into
-            # a server set to a zone with summer time would refuse valid rows.
             models.CheckConstraint(
-                condition=Exact(
-                    F("expires_at") - F("created_at"),
-                    timedelta(hours=RESERVATION_HOURS),
-                ),
-                name="reservation_lasts_48_hours",
+                condition=Q(expires_at__gt=F("created_at")),
+                name="reservation_deadline_after_creation",
             ),
             # A backstop: the reservation service checks first.
             models.UniqueConstraint(
@@ -405,8 +426,12 @@ class Reservation(models.Model):
         if self._state.adding:
             if self.user_id is None:
                 raise ValueError("A reservation needs a reader.")
-            # Set once; the database refuses any other deadline (FR-010).
-            self.expires_at = self.created_at + timedelta(hours=RESERVATION_HOURS)
+            # Trusted callers may supply a deadline; normal creation uses the policy.
+            # Updates never recalculate it when the policy changes.
+            if self.expires_at is None:
+                self.expires_at = self.created_at.astimezone(UTC) + timedelta(
+                    hours=ReservationSettings.current_hours()
+                )
         if self.cancelled_by_id is not None:
             self.cancelled_by_reader = self.cancelled_by_id == self.user_id
             if update_fields is not None and {

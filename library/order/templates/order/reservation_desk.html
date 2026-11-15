@@ -10,9 +10,12 @@
             <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Reservation Desk</h1>
             <p class="text-slate-500 text-xs sm:text-sm mt-1">Active reservations, the nearest deadline first. Issue the book when its reader collects it.</p>
         </div>
+        <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+        <a href="{% url 'reservation_settings' %}" class="btn-secondary justify-center">Reservation Settings</a>
         <a href="{% url 'order_lend' %}" class="btn-primary w-full sm:w-auto justify-center">
             Lend Directly
         </a>
+        </div>
     </div>
 
     {% if reservations %}

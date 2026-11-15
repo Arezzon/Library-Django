@@ -4,19 +4,26 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 
 from authentication.decorators import librarian_required, signin_required
 from authentication.permissions import is_librarian
 from book.models import Book
 
 from . import services
-from .forms import CancelForm, IssueForm, LendForm, OrderUpdateForm
+from .forms import (
+    CancelForm,
+    IssueForm,
+    LendForm,
+    OrderUpdateForm,
+    ReservationSettingsForm,
+)
 from .models import (
     DELETED_READER,
     BookUnavailableError,
     Order,
     Reservation,
+    ReservationSettings,
     ReservationState,
 )
 
@@ -301,3 +308,24 @@ def order_close(request: HttpRequest, order_id: int) -> HttpResponse:
         return redirect("order_all")
     order = get_object_or_404(Order.objects.select_related("book", "user"), pk=order_id)
     return render(request, "order/order_close.html", {"order": order})
+
+
+@librarian_required
+@require_http_methods(["GET", "POST"])
+def reservation_settings(request):
+    policy = ReservationSettings.objects.filter(pk=1).first() or ReservationSettings()
+    form = ReservationSettingsForm(
+        request.POST if request.method == "POST" else None, instance=policy
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(
+            request, "Reservation duration saved. Existing deadlines are unchanged."
+        )
+        return redirect("reservation_settings")
+    return render(
+        request,
+        "order/reservation_settings.html",
+        {"form": form},
+        status=400 if request.method == "POST" else 200,
+    )
