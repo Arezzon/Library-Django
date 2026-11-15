@@ -245,13 +245,14 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Verify assistant keyboard flow, accessibility, private logs and source failure
+      - name: Verify browser navigation, accessibility, ratings and assistant
         if: matrix.runner == 'ubuntu-latest'
         run: |
           npm ci --prefix scripts/browser
           npx --prefix scripts/browser playwright-core install --with-deps chromium
           node scripts/browser/smoke_assistant.cjs
           node scripts/browser/smoke_ratings.cjs
+          node scripts/browser/smoke_mobile_menu.cjs
 
       # FR-042: axe finds no WCAG 2.2 level A or AA violation on the main pages, signed in
       # as the demo reader and librarian. The check reserves a book for the reader and

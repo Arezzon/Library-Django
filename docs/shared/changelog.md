@@ -1,3 +1,7 @@
+2026-11-15
+Consistent mobile menu icons (KAN-83)
+Add decorative outline icons to authentication and remaining mobile navigation items. Reuse one 16px icon size and spacing with current-color strokes, hide decorative SVGs from assistive technology and identify the controlled disclosure. Keep long menus scrollable within the viewport. Preserve link labels, destinations, role visibility and the CSRF-protected logout action. Add CI browser coverage for all three roles at 320px and 375px, including keyboard navigation and accessibility.
+
 2026-11-13
 Repository cleanup and documentation refresh
 The KAN-82 screenshot leaves `images/`. The debt register is current: it takes the KAN-90 review of PR #70, closing nine items and accepting three, and also closes TD-29 (KAN-81) and TD-34 (KAN-78). The README's reader sections, which had ended up after the license, form one "Reader features" section on search, recommendations, likes, ratings and the assistant; the contents, features, Compose services (with `backup`) and configuration (`BOOK_EMBEDDING_THREADS`, `WEB_CONCURRENCY`) tables and the project layout match the code. `docs/ba/README.md` lists its documents, and three guides no longer speak of "this PR" or "this branch".
