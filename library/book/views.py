@@ -66,6 +66,7 @@ def book_list(request: HttpRequest) -> HttpResponse:
                     identity,
                     query,
                     int(author_id) if author_id.isdigit() else None,
+                    results=books,
                 )
                 saved = True
             except EventQueueUnavailable:

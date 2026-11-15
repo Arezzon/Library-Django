@@ -1,4 +1,8 @@
 2026-11-15
+Search result analytics (KAN-105)
+Record the first displayed cosine similarity and the displayed result count in successful web and API search events. Keep null similarity for empty/author-only results, preserve zero/negative scores and the existing result limit, and retain legacy query properties, event identities, recommendations and activity rendering.
+
+2026-11-15
 Consistent reader reservation deadlines (KAN-87)
 Share the application-zone deadline formatter between reservation confirmation and My Reservations, rendering the stored expiry as semantic time markup. Verify web/API agreement, winter and summer offsets, English and Ukrainian month formatting, policy changes and cancelled/expired states without recalculating existing deadlines.
 

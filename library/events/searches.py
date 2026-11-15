@@ -14,13 +14,20 @@ def search_identity(raw=None):
     return uuid.uuid4() if raw is None else uuid.UUID(str(raw))
 
 
-def record_search(request, identity, query, author_id=None):
+def record_search(request, identity, query, author_id=None, *, results):
     if not is_signed_in(request.user):
         raise PermissionDenied("Sign in to save search history.")
     payload = make_payload(
         request,
         EventType.SEARCH,
-        properties={"query": query.strip()[:200], "author_id": author_id},
+        properties={
+            "query": query.strip()[:200],
+            "author_id": author_id,
+            "best_similarity": (
+                getattr(results[0], "similarity", None) if results else None
+            ),
+            "result_count": len(results),
+        },
     )
     # Separate from click identities; the same client UUID cannot collide across
     # users or event families. The worker's unique event ID handles redelivery.
