@@ -1,4 +1,8 @@
 2026-11-15
+Consistent reader reservation deadlines (KAN-87)
+Share the application-zone deadline formatter between reservation confirmation and My Reservations, rendering the stored expiry as semantic time markup. Verify web/API agreement, winter and summer offsets, English and Ukrainian month formatting, policy changes and cancelled/expired states without recalculating existing deadlines.
+
+2026-11-15
 Restore advisory diff coverage reporting in CI
 Revert the strict 100% diff coverage enforcement on pull request checks, restoring diff coverage as an informational report for reviewers. This permits valid pull requests with false positives or unexercised test/utility code without blocking CI.
 
