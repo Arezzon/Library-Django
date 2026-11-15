@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static book_covers %}
 
 {% block error_prefix %}{% if rating_form.errors %}Error: {% endif %}{% endblock %}
 {% block title %}{{ book.name }} - Book Details{% endblock %}
@@ -8,9 +9,13 @@
     <div class="card">
         <!-- Header -->
         <div class="card-header">
-            <div>
+            <div class="flex items-center gap-4 min-w-0">
+                {% book_cover book as cover_path %}
+                <img src="{% static cover_path %}" alt="Cover of {{ book.name }}" width="80" height="120" decoding="async" class="w-16 sm:w-20 h-24 sm:h-28 object-contain flex-shrink-0 rounded-md border border-slate-200 bg-slate-50 p-1 shadow-sm">
+                <div class="min-w-0">
                 <span class="text-xs font-mono text-slate-600 block mb-0.5">Book #{{ book.id }}</span>
                 <h1 class="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">{{ book.name }}</h1>
+                </div>
             </div>
             <div>
                 {% if book.available_count > 0 %}

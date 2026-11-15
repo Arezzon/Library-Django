@@ -5,7 +5,7 @@
 **Library Django** is a library management system built with **Django 5.2 LTS**,
 Django REST Framework and PostgreSQL. It provides a server-rendered web UI,
 role-based access, borrowing workflows, an OpenAPI API, pgvector-backed book
-embeddings and asynchronous activity analytics.
+embeddings, personalized discovery, reservations and asynchronous activity analytics.
 
 > The project is ready to run with Docker Compose. A local `venv` setup is also
 > supported when PostgreSQL with pgvector and Redis are available.
@@ -19,7 +19,8 @@ embeddings and asynchronous activity analytics.
 | [Architecture](#architecture) | [Book embeddings](#book-embeddings) | [Troubleshooting](#troubleshooting) |
 | [Quick start with Docker](#quick-start-with-docker) | [Activity Analytics](#activity-analytics) | [Project layout](#project-layout) |
 | [Local development](#local-development-with-venv) | [REST API](#rest-api-and-interactive-docs) | [Deployment](#deployment) |
-| [Local service requirements](#local-service-requirements) |  | [License](#license) |
+| [Local service requirements](#local-service-requirements) | [Book covers](#book-covers) | [Delivery status and plans](#delivery-status-and-plans) |
+|  |  | [License](#license) |
 
 ## TL;DR
 
@@ -52,22 +53,22 @@ before using the `venv` setup.
 | Docker | Docker Desktop with Compose | — |
 | Windows `venv` | Python 3.12, PostgreSQL + pgvector, Redis or Memurai | WSL for Redis |
 | Linux/macOS `venv` | Python 3.12, PostgreSQL + pgvector, Redis | — |
-| Tests | Project dependencies and a test database | Node.js for JavaScript smoke tests |
+| Tests | Project and development dependencies, PostgreSQL + pgvector | Node.js and Chromium/Chrome for browser, accessibility and JavaScript checks |
 | Embeddings | PostgreSQL + pgvector and Python dependencies | Network access once, to fetch the model (`venv` only; images ship with it) |
 
 ## Features
 
 | Area | Included |
 | --- | --- |
-| Catalog | Books, descriptions, stock counts and authors. Every book needs a title |
+| Catalog | Required book titles, descriptions, stock counts and authors; compact local covers on book pages, with a placeholder for other titles ([covers](#book-covers)) |
 | Discovery | Semantic search by meaning, a For You page of recommendations, likes and saved books, private 1–5 ratings, and an assistant that answers catalog questions in Ukrainian or English ([reader features](#reader-features)) |
 | Borrowing | Librarians lend at the desk; return, reopen and reassign orders. Every loan starts with a librarian, and none while the reader has an overdue loan |
-| Reservations | A reader reserves an available book for 48 hours, active at once; the copy stays held until it is collected or the deadline passes. At most 3 at a time, and none while a loan is overdue. My reservations shows each deadline with the time left and what to do next. Librarians issue reserved books at the desk in one step, or cancel with a reason that they confirm and the reader sees; readers cancel their own. When 100 readers reserve the last copy at once, exactly one gets it ([guide](docs/features/reservations.md)) |
+| Reservations | Immediate holds for a configurable 1–168 hours (default 48), at most 3 per reader, with overdue and duplicate-book guards. Saved deadlines stay unchanged when the policy changes. Readers see Kyiv-time deadlines and cancel their own holds; librarians issue them or cancel with a confirmed reason ([guide](docs/features/reservations.md)) |
 | Accounts | Email-based users and profiles with three roles. Sign-up always creates a reader. Librarians run the catalog, loans, reservations and account status. Administrators have every librarian right and are the only ones who make someone a librarian or take the role away, and only they change an administrator's account. The operator creates administrators on the server ([guide](docs/deployment/raspberry-pi-portainer.md#create-the-first-administrator)) |
 | Administration | Django admin and librarian-only management screens |
 | API | Endpoints under `/api/v1/`, each open only to its stated audience, plus Swagger and ReDoc |
 | Embeddings | Multilingual 1024-dimensional `bge-m3` vectors generated with ONNX Runtime |
-| Analytics | A library overview without personal data, a demand forecast, and an activity log with filters and per-user activity |
+| Analytics | Aggregate library overview, explainable demand forecast and filtered activity log. Search events record displayed result counts and similarity; catalog clicks can be linked to the originating search ([search analytics](docs/features/search-analytics.md)) |
 | Logs and audit | One log line format whose request identifier follows a request into the worker; secrets and search text redacted; rotated logs; a read-only audit trail of role, account, loan and stock changes in the admin site |
 | Deployment | Docker Compose for development; a Raspberry Pi 5 Portainer stack from multi-architecture GHCR images |
 
@@ -91,8 +92,11 @@ before using the `venv` setup.
 +----------------+                                       +-------------------+
 ```
 
-The worker persists tracking events asynchronously. The web process can serve
-the application without a worker, but event API requests return `503` while
+The worker persists tracking events asynchronously, and its embedded Celery beat
+schedules reservation expiry every five minutes. Availability releases a hold at
+its saved deadline even before the expiry task updates its state. The web
+process can serve the application without a worker, but event API requests
+return `503` while
 the Redis broker is unavailable. The backup service takes a daily, checked
 backup of the database into a volume of its own.
 
@@ -131,7 +135,7 @@ Open <http://localhost:8000>. Compose starts:
 | `web` | Django application with Gunicorn | `8000` |
 | `db` | PostgreSQL 18 with pgvector | internal `5432` |
 | `redis` | Celery broker (Redis 8) with persistent AOF storage | internal `6379` |
-| `worker` | Persists activity events from the `events` queue | — |
+| `worker` | Persists activity events from the `events` queue; beat schedules reservation expiry | — |
 | `backup` | Takes a checked daily `pg_dump` into the `pgbackups` volume | — |
 
 The first boot waits for PostgreSQL, applies migrations and seeds demo data
@@ -355,6 +359,38 @@ It asks back when a question matches several books, and keeps no question text.
 The API is `GET /api/v1/assistant/?q=` ([contract](docs/ba/catalog-assistant.md),
 [page design](docs/ba/assistant-interface.md)).
 
+### Reservations and collection periods
+
+Readers reserve from the book page and follow the saved deadline in **My
+Reservations** (`/order/reservations/`). Confirmation and reservation history
+use the same Europe/Kyiv time and EET/EEST zone label. At the deadline the copy
+becomes available again; the reader can reserve it again if it is still free.
+
+Librarians and administrators set the library-wide collection period at
+`/order/reservations/settings/`, next to **Reservation Desk**. The value is a
+whole number from 1 to 168 hours, defaulting to 48. It applies to new web and API
+reservations; existing holds keep their original deadline. A maximum of three
+active holds, overdue loans, duplicate reservations and copies held by other
+readers are checked in the shared borrowing workflow. See the
+[reservations guide](docs/features/reservations.md) for issuing, cancellations
+and refusal codes.
+
+### Book covers
+
+Book pages show a cover beside the title in a shared light frame: 64 pixels
+wide on small screens and 80 pixels on larger ones, with contained image
+proportions. The nine sample catalog titles use locally bundled Open Library
+images; other titles receive a neutral placeholder. Matching is by trimmed,
+case-insensitive title, so existing sample books need no reseeding or migration.
+
+New titles need a curated image and a manifest entry; there is no automatic
+runtime lookup or upload feature. Sources and image URLs are recorded in
+`library/book/covers.json`. The catalog has no ISBN, so artwork illustrates a
+work rather than guaranteeing the physical edition. See the
+[cover guide](docs/features/book-covers.md) and actual
+[desktop](docs/screenshots/book-covers/desktop.png) /
+[mobile](docs/screenshots/book-covers/mobile.png) screenshots.
+
 ## Book embeddings
 
 Each book receives a multilingual embedding generated from its title and
@@ -429,9 +465,11 @@ The **Forecast** tab (KAN-35, <http://localhost:8000/events/forecast/>) ranks bo
 a 0–100 demand index made of five weighted scores (loans, reservations, interest,
 preferences and stock pressure), forecasts each book's loans for the next 30 days
 and says how many copies to buy ([forecast design](docs/ba/demand-forecast.md)).
-The same figures come from `GET /api/v1/analytics/overview/` (KAN-34): loans and
-returns from orders, interest from these events, with every metric defined in
-[the dashboard design](docs/ba/analytics-dashboard.md).
+The Overview figures also come from `GET /api/v1/analytics/overview/` (KAN-34):
+loans and returns from orders, interest from these events, with every metric
+defined in [the dashboard design](docs/ba/analytics-dashboard.md). The Forecast
+is a separate server-rendered page; its demand index and purchase suggestions
+are transparent weighted rules, not a trained prediction model.
 
 Client events are sent to:
 
@@ -440,8 +478,9 @@ POST /api/v1/events/
 ```
 
 The request accepts a UUID `event_id`, supported `event_type`, `book_id` and
-catalog/book `path`. The same UUID can be retried safely. A successful response
-is `202 Accepted`, which means the event was queued, not necessarily persisted.
+catalog/book `path`, plus optional `search_id` for `book_click` only. The same
+UUID can be retried safely. A successful response is `202 Accepted`, which
+means the event was queued, not necessarily persisted.
 
 ```json
 {
@@ -456,6 +495,23 @@ Tracking is best effort for business actions: a broker outage is logged and
 does not undo an otherwise successful book or order operation. The browser
 keeps at most 50 pending events per user in `sessionStorage` and retries the
 same UUID after temporary network failures.
+
+### Search quality and click attribution
+
+Since KAN-105 and KAN-106, successful web and API searches record the number of
+books actually displayed and the first displayed book's raw cosine similarity.
+Similarity is `null` for empty results or author-only browsing; zero and negative
+values remain valid measurements. Search events retain the existing query,
+trimmed to 200 characters, and the optional author filter. Technical logs redact
+search text; this does not mean the event database contains no search text.
+
+Catalog links from a recorded web search carry its current action UUID. The
+tracking API accepts optional `search_id` only for `book_click`, validates it as a
+UUID and derives a reference bound to the signed-in account. This connects a
+reader's search to the book they open without copying the query into the click.
+Ordinary catalog clicks and older events still work without this reference.
+[Search analytics](docs/features/search-analytics.md) documents the payload,
+identity mapping and asynchronous persistence behavior.
 
 ## Troubleshooting
 
@@ -555,22 +611,40 @@ credentials.
 
 ## Tests and checks
 
-Run Django tests from `library/`:
+Install runtime and development dependencies first. Tests require PostgreSQL
+with pgvector; the database user must be able to create the disposable test
+database. Run Django management commands from `library/`:
 
 ```powershell
-python manage.py test authentication author book order events audit ai
 python manage.py collectstatic --noinput
 python manage.py check
+python manage.py test authentication author book order events audit ai
 ```
 
 Docker smoke checks:
 
 ```bash
-docker compose -f docker-compose-dev.yml exec -T web python manage.py test authentication author book order events audit ai --verbosity 2
+docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python manage.py test authentication author book order events audit ai --verbosity 2
 docker compose -f docker-compose-dev.yml exec -T web python manage.py smoke_test_tracking
 docker compose -f docker-compose-dev.yml exec -T backup library-backup once
 node --test scripts/test_tracking_js.cjs
 ```
+
+The full CI test command enables real-model checks with
+`RUN_BOOK_EMBEDDING_MODEL_TESTS=1` and runs unit-test Celery tasks eagerly with
+`CELERY_TASK_ALWAYS_EAGER=True`. Default local test runs mock the encoder. Real
+queue delivery and recovery use the separate smoke checks with a running broker
+and worker.
+
+**Docker Build** runs on pull requests targeting `main` or `KAN-*`, pushes to
+`main` and version tags. Its five native smoke-test runners cover
+`ubuntu-latest`, `ubuntu-26.04`, `ubuntu-26.04-arm`, `ubuntu-24.04` and
+`ubuntu-24.04-arm`. Checks include the full PostgreSQL suites, HTTP/API smoke
+checks and, on `ubuntu-latest`, browser navigation, ratings, reader preferences,
+the assistant, reservation settings, load, accessibility and sign-in. CodeQL
+checks Actions, JavaScript/TypeScript and Python separately. The current
+[workflow](.github/workflows/docker-build.yml) defines the exact commands;
+test counts and historical measurements in delivery records describe those runs.
 
 CI also restores that backup into a scratch database and compares every table's
 row count with the live database; the operator guide's "Restore into a separate
@@ -642,10 +716,11 @@ job summary and into one comment on the pull request, which each push updates. T
 measure it locally, with the development stack built from your branch:
 
 ```bash
-DC="docker compose -f docker-compose-dev.yml"
-$DC exec -T web sh -c "pip install -q $(grep '^coverage==' requirements-dev.txt) \
-  && coverage run --rcfile=/app/pyproject.toml manage.py test authentication author book order events audit ai \
-  && coverage xml --rcfile=/app/pyproject.toml -o coverage.xml"
+python -m pip install -r requirements-dev.txt
+COVERAGE_REQUIREMENT=$(sed -n '/^coverage==/p' requirements-dev.txt)
+docker compose -f docker-compose-dev.yml exec -T web python -m pip install "$COVERAGE_REQUIREMENT"
+docker compose -f docker-compose-dev.yml exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python -m coverage run --rcfile=/app/pyproject.toml manage.py test authentication author book order events audit ai
+docker compose -f docker-compose-dev.yml exec -T web python -m coverage xml --rcfile=/app/pyproject.toml -o coverage.xml
 git fetch origin main
 (cd library && diff-cover coverage.xml --compare-branch=origin/main)
 ```
@@ -654,7 +729,8 @@ The target is at least 85% of the changed lines. The report does not block a
 merge, because some lines are reasonably left untested, such as code that runs only
 on the Raspberry Pi: a pull request below 85% lists each uncovered line with the
 reason. The settings in `pyproject.toml` leave out migrations, test files and test
-helpers.
+helpers. A strict local delivery check can add `--fail-under=100` (required
+by the `do` workflow); this does not make the advisory CI report a merge gate.
 
 ## Project layout
 
@@ -681,15 +757,58 @@ helpers.
     ├── library/               # settings, URLs, WSGI/ASGI and Celery
     ├── authentication/        # users, roles and authentication
     ├── author/                # author catalog
-    ├── book/                  # books and embeddings
-    ├── order/                 # borrowing workflow
-    ├── events/                # tracking, queue tasks and analytics UI
+    ├── book/                  # catalog, local covers, embeddings, search, preferences and ratings
+    ├── order/                 # loans, reservations and collection-period settings
+    ├── events/                # tracking, search attribution, overview and demand forecast
     ├── audit/                 # audit trail of critical changes, read in the admin site
     └── ai/                    # read-only catalog assistant
 ```
 
 Design decisions are recorded in [docs/adr/](docs/adr/README.md). The technical debt that remains,
 with its owners and evidence, is in the [debt register](docs/shared/debt-register.md).
+
+## Delivery status and plans
+
+Snapshot checked on **2026-11-15** against `origin/main`, merged pull requests,
+the implementation and the existing specifications. This branch also includes
+the book-cover work in [PR #84](https://github.com/Arezzon/Library-Django/pull/84),
+which was still open at this review. A branch feature or an open documentation
+PR is not evidence that the deployed site has it; check the
+[version endpoint](docs/features/deployment-verification.md).
+
+| Workstream | Delivered scope and source | Status at review |
+| --- | --- | --- |
+| Hosting and model delivery | Raspberry Pi / Portainer, portable embedded `bge-m3`, multi-architecture images and deploy confirmation; [plan 001](specs/001-rpi-portainer-deploy/plan.md), [tasks](specs/001-rpi-portainer-deploy/tasks.md) | Completed; deployment and measurements recorded in merged PRs #26, #28 and #29 |
+| Django LTS and dependencies | Django 5.2 LTS, pinned tooling, PostgreSQL 18 and Redis 8; [plan 002](specs/002-django-lts-upgrade/plan.md), [tasks](specs/002-django-lts-upgrade/tasks.md) | Completed; merged PRs #30–#32 and completion record #34 |
+| Priority v1.0 debt / KAN-62 | Access control, reservations, backups, logs/audit, accessibility and administrator role; [plan 003](specs/003-priority-tech-debt/plan.md), [tasks](specs/003-priority-tech-debt/tasks.md) | Completed; KAN-62 closure recorded in merged PR #61 |
+| Discovery and analytics | Semantic search, recommendations with explanations, private preferences/ratings, Ukrainian/English catalog assistant, overview and rule-based demand forecast; [BA contracts](docs/ba/README.md) and [reader walkthrough](docs/features/reader-verification.md) | Implemented in `main`; forecast and overview delivered in PRs #63–#64 |
+| KAN-90 implementation fixes | POST-only logout, safe admin password handling, styled 404s, hidden staff pages, Selenium in CI and complete route-access coverage; [plan 005](specs/005-tech-debt-fixes/plan.md), [tasks](specs/005-tech-debt-fixes/tasks.md) | All four implementation groups merged in PRs #65–#68; specification record merged in #69 |
+| Latest merged improvements | Mobile navigation icons (#77), configurable collection periods (#78), consistent reservation deadlines (#81), advisory coverage reporting (#80), search result metrics (#82) and search-to-click attribution (#83) | Implemented in `main`; see the [changelog](docs/shared/changelog.md) |
+| Book-cover presentation | Nine local covers, neutral fallback and responsive detail header; [cover guide](docs/features/book-covers.md) | Included in this branch; PR #84 awaiting merge at review |
+| Remaining-debt review / plan 004 | KAN-90 Epic and recurring review procedure in [PR #71](https://github.com/Arezzon/Library-Django/pull/71); register decisions in [PR #70](https://github.com/Arezzon/Library-Django/pull/70) | Documentation PRs still open; recurring review T039–T047 and sprint-end T051 remain unchecked in plan 004 |
+
+### Remaining work and accepted limits
+
+The [debt register](docs/shared/debt-register.md) on `main` records **32 closed,
+3 accepted and 2 open items**. No P1 item remains open. Its two open rows are
+TD-18 (the decision on keeping search text) and TD-19 (the English-only UI).
+PR #70 proposes accepting the existing 200-character search history; that
+register update is still pending merge. This is separate from the implemented
+search metrics and click attribution. Sprint 5's plan 004 calls for its final
+remaining-issue review on **2026-11-17**; a checked implementation plan does not
+close that review automatically.
+
+The interface remains in English, although semantic search and assistant
+questions support Ukrainian and English. Backups are copied off the Pi manually
+once a week; audit entries have no automatic retention limit; account creation
+times from before the timestamp fix must not be used for historical reporting.
+These are recorded decisions, not promised future features. Tailwind and fonts
+still load from third-party servers as accepted for this project. Book-cover
+files are bundled static assets, and user uploads are not implemented.
+
+The specifications retain their original design context and measurements. For
+current behavior, use the implementation, linked feature contracts and merged
+PR evidence; for remaining work, use the register and the open review PRs.
 
 ## Deployment
 
