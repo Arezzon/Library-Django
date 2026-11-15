@@ -1,3 +1,7 @@
+2026-11-15
+The debt register records the fourth KAN-90 review (KAN-90)
+The fourth review of the Epic's issues accepts TD-18 permanently: @anastasiiaMirovska decided that analytics keeps the first 200 characters of each catalog search (KAN-92). The text shows what readers look for and the catalog lacks, and lets the team judge the semantic search on real queries; it is kept indefinitely, as TD-25 sets. The two analytics changes the decision asks for are new work outside the register. The "Updated" line now names all four reviews. TD-19 stays open.
+
 2026-11-13
 The debt register records the third KAN-90 review (KAN-90)
 The third review of the Epic's issues confirms that TD-29 and TD-34 are closed: #74 (KAN-81) requires a title for every book, and #73 (KAN-78) makes `Book.remove_authors` remove only the authors it is given. Neither issue linked its PR in a comment. The technical lead accepted the PRs, which name their issues, and waived the fixed SHA and the retest result that KAN-81 asks for. The "Updated" line now names all three reviews. TD-18 and TD-19 stay open.
