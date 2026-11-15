@@ -1,4 +1,8 @@
 2026-11-15
+The debt register records the fifth KAN-90 review (KAN-90)
+The fifth review of the Epic's issues accepts TD-19 permanently: the technical lead decided that translating the interface is out of scope, so it stays in English (KAN-93). That replaces @anastasiiaMirovska's plan to make Ukrainian the default step by step after v2.0. The "Updated" line now names all five reviews. No row is open.
+
+2026-11-15
 README aligned with delivered features and plans
 Review merged pull requests, all five implementation plans, the current code and the debt register. Update reservation policy and deadlines, local book covers, search metrics and click attribution, worker responsibilities, CI and coverage commands. Add an evidence-based delivery snapshot, separate pending review PRs from delivered work, and describe accepted limits. Correct the distinction between the Overview API and the separate rule-based Forecast page.
 
