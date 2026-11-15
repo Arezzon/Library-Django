@@ -3,6 +3,10 @@ Consistent reader reservation deadlines (KAN-87)
 Share the application-zone deadline formatter between reservation confirmation and My Reservations, rendering the stored expiry as semantic time markup. Verify web/API agreement, winter and summer offsets, English and Ukrainian month formatting, policy changes and cancelled/expired states without recalculating existing deadlines.
 
 2026-11-15
+Restore advisory diff coverage reporting in CI
+Revert the strict 100% diff coverage enforcement on pull request checks, restoring diff coverage as an informational report for reviewers. This permits valid pull requests with false positives or unexercised test/utility code without blocking CI.
+
+2026-11-15
 Configurable reservation collection period (KAN-84)
 Add persisted librarian-only reservation duration settings beside Reservation Desk: whole hours from 1 to 168, default 48. Apply the current duration consistently to new web and API reservations while preserving existing deadlines. Replace the fixed 48-hour database constraint with a positive deadline check, update reader-facing wording and API documentation, and cover validation, permissions, CSRF, saved policy labels and deadline behavior. Require 100% changed-line coverage in the existing CI report.
 
