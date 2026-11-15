@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from authentication.permissions import IsLibrarian, IsSignedIn
 
 from .overview import library_overview
+from .searches import search_event_identity
 from .serializers import ClientEventSerializer, OverviewParameters
 from .services import EventQueueUnavailable, make_payload, publish_event
 
@@ -39,6 +40,15 @@ class ClientEventView(APIView):
             event_id=data["event_id"],
             book_id=data["book_id"].pk,
             path=data["path"],
+            properties=(
+                {
+                    "search_id": str(
+                        search_event_identity(request.user.pk, data["search_id"])
+                    )
+                }
+                if "search_id" in data
+                else None
+            ),
         )
         try:
             publish_event(payload)

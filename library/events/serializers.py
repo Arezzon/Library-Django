@@ -14,7 +14,18 @@ class ClientEventSerializer(serializers.Serializer):
         choices=[EventType.BOOK_CLICK, EventType.BORROW_INTENT]
     )
     book_id = serializers.PrimaryKeyRelatedField(queryset=Book.objects.all())
+    search_id = serializers.UUIDField(
+        required=False,
+        help_text="Current search action UUID (X-Search-Event-ID), only for book_click.",
+    )
     path = serializers.RegexField(r"^/book/(?:[0-9]+/)?$", max_length=200)
+
+    def validate(self, attrs):
+        if "search_id" in attrs and attrs["event_type"] != EventType.BOOK_CLICK:
+            raise serializers.ValidationError(
+                {"search_id": "Only book_click can reference a search."}
+            )
+        return attrs
 
     def to_internal_value(self, data):
         if isinstance(data, Mapping):
@@ -22,6 +33,10 @@ class ClientEventSerializer(serializers.Serializer):
             if unknown:
                 raise serializers.ValidationError(
                     dict.fromkeys(sorted(unknown), "Unknown field.")
+                )
+            if "search_id" in data and not isinstance(data["search_id"], str):
+                raise serializers.ValidationError(
+                    {"search_id": "Expected a UUID string."}
                 )
         return super().to_internal_value(data)
 
