@@ -77,8 +77,10 @@ class BookSearchView(GenericAPIView):
         except ValueError:
             return Response({"q": "Invalid query parameter."}, status=400)
         try:
-            books = search_books(
-                Book.objects.with_availability().prefetch_related("authors"), query
+            books = list(
+                search_books(
+                    Book.objects.with_availability().prefetch_related("authors"), query
+                )
             )
         except EmbeddingGenerationError as _error:
             return Response({"detail": "Service temporarily unavailable."}, status=503)
@@ -88,7 +90,7 @@ class BookSearchView(GenericAPIView):
             "Cache-Control": "private, no-store",
         }
         try:
-            record_search(request, identity, query)
+            record_search(request, identity, query, results=books)
         except EventQueueUnavailable:
             headers["Retry-After"] = "5"
             return Response(

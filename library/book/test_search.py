@@ -10,6 +10,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from authentication.models import CustomUser
+from author.models import Author
 
 from .embedding_config import resolve
 from .models import Book, BookEmbedding
@@ -63,6 +64,93 @@ class SemanticSearchTests(TestCase):
         books = list(search_books(Book.objects.all(), "concept"))
         self.assertAlmostEqual(books[0].similarity, 1)
         self.assertAlmostEqual(books[1].similarity, 0)
+
+    def test_web_and_api_record_the_first_score_and_displayed_count(self):
+        for url in ("/book/", "/api/v1/books/search/"):
+            with (
+                self.subTest(url=url),
+                patch("events.searches.publish_event") as publish,
+            ):
+                response = self.client.get(url, {"q": "concept"})
+                self.assertEqual(response.status_code, 200)
+                properties = publish.call_args.args[0]["properties"]
+                self.assertEqual(properties["result_count"], 2)
+                self.assertAlmostEqual(properties["best_similarity"], 1.0)
+                first = (
+                    response.context["books"][0]
+                    if url == "/book/"
+                    else response.json()[0]
+                )
+                score = first.similarity if url == "/book/" else first["similarity"]
+                self.assertEqual(properties["best_similarity"], score)
+
+    def test_zero_and_negative_best_scores_are_not_discarded(self):
+        BookEmbedding.objects.filter(book=self.first).delete()
+        for vector, score in (([0.0, 1.0], 0.0), ([-1.0, 0.0], -1.0)):
+            BookEmbedding.objects.filter(book=self.second).update(
+                vector=vector + [0.0] * (self.spec.dimensions - 2)
+            )
+            for url in ("/book/", "/api/v1/books/search/"):
+                with (
+                    self.subTest(score=score, url=url),
+                    patch("events.searches.publish_event") as publish,
+                ):
+                    self.assertEqual(
+                        self.client.get(url, {"q": "concept"}).status_code, 200
+                    )
+                    self.assertEqual(
+                        publish.call_args.args[0]["properties"]["best_similarity"],
+                        score,
+                    )
+
+    def test_empty_results_have_null_score_and_zero_count(self):
+        BookEmbedding.objects.all().delete()
+        for url in ("/book/", "/api/v1/books/search/"):
+            with (
+                self.subTest(url=url),
+                patch("events.searches.publish_event") as publish,
+            ):
+                self.assertEqual(
+                    self.client.get(url, {"q": "concept"}).status_code, 200
+                )
+                properties = publish.call_args.args[0]["properties"]
+                self.assertEqual(properties["result_count"], 0)
+                self.assertIsNone(properties["best_similarity"])
+
+    def test_author_filter_counts_books_without_encoding_a_query(self):
+        author = Author.objects.create(name="Taras", surname="Shevchenko")
+        self.first.authors.add(author)
+        self.encoder.reset_mock()
+        with patch("events.searches.publish_event") as publish:
+            response = self.client.get("/book/", {"author_id": author.pk})
+        self.assertEqual(response.status_code, 200)
+        properties = publish.call_args.args[0]["properties"]
+        self.assertIsNone(properties["best_similarity"])
+        self.assertEqual(properties["result_count"], 1)
+        self.assertEqual(properties["author_id"], author.pk)
+        self.encoder.embed.assert_not_called()
+
+    def test_metric_count_is_the_result_limit_not_the_catalog_size(self):
+        for index in range(23):
+            Book.objects.create(name=f"Extra result {index}")
+        for url in ("/book/", "/api/v1/books/search/"):
+            with (
+                self.subTest(url=url),
+                patch("events.searches.publish_event") as publish,
+            ):
+                response = self.client.get(url, {"q": "concept"})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    publish.call_args.args[0]["properties"]["result_count"], 20
+                )
+                self.assertEqual(
+                    len(
+                        response.context["books"]
+                        if url == "/book/"
+                        else response.json()
+                    ),
+                    20,
+                )
 
     def test_invalid_queries_do_not_encode(self):
         self.encoder.reset_mock()

@@ -55,7 +55,13 @@ class SearchPersistenceTests(FakeEncoderMixin, TestCase):
                 self.assertEqual(payload["event_type"], EventType.SEARCH)
                 self.assertEqual(payload["source"], "server")
                 self.assertEqual(
-                    payload["properties"], {"query": "poetry", "author_id": None}
+                    payload["properties"],
+                    {
+                        "query": "poetry",
+                        "author_id": None,
+                        "best_similarity": 1.0,
+                        "result_count": 1,
+                    },
                 )
                 self.assertNotIn("never-store", str(payload))
                 self.assertEqual(response["X-Search-Event-ID"], self.identity)
@@ -148,6 +154,36 @@ class SearchPersistenceTests(FakeEncoderMixin, TestCase):
             self.client.get("/api/v1/books/search/", {"q": "poetry" * 50})
         event = UserEvent.objects.get()
         self.assertEqual(len(event.properties["query"]), 200)
-        self.assertEqual(set(event.properties), {"query", "author_id"})
+        self.assertEqual(
+            set(event.properties),
+            {"query", "author_id", "best_similarity", "result_count"},
+        )
         self.assertIsNotNone(_profile(self.reader, timezone.now())[0])
         self.assertIsNone(_profile(self.other, timezone.now())[0])
+
+    def test_metrics_are_persisted_and_legacy_events_still_render(self):
+        from authentication.models import ROLE_LIBRARIAN
+
+        legacy = UserEvent.objects.create(
+            user=self.reader,
+            event_type=EventType.SEARCH,
+            source="server",
+            properties={"query": "legacy words", "author_id": None},
+            occurred_at=timezone.now(),
+        )
+        with patch("events.searches.publish_event", side_effect=persist_event.run):
+            for url in ("/book/", "/api/v1/books/search/"):
+                response = self.client.get(url, {"q": "poetry"})
+                self.assertEqual(response.status_code, 200)
+        recent = list(UserEvent.objects.exclude(pk=legacy.pk))
+        self.assertEqual(len(recent), 2)
+        for event in recent:
+            self.assertEqual(event.properties["result_count"], 1)
+            self.assertAlmostEqual(event.properties["best_similarity"], 1.0)
+            self.assertEqual(event.properties["query"], "poetry")
+        self.reader.role = ROLE_LIBRARIAN
+        self.reader.save()
+        page = self.client.get("/events/activity/")
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "legacy words")
+        self.assertContains(page, "poetry")
