@@ -1,4 +1,8 @@
 2026-11-15
+Attribute book clicks to their search (KAN-106)
+Pass the completed search action ID on desktop/mobile result links independently of the next form ID. Accept a strict optional UUID only for book_click, resolve it to the authenticated reader's stored search event ID and persist the reference. Preserve ordinary clicks, unknown-field rejection, asynchronous delivery and idempotent retries without copying query text.
+
+2026-11-15
 Search result analytics (KAN-105)
 Record the first displayed cosine similarity and the displayed result count in successful web and API search events. Keep null similarity for empty/author-only results, preserve zero/negative scores and the existing result limit, and retain legacy query properties, event identities, recommendations and activity rendering.
 

@@ -39,10 +39,14 @@
         if (!target || target.hasAttribute("disabled")) return;
         const book = Number(target.dataset.bookId);
         if (!Number.isInteger(book) || book <= 0) return;
-        pending.push({time: Date.now(), body: {
+        const body = {
             event_id: window.crypto.randomUUID(), event_type: target.dataset.trackEvent,
             book_id: book, path: window.location.pathname
-        }});
+        };
+        if (target.dataset.trackEvent === "book_click" && target.dataset.searchId) {
+            body.search_id = target.dataset.searchId;
+        }
+        pending.push({time: Date.now(), body});
         pending = pending.slice(-50);
         save();
         void flush();
