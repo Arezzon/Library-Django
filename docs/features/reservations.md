@@ -1,6 +1,6 @@
 # Reservations
 
-A reservation holds one copy of a book for a reader for 48 hours, so that it is still there when
+A reservation holds one copy of a book for a reader for the configured collection period (48 hours by default), so that it is still there when
 they come to the desk. It holds a copy, not a particular one: any copy of the book will do. Every
 loan starts with a librarian: readers reserve, and librarians issue the reserved book or lend one
 directly.
@@ -10,7 +10,7 @@ directly.
 ### Reserving a book
 
 1. Open the book's page in the catalog.
-2. If a copy is available, choose **Reserve for 48 Hours**.
+2. If a copy is available, choose **Reserve for N Hours** (the current period).
 
 The reservation is active at once; no librarian needs to approve it. **My reservations**
 (`/order/reservations/`) lists it with the time you reserved, its deadline in Kyiv time with the
@@ -28,9 +28,9 @@ My reservations says what comes next for each reservation:
 - **Expired**: reserve it again if a copy is available.
 - **Cancelled**: whether you or the library cancelled it, and the library's reason.
 
-### The 48 hours
+### The collection period
 
-- The deadline is exactly 48 hours after you reserve.
+- The deadline is the creation instant plus the configured number of elapsed hours, saved once in `expires_at`.
 - Collect the book from a librarian before the deadline. The librarian issues it, and your
   reservation becomes the loan.
 - At the deadline the reservation expires. The copy is free again at once, and My reservations
@@ -108,7 +108,7 @@ damaged; please reserve another book."
 
 A reader with an overdue loan, one not returned by its due date, is neither issued a reserved book
 nor lent one. The message names the overdue book and its due date: they return it first. There is
-no override. If the overdue book is not returned within the reservation's 48 hours, the
+no override. If the overdue book is not returned within the reservation's collection period, the
 reservation expires.
 
 ### Corrections
@@ -162,3 +162,28 @@ simultaneous reservations for one copy, 20 times, on every pull request, and fai
 one succeeds each time. On the Raspberry Pi, the operator also times reserving, issuing and
 cancelling while 30 readers reserve at once; see "Check reservations under load" in the
 [operator guide](../deployment/raspberry-pi-portainer.md#check-reservations-under-load).
+
+## Reservation duration settings (KAN-84)
+
+Open **Reservation Desk → Reservation Settings** (`/order/reservations/settings/`).
+Librarians and administrators can read and save a whole number of **1–168 hours**;
+the default is **48 hours**. The loan duration of 1–30 days is a separate rule.
+The setting persists in the database and takes effect on the next reservation from
+both the website and API. Existing reservations, including active ones, retain their
+recorded deadline: shortening or extending the policy never changes their stock hold.
+No application restart is required and no personal reader data is exposed.
+
+The settings form requires a session, librarian permissions and a valid CSRF token.
+Readers receive 404; guests are sent to sign in. Invalid values return the form with
+HTTP 400 and do not change the stored policy. The database also enforces the range
+and a single settings record. Reservation rows require `expires_at > created_at`.
+
+Demo: save 1 hour, reserve an available book as a reader, and verify a one-hour
+interval between `created_at` and `expires_at`. Save 168 hours and reserve a different
+book: its interval is seven days while the first reservation is unchanged. Values
+0, 169 and 1.5 must be rejected; restore 48 afterwards if that is the desired policy.
+
+Migration `0006_reservation_settings` preserves all existing rows and deadlines.
+A downgrade to `0005` reinstates the old exact-48-hour constraint and is only
+possible if every remaining reservation satisfies it; it does not rewrite deadlines
+to make a downgrade succeed.

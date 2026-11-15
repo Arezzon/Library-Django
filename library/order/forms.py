@@ -4,7 +4,7 @@ from authentication.models import CustomUser
 from book.models import Book
 from library.forms_mixins import TailwindFormMixin
 
-from .models import DELETED_READER, Order
+from .models import DELETED_READER, Order, ReservationSettings
 from .services import REASON_LENGTH, REASON_RULE
 
 
@@ -83,3 +83,16 @@ class OrderUpdateForm(TailwindFormMixin, forms.ModelForm):
             "plated_end_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             "end_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
         }
+
+
+class ReservationSettingsForm(TailwindFormMixin, forms.ModelForm):
+    hours = forms.IntegerField(
+        min_value=1,
+        max_value=168,
+        label="Reservation duration (hours)",
+        help_text="1–168 hours.",
+    )
+
+    class Meta:
+        model = ReservationSettings
+        fields = ["hours"]

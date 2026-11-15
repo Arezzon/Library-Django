@@ -82,6 +82,7 @@ body, or 409 for a refused reservation.
 | `/book/delete/<id>/` (GET) | Redirect to sign-in | 404 (KAN-80) | The confirmation page, from PR 10 |
 | `/book/delete/<id>/` (POST) | Redirect to sign-in | 404 (KAN-80) | Deletes, or refuses if the book has history |
 | `/author/`, `/author/create/`, `/author/update/<id>/`, `/author/delete/<id>/` | Redirect to sign-in | 404 (KAN-80) | The page. From PR 10, a GET of `/author/delete/<id>/` asks for confirmation and a POST deletes. |
+| `/order/reservations/settings/` (KAN-84, GET/POST) | Redirect to sign-in | 404 | View or save the collection period; invalid POST: 400; CSRF required |
 | `/order/my/` | Redirect to sign-in | Own loans | Own loans |
 | `/order/create/<book_id>/` | Redirect to sign-in | Self-loan until PR 6. From PR 6, redirect to the book page. | The lend form, from PR 6 |
 | `/order/all/`, `/order/update/<id>/`, `/order/close/<id>/` | Redirect to sign-in | 404 (KAN-80) | The page. From PR 10, a GET of `/order/close/<id>/` asks for confirmation and a POST records the return. |

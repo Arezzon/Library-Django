@@ -166,16 +166,16 @@ jobs:
           $dc exec -T -e RUN_BOOK_EMBEDDING_MODEL_TESTS=1 -e CELERY_TASK_ALWAYS_EAGER=True web python -m coverage run --rcfile=/app/pyproject.toml manage.py test authentication author book order events audit ai --verbosity 2 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
           $dc exec -T web python -m coverage xml --rcfile=/app/pyproject.toml -o coverage.xml
 
-      # Coverage of the lines the pull request adds or changes (FR-051). A report
-      # for reviewers, never a gate: the 85% target allows listed exceptions.
-      - name: Report coverage of the changed lines
+      # Every added or changed executable line must be covered.
+      - name: Require 100 percent coverage of the changed lines
         if: matrix.runner == 'ubuntu-latest' && github.event_name == 'pull_request'
-        continue-on-error: true
         working-directory: library
         run: |
           python -m pip install --quiet "$(grep '^diff-cover==' ../requirements-dev.txt)"
-          diff-cover coverage.xml --compare-branch=origin/main --format markdown:../diff-coverage.md
+          diff_coverage_status=0
+          diff-cover coverage.xml --compare-branch=origin/main --fail-under=100 --format markdown:../diff-coverage.md || diff_coverage_status=$?
           cat ../diff-coverage.md >> "$GITHUB_STEP_SUMMARY"
+          exit "$diff_coverage_status"
 
       # One comment per pull request, updated by each push. A fork's read-only token
       # cannot comment; the job summary still has the report.
@@ -253,6 +253,7 @@ jobs:
           node scripts/browser/smoke_assistant.cjs
           node scripts/browser/smoke_ratings.cjs
           node scripts/browser/smoke_mobile_menu.cjs
+          node scripts/browser/smoke_reservation_settings.cjs
 
       # FR-042: axe finds no WCAG 2.2 level A or AA violation on the main pages, signed in
       # as the demo reader and librarian. The check reserves a book for the reader and

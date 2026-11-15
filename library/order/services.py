@@ -8,7 +8,7 @@ are checked one after another. The rules run in R13's order, the first that fail
 reported, and a refusal changes nothing.
 """
 
-from datetime import timedelta
+from datetime import UTC, timedelta
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
@@ -25,6 +25,7 @@ from .models import (
     BookUnavailableError,
     Order,
     Reservation,
+    ReservationSettings,
     ReservationState,
     as_text,
 )
@@ -192,7 +193,7 @@ def next_step(reservation, now):
         return f"On loan. Return it by {local(loan.plated_end_at, DATE)}."
     again = "Reserve it again if a copy is available."
     if state == ReservationState.EXPIRED:
-        return f"The 48 hours ended. {again}"
+        return f"The reservation period ended. {again}"
     if reservation.cancelled_by_reader:
         return f"You cancelled it. {again}"
     return f"The library cancelled it on {local(reservation.cancelled_at)}. {again}"
@@ -292,7 +293,7 @@ def expire_due(now, *, reader=None, book=None):
 
 
 def reserve(reader, book, *, now=None):
-    """Reserve ``book`` for ``reader`` for 48 hours, or raise ReservationRefused."""
+    """Reserve ``book`` for ``reader`` for the current policy period, or raise ReservationRefused."""
     now = now or timezone.now()
     with transaction.atomic():
         reader, book = lock(reader.pk, book.pk)
@@ -300,7 +301,13 @@ def reserve(reader, book, *, now=None):
         refused = check(reader, book, now, reserving=True)
         if refused is not None:
             raise refused
-        reservation = Reservation.objects.create(user=reader, book=book, created_at=now)
+        reservation = Reservation.objects.create(
+            user=reader,
+            book=book,
+            created_at=now,
+            expires_at=now.astimezone(UTC)
+            + timedelta(hours=ReservationSettings.current_hours()),
+        )
         record(
             "reservation_created",
             "reservation",
