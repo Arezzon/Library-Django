@@ -1,6 +1,6 @@
 ﻿{
     "schema_version":  1,
-    "updated_at":  "2026-11-13T14:00:36.4458649Z",
+    "updated_at":  "2026-11-15T00:52:54.1774474Z",
     "feature_directory":  "specs/004-tech-debt-jira-epic",
     "source_of_truth":  {
                             "constitution":  ".specify/memory/constitution.md",
@@ -20,12 +20,12 @@
                          "finishing-a-development-branch"
                      ],
     "status":  "blocked",
-    "blocked_reason":  "Waiting for the next review round: KAN-92 and KAN-93 (TD-18, TD-19) are in Idea. T039-T047 repeat until 2026-11-17, when T051 is due. Round 3 (2026-11-13) closed TD-29 and TD-34 in #70.",
+    "blocked_reason":  "Waiting for the next review round: KAN-93 (TD-19) is in Idea. T039-T047 repeat until 2026-11-17, when T051 is due. Round 4 (2026-11-15) accepted TD-18 in #70 (151173b); its follow-ups are KAN-105 and KAN-106, outside KAN-90.",
     "artifact_owner":  "claude",
     "review_only_agents":  [
 
                            ],
     "notes":  null,
-    "last_snapshot_id":  "20261113T1400364374820Z-blocked",
+    "last_snapshot_id":  "20261115T0052541690760Z-blocked",
     "instructions":  "Use /speckit-superpowers-bridge (Claude Code) or $speckit-superpowers-bridge (Codex). The bridge orchestrates native Superpowers skills against tasks.md; do not run speckit.implement and do not invoke superpowers:writing-plans / :brainstorming for an active Spec Kit feature."
 }
