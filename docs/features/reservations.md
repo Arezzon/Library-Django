@@ -187,3 +187,17 @@ Migration `0006_reservation_settings` preserves all existing rows and deadlines.
 A downgrade to `0005` reinstates the old exact-48-hour constraint and is only
 possible if every remaining reservation satisfies it; it does not rewrite deadlines
 to make a downgrade succeed.
+
+## The displayed deadline (KAN-87)
+
+The creation confirmation and the **Deadline** column in **My Reservations** use
+one formatter: `j M Y, H:i T` in the application's active time zone (Europe/Kyiv
+by default), including EET/EEST. The month's abbreviation follows the active
+language. Both render the reservation's stored `expires_at`, never a calculation
+from the current settings. The table includes a semantic `<time datetime="…">`
+with an ISO 8601 value matching the same instant returned by the API.
+
+Changing the policy affects new reservations only. Cancelled and expired rows
+keep their deadline; a cancellation stays cancelled after that deadline passes.
+At the exact deadline an unissued active hold reads **Expired**, even before the
+expiry worker runs, and no longer shows a time-left label.
