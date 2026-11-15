@@ -1,4 +1,8 @@
 2026-11-15
+README aligned with delivered features and plans
+Review merged pull requests, all five implementation plans, the current code and the debt register. Update reservation policy and deadlines, local book covers, search metrics and click attribution, worker responsibilities, CI and coverage commands. Add an evidence-based delivery snapshot, separate pending review PRs from delivered work, and describe accepted limits. Correct the distinction between the Overview API and the separate rule-based Forecast page.
+
+2026-11-15
 Compact book covers
 Show locally bundled Open Library covers for the nine sample catalog titles in a compact, responsive frame on book detail pages. Preserve image proportions, provide a neutral placeholder for unknown titles, and retain source URLs in the cover manifest. No database migration or runtime image service is required.
 
