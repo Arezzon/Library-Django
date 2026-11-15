@@ -117,10 +117,11 @@ def reserve(request: HttpRequest, book_id: int) -> HttpResponse:
     except services.ReservationRefused as refused:
         messages.error(request, refused.message)
         return redirect("book_detail", book_id=book.id)
+    # The list's reservation_deadline filter shares this formatter and stored value.
+    deadline = services.local(reservation.expires_at)
     messages.success(
         request,
-        f"Reserved “{book.name}”. Collect it from a librarian before "
-        f"{services.local(reservation.expires_at)}.",
+        f"Reserved “{book.name}”. Collect it from a librarian before {deadline}.",
     )
     return redirect("reservation_my")
 
