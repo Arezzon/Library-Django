@@ -7,7 +7,7 @@ Retest of the fix: when a reader's account is deleted, the library's loans and r
 | Build | 9ee1369 (first run: 5edca17) |
 | Date | 2026-11-16 |
 | Account | librarian (`librarian@library.com`); readers are temporary test accounts |
-| Executed | by script in Chrome and through the API |
+
 
 **Preparation:** a fresh `main`, local run, migrations applied. Sign in as a librarian. Use separate test accounts and delete only those. The site has no button to delete a user, so accounts are deleted in the admin site (Custom users) or through the API. Take a database backup before running the cases.
 
