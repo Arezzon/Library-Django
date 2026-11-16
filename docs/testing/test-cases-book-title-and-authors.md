@@ -7,7 +7,7 @@ Retest of two fixes: a book must have a title, and removing authors from a book 
 | Build | 9ee1369 (first run: 5edca17) |
 | Date | 2026-11-16 |
 | Account | librarian (`librarian@library.com`) |
-| Executed | by script in Chrome and through the developer console; the admin part of TC-7 by hand |
+
 
 **Preparation:** a fresh `main`, local run, migrations applied. Sign in as a librarian. For the API, use the Swagger page at `/api/docs/` in the same browser after signing in (session and CSRF token). Create temporary books for the checks and delete them afterwards.
 
