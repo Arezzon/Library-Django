@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-03
 
-**Status**: Published 2026-11-03 (KAN-90)
+**Status**: Published 2026-11-03 (KAN-90). Completed 2026-11-16: all 16 issues are Done, and the register records every review.
 
 **Input**: User description: "Create Epic on Jira for current sprint to deal with rest of tech debt, for every open item in tech debt create Task or Bug in this Epic and assign corespondent people, in description write what assigne should do or if this is decision TD then decision subject and options. Also in description include feedback instruction: when comleted if this is task required code change then assigne should move task to In Review and leave link to PR that closes this Task in comments so latter you can review all of them and update tech debt using this as evidence, if this is decision Task then assigne should answer with decision in comments and place task In Review."
 

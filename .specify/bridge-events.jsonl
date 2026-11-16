@@ -272,3 +272,11 @@
 
 {"timestamp":"2026-11-15T00:52:54.1836820Z","action":"handoff","status":"blocked","feature_directory":"specs/004-tech-debt-jira-epic","decision":"updated","reason":"Waiting for the next review round: KAN-93 (TD-19) is in Idea. T039-T047 repeat until 2026-11-17, when T051 is due. Round 4 (2026-11-15) accepted TD-18 in #70 (151173b); its follow-ups are KAN-105 and KAN-106, outside KAN-90.","actor":"claude","prior_actor":"claude","snapshot_id":"20261115T0052541690760Z-blocked"}
 
+{"timestamp":"2026-11-15T18:46:53.2532787Z","action":"handoff","status":"executing","feature_directory":"specs/004-tech-debt-jira-epic","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261115T1846531908906Z-executing"}
+
+{"timestamp":"2026-11-15T18:46:53.5491632Z","action":"guard","status":"allow","feature_directory":"specs/004-tech-debt-jira-epic","decision":"allow","reason":"","actor":"claude","checked_action":"superpowers:executing-plans"}
+
+{"timestamp":"2026-11-15T18:51:24.7904297Z","action":"handoff","status":"blocked","feature_directory":"specs/004-tech-debt-jira-epic","decision":"updated","reason":"Waiting for KAN-93 to move to Done and for #70 to merge. Round 5 (2026-11-15) accepted TD-19 in #70 (05aa757), so no register row is open. T039-T047 repeat until 2026-11-17, when T051 is due.","actor":"claude","prior_actor":"claude","snapshot_id":"20261115T1851247723575Z-blocked"}
+
+{"timestamp":"2026-11-16T04:47:41.9516827Z","action":"handoff","status":"complete","feature_directory":"specs/004-tech-debt-jira-epic","decision":"updated","reason":"","actor":"claude","prior_actor":"claude","snapshot_id":"20261116T0447418919630Z-complete"}
+

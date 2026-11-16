@@ -423,27 +423,27 @@ the issue and its comments, and confirm the row passes the register's rules.
 These tasks repeat for each round of reviews, from now to the end of sprint 5. The procedure is in
 [contracts/review-and-register.md](contracts/review-and-register.md).
 
-- [ ] T039 [US3] Find issues waiting for review with `searchJiraIssuesUsingJql`:
+- [X] T039 [US3] Find issues waiting for review with `searchJiraIssuesUsingJql`:
   `parent = <Epic key> AND status = "In Review" ORDER BY updated ASC`. List each one
   under "Reviews" in `specs/004-tech-debt-jira-epic/drafts/README.md`, with the date it reached In
   Review (`statuscategorychangedate`, or `listJiraIssueChangelogs`).
-- [ ] T040 [P] [US3] For each change issue found, read its comments with `listJiraIssueComments` and
+- [X] T040 [P] [US3] For each change issue found, read its comments with `listJiraIssueComments` and
   take the PR link.
   - Run `gh pr view <number> --json state,mergedAt,baseRefName,statusCheckRollup,title,url,files`.
   - The evidence holds only if all of these are true: the PR is merged into `main`, its checks passed,
     and its files and description cover the issue's "Готово, коли".
   - Record the verdict and the reason under "Reviews" in
     `specs/004-tech-debt-jira-epic/drafts/README.md`.
-- [ ] T041 [P] [US3] For each decision issue found, read its comments.
+- [X] T041 [P] [US3] For each decision issue found, read its comments.
   - The evidence holds only if the deciding owner's account (research R1) wrote it, it names an option
     (or one of its own) with a reason, and it has a review date when the debt stays as it is.
   - Record the verdict and the reason under "Reviews" in
     `specs/004-tech-debt-jira-epic/drafts/README.md`.
-- [ ] T042 [US3] For each issue whose evidence does not hold:
+- [X] T042 [US3] For each issue whose evidence does not hold:
   - Draft a Ukrainian comment that names what is missing, show it to the technical lead, and post it
     with `addOrEditJiraIssueComment` after approval.
   - Leave the register row and the status unchanged; the assignee moves the issue back to In Progress.
-- [ ] T043 [US3] For the issues whose evidence holds, prepare one register update on a branch made
+- [X] T043 [US3] For the issues whose evidence holds, prepare one register update on a branch made
   with `.agents/skills/fresh-feature-branch/SKILL.md`.
   - In `docs/shared/debt-register.md`, change each row per the outcomes table of
     [contracts/review-and-register.md](contracts/review-and-register.md#outcomes), citing the Jira key and
@@ -452,19 +452,19 @@ These tasks repeat for each round of reviews, from now to the end of sprint 5. T
   - TD-21's forecasting half closes with #64.
   - Add one entry to `docs/shared/changelog.md`.
   - Name people only by handle.
-- [ ] T044 [US3] When the technical lead asks for the update to be committed or opened as a PR, use
+- [X] T044 [US3] When the technical lead asks for the update to be committed or opened as a PR, use
   `.agents/skills/preview-commit/SKILL.md`, then `.agents/skills/preview-pr/SKILL.md`. The PR follows
   `.github/PULL_REQUEST_TEMPLATE.md` and the title format `docs(shared): …`.
-- [ ] T045 [US3] After the register PR merges, draft one Ukrainian comment per resolved issue: the
+- [X] T045 [US3] After the register PR merges, draft one Ukrainian comment per resolved issue: the
   register PR's link, and a note that the assignee can now move the issue to Done. Show the comments to
   the technical lead, post them after approval, and record them under "Reviews". Never change a status.
-- [ ] T046 [US3] For each decision whose outcome is a change (FR-014):
+- [X] T046 [US3] For each decision whose outcome is a change (FR-014):
   - Draft `specs/004-tech-debt-jira-epic/drafts/TD-NN-change.md` in the change format, with
     `_feedback-change.md` appended, assigned to the owner named in the new plan.
   - Get approval, then create the issue with `createJiraIssue` under the Epic, in the active sprint, with
     labels `tech-debt, td-NN`.
   - Record its key under "Published", and cite it in the register row.
-- [ ] T047 [US3] Check SC-007 for each issue that reached In Review: within 2 days, its row was
+- [X] T047 [US3] Check SC-007 for each issue that reached In Review: within 2 days, its row was
   updated or it got a "what is missing" comment. Record late ones under "Reviews" with the reason.
 
 **Checkpoint**: every issue that reached In Review is reflected in the register or has a clear request
@@ -483,7 +483,7 @@ for what is missing.
   `docs/shared/changelog.md`, using `.agents/skills/preview-commit/SKILL.md`. Open the PR with
   `.agents/skills/preview-pr/SKILL.md`. Run `ruff check .` and `black --check .` first, as `AGENTS.md`
   requires; no Python changes are expected.
-- [ ] T051 At the end of sprint 5 (2026-11-17), list the Epic's issues that are not Done.
+- [X] T051 At the end of sprint 5 (2026-11-17), list the Epic's issues that are not Done.
   - Record their rows in `docs/shared/debt-register.md` as `open`, with the reason, through the Phase 4
     register flow.
   - Ask the technical lead before moving the Epic, which is the technical lead's own issue. Report which

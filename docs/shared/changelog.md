@@ -1,3 +1,7 @@
+2026-11-16
+The KAN-90 debt Epic's specification (KAN-90)
+Spec 004 records how the 16 open items of the debt register became one Jira Epic, KAN-90, in sprint 5. Each item has one issue, assigned to its owner. A code change says what to do and when it is done, and a decision gives its subject and options. Every issue ends with the same reporting rule: a PR link, or the decision with its reason, then In Review. The specification, plan, research, data model, issue-text and review contracts, quickstart and tasks are included, with the bridge snapshots and the handoff, which is now complete: all 16 issues are Done, and the register records all five review rounds. People are named by GitHub handle, and no Jira account ID is recorded. The issue drafts and the working record stay out of the repository.
+
 2026-11-15
 The debt register records the fifth KAN-90 review (KAN-90)
 The fifth review of the Epic's issues accepts TD-19 permanently: the technical lead decided that translating the interface is out of scope, so it stays in English (KAN-93). That replaces @anastasiiaMirovska's plan to make Ukrainian the default step by step after v2.0. The "Updated" line now names all five reviews. No row is open.
@@ -41,10 +45,6 @@ The fourth review of the Epic's issues accepts TD-18 permanently: @anastasiiaMir
 2026-11-13
 The debt register records the third KAN-90 review (KAN-90)
 The third review of the Epic's issues confirms that TD-29 and TD-34 are closed: #74 (KAN-81) requires a title for every book, and #73 (KAN-78) makes `Book.remove_authors` remove only the authors it is given. Neither issue linked its PR in a comment. The technical lead accepted the PRs, which name their issues, and waived the fixed SHA and the retest result that KAN-81 asks for. The "Updated" line now names all three reviews. TD-18 and TD-19 stay open.
-
-2026-11-13
-The KAN-90 debt Epic's specification (KAN-90)
-Spec 004 records how the 16 open items of the debt register became one Jira Epic, KAN-90, in sprint 5. Each item has one issue, assigned to its owner. A code change says what to do and when it is done, and a decision gives its subject and options. Every issue ends with the same reporting rule: a PR link, or the decision with its reason, then In Review. The specification, plan, research, data model, issue-text and review contracts, quickstart and tasks are included, with the bridge snapshots and the handoff, which waits for the Epic's next review round. People are named by GitHub handle, and no Jira account ID is recorded. The issue drafts and the working record stay out of the repository.
 
 2026-11-13
 Repository cleanup and documentation refresh
