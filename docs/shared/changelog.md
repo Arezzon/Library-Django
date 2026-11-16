@@ -1,4 +1,8 @@
 2026-11-15
+The debt register records the fifth KAN-90 review (KAN-90)
+The fifth review of the Epic's issues accepts TD-19 permanently: the technical lead decided that translating the interface is out of scope, so it stays in English (KAN-93). That replaces @anastasiiaMirovska's plan to make Ukrainian the default step by step after v2.0. The "Updated" line now names all five reviews. No row is open.
+
+2026-11-15
 README aligned with delivered features and plans
 Review merged pull requests, all five implementation plans, the current code and the debt register. Update reservation policy and deadlines, local book covers, search metrics and click attribution, worker responsibilities, CI and coverage commands. Add an evidence-based delivery snapshot, separate pending review PRs from delivered work, and describe accepted limits. Correct the distinction between the Overview API and the separate rule-based Forecast page.
 
@@ -29,6 +33,14 @@ Add persisted librarian-only reservation duration settings beside Reservation De
 2026-11-15
 Consistent mobile menu icons (KAN-83)
 Add decorative outline icons to authentication and remaining mobile navigation items. Reuse one 16px icon size and spacing with current-color strokes, hide decorative SVGs from assistive technology and identify the controlled disclosure. Keep long menus scrollable within the viewport. Preserve link labels, destinations, role visibility and the CSRF-protected logout action. Add CI browser coverage for all three roles at 320px and 375px, including keyboard navigation and accessibility.
+
+2026-11-15
+The debt register records the fourth KAN-90 review (KAN-90)
+The fourth review of the Epic's issues accepts TD-18 permanently: @anastasiiaMirovska decided that analytics keeps the first 200 characters of each catalog search (KAN-92). The text shows what readers look for and the catalog lacks, and lets the team judge the semantic search on real queries; it is kept indefinitely, as TD-25 sets. The two analytics changes the decision asks for are new work outside the register. The "Updated" line now names all four reviews. TD-19 stays open.
+
+2026-11-13
+The debt register records the third KAN-90 review (KAN-90)
+The third review of the Epic's issues confirms that TD-29 and TD-34 are closed: #74 (KAN-81) requires a title for every book, and #73 (KAN-78) makes `Book.remove_authors` remove only the authors it is given. Neither issue linked its PR in a comment. The technical lead accepted the PRs, which name their issues, and waived the fixed SHA and the retest result that KAN-81 asks for. The "Updated" line now names all three reviews. TD-18 and TD-19 stay open.
 
 2026-11-13
 Repository cleanup and documentation refresh
