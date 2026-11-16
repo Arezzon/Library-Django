@@ -769,46 +769,49 @@ with its owners and evidence, is in the [debt register](docs/shared/debt-registe
 
 ## Delivery status and plans
 
-Snapshot checked on **2026-11-15** against `origin/main`, merged pull requests,
-the implementation and the existing specifications. This branch also includes
-the book-cover work in [PR #84](https://github.com/Arezzon/Library-Django/pull/84),
-which was still open at this review. A branch feature or an open documentation
-PR is not evidence that the deployed site has it; check the
-[version endpoint](docs/features/deployment-verification.md).
+On **2026-11-16**, all **30 of 30 Sprint 5 work items** were Done in Jira
+(22 tasks, 7 bugs and 1 epic). Across the project, all **104 of 104** items were
+Done, including all subtasks and epics. The scheduled sprint end is November 17.
 
-| Workstream | Delivered scope and source | Status at review |
+| Workstream | Delivered scope and source | Delivery evidence |
 | --- | --- | --- |
 | Hosting and model delivery | Raspberry Pi / Portainer, portable embedded `bge-m3`, multi-architecture images and deploy confirmation; [plan 001](specs/001-rpi-portainer-deploy/plan.md), [tasks](specs/001-rpi-portainer-deploy/tasks.md) | Completed; deployment and measurements recorded in merged PRs #26, #28 and #29 |
 | Django LTS and dependencies | Django 5.2 LTS, pinned tooling, PostgreSQL 18 and Redis 8; [plan 002](specs/002-django-lts-upgrade/plan.md), [tasks](specs/002-django-lts-upgrade/tasks.md) | Completed; merged PRs #30–#32 and completion record #34 |
 | Priority v1.0 debt / KAN-62 | Access control, reservations, backups, logs/audit, accessibility and administrator role; [plan 003](specs/003-priority-tech-debt/plan.md), [tasks](specs/003-priority-tech-debt/tasks.md) | Completed; KAN-62 closure recorded in merged PR #61 |
 | Discovery and analytics | Semantic search, recommendations with explanations, private preferences/ratings, Ukrainian/English catalog assistant, overview and rule-based demand forecast; [BA contracts](docs/ba/README.md) and [reader walkthrough](docs/features/reader-verification.md) | Implemented in `main`; forecast and overview delivered in PRs #63–#64 |
 | KAN-90 implementation fixes | POST-only logout, safe admin password handling, styled 404s, hidden staff pages, Selenium in CI and complete route-access coverage; [plan 005](specs/005-tech-debt-fixes/plan.md), [tasks](specs/005-tech-debt-fixes/tasks.md) | All four implementation groups merged in PRs #65–#68; specification record merged in #69 |
-| Latest merged improvements | Mobile navigation icons (#77), configurable collection periods (#78), consistent reservation deadlines (#81), advisory coverage reporting (#80), search result metrics (#82) and search-to-click attribution (#83) | Implemented in `main`; see the [changelog](docs/shared/changelog.md) |
-| Book-cover presentation | Nine local covers, neutral fallback and responsive detail header; [cover guide](docs/features/book-covers.md) | Included in this branch; PR #84 awaiting merge at review |
-| Remaining-debt review / plan 004 | KAN-90 Epic and recurring review procedure in [PR #71](https://github.com/Arezzon/Library-Django/pull/71); register decisions in [PR #70](https://github.com/Arezzon/Library-Django/pull/70) | Documentation PRs still open; recurring review T039–T047 and sprint-end T051 remain unchecked in plan 004 |
+| Reader and librarian workflows | Mobile navigation icons (#77), librarian-configurable reservation holds (1–168 hours, default 48, #78), consistent reservation deadlines (#81), advisory coverage reporting (#80), search result metrics (#82) and search-to-click attribution (#83) | Merged into `main`. See the [changelog](docs/shared/changelog.md) |
+| Book-cover presentation | Nine bundled covers, a neutral fallback and a responsive book-detail header. See the [cover guide](docs/features/book-covers.md). | [PR #84](https://github.com/Arezzon/Library-Django/pull/84) merged |
+| Remaining-debt review | The team reviewed all 16 items in the debt epic. The [Spec Kit checklist](specs/004-tech-debt-jira-epic/tasks.md) records the final review. | [Register decisions #70](https://github.com/Arezzon/Library-Django/pull/70) and [review record #71](https://github.com/Arezzon/Library-Django/pull/71) merged |
+
+### Verification and deployment
+
+| Evidence | Result on November 16 |
+| --- | --- |
+| [Manual acceptance checklist](docs/testing/acceptance-checklist-v2.0.md) and [QA report](docs/testing/test-summary-report-v2.0.md) on `9ee1369` | 40/40 scenarios passed, including all 26 release-critical scenarios. All 15 defect retests and all 3 targeted feature checks passed. QA recorded one cosmetic issue on the librarian’s **Lend Directly** page (truncated heading) and no critical or serious defects. |
+| [CI test job](https://github.com/Arezzon/Library-Django/actions/runs/43864941189/job/133290961585) on `a234b47` | All 765 tests passed, including four Selenium browser tests. The axe scan reported zero automated violations across 45 pages. [PR #85](https://github.com/Arezzon/Library-Django/pull/85) added the QA report. |
+| [Deployment confirmation](https://github.com/Arezzon/Library-Django/actions/runs/43864941189/job/133295832077) | After Portainer redeployed the multi-architecture image, the site reported `a234b47` through the [version endpoint](docs/features/deployment-verification.md). |
+
+QA recommends release. The test lead and product owner decision fields in the
+[QA report](docs/testing/test-summary-report-v2.0.md#6-approval) were still blank
+at this checkpoint.
 
 ### Remaining work and accepted limits
 
-The [debt register](docs/shared/debt-register.md) on `main` records **32 closed,
-3 accepted and 2 open items**. No P1 item remains open. Its two open rows are
-TD-18 (the decision on keeping search text) and TD-19 (the English-only UI).
-PR #70 proposes accepting the existing 200-character search history; that
-register update is still pending merge. This is separate from the implemented
-search metrics and click attribution. Sprint 5's plan 004 calls for its final
-remaining-issue review on **2026-11-17**; a checked implementation plan does not
-close that review automatically.
+The [debt register](docs/shared/debt-register.md) records **32 closed, 5 accepted
+and 0 open items**. The five accepted limits describe the operating envelope of
+this release.
 
-The interface remains in English, although semantic search and assistant
-questions support Ukrainian and English. Backups are copied off the Pi manually
-once a week; audit entries have no automatic retention limit; account creation
-times from before the timestamp fix must not be used for historical reporting.
-These are recorded decisions, not promised future features. Tailwind and fonts
-still load from third-party servers as accepted for this project. Book-cover
-files are bundled static assets, and user uploads are not implemented.
+| Item | Operating limit |
+| --- | --- |
+| TD-17 · backups | An operator copies backups off the Raspberry Pi weekly. If the Pi fails between copies, up to one week of changes can be lost. See the [operator guide](docs/deployment/raspberry-pi-portainer.md). |
+| TD-18 · search history | Analytics retains up to the first 200 characters of each recorded search query. |
+| TD-19 · interface language | The interface is in English. Semantic search and the catalog assistant support Ukrainian and English. |
+| TD-25 · audit retention | Audit records have no automatic expiry and can retain a user's name after account deletion. |
+| TD-26 · historical account dates | Creation timestamps for accounts that predate the fix are unreliable for historical reporting. |
 
-The specifications retain their original design context and measurements. For
-current behavior, use the implementation, linked feature contracts and merged
-PR evidence; for remaining work, use the register and the open review PRs.
+Tailwind and fonts load from third-party servers. Book covers ship as local
+static assets.
 
 ## Deployment
 

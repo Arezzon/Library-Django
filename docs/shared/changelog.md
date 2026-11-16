@@ -1,4 +1,8 @@
 2026-11-16
+Sprint 5 delivery and deployment evidence
+The README records the completed sprint and debt review, links the manual acceptance results and confirmed deployment, and lists the five accepted operating limits. The release section distinguishes the QA recommendation from formal approval.
+
+2026-11-16
 The KAN-90 debt Epic's specification (KAN-90)
 Spec 004 records how the 16 open items of the debt register became one Jira Epic, KAN-90, in sprint 5. Each item has one issue, assigned to its owner. A code change says what to do and when it is done, and a decision gives its subject and options. Every issue ends with the same reporting rule: a PR link, or the decision with its reason, then In Review. The specification, plan, research, data model, issue-text and review contracts, quickstart and tasks are included, with the bridge snapshots and the handoff, which is now complete: all 16 issues are Done, and the register records all five review rounds. People are named by GitHub handle, and no Jira account ID is recorded. The issue drafts and the working record stay out of the repository.
 
