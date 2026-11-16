@@ -4,7 +4,7 @@ Retest of two fixes: a book must have a title, and removing authors from a book 
 
 | Field | Value |
 | --- | --- |
-| Build | 9ee1369 (first run: 5edca17) |
+| Build | 9ee1369  |
 | Date | 2026-11-16 |
 | Account | librarian (`librarian@library.com`) |
 
